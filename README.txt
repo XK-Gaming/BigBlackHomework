@@ -1,1 +1,1 @@
-Hugnf update lan 1
+Hugnf update lai src
