@@ -2,7 +2,7 @@ package com.bbbc.domain.item;
 
 import java.time.Instant;
 
-public final class Art extends Item {
+public final class Art extends com.bbbc.domain.item.Item {
     private final String artist;
 
     public Art(
@@ -14,7 +14,7 @@ public final class Art extends Item {
             String sellerId,
             String artist
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.ART);
+        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, com.bbbc.domain.item.ItemType.ART);
         this.artist = artist;
     }
 
