@@ -1,6 +1,6 @@
 package domain.auction;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,7 +56,7 @@ public class Auction extends Entity {
         if (status != AuctionStatus.OPEN) {
             throw new AuctionException("Auction can only start from OPEN state.");
         }
-        if (LocalDateTime.now().isBefore(item.getStartTime())) {
+        if (Instant.now().isBefore(item.getStartTime())) {
             throw new AuctionException("Auction cannot start before configured start time.");
         }
         status = AuctionStatus.RUNNING;
@@ -75,7 +75,7 @@ public class Auction extends Entity {
                 "BID-" + (bidHistory.size() + 1),
                 bidder,
                 amount,
-                LocalDateTime.now()
+                Instant.now()
         );
         bidHistory.add(transaction);
         item.updateCurrentHighestPrice(amount);
@@ -83,7 +83,7 @@ public class Auction extends Entity {
     }
 
     public void updateStatusByTime() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID || status == AuctionStatus.FINISHED) {
             return;
         }

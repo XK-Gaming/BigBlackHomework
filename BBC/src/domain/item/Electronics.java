@@ -1,6 +1,8 @@
 package domain.item;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+
+import domain.factory.ItemType;
 
 public class Electronics extends Item {
     private String brand;
@@ -10,11 +12,12 @@ public class Electronics extends Item {
             String name,
             String description,
             double startingPrice,
-            LocalDateTime startTime,
-            LocalDateTime endTime,
+            Instant startTime,
+            Instant endTime,
+            String sellerId,
             String brand
     ) {
-        super(id, name, description, startingPrice, startTime, endTime);
+        super(id, name, description, startingPrice, startTime, endTime, sellerId, ItemType.ELECTRONICS);
         setBrand(brand);
     }
 

@@ -1,24 +1,29 @@
 package domain.item;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import domain.entity.Entity;
+import domain.factory.ItemType;
 
 public abstract class Item extends Entity {
     private String name;
     private String description;
     private double startingPrice;
     private double currentHighestPrice;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private Instant startTime;
+    private Instant endTime;
+    private String sellerId;
+    private ItemType itemType;
 
     protected Item(
             String id,
             String name,
             String description,
             double startingPrice,
-            LocalDateTime startTime,
-            LocalDateTime endTime
+            Instant startTime,
+            Instant endTime,
+            String sellerId,
+            ItemType itemType
     ) {
         super(id);
         setName(name);
@@ -26,6 +31,8 @@ public abstract class Item extends Entity {
         setStartingPrice(startingPrice);
         setStartTime(startTime);
         setEndTime(endTime);
+        setSellerId(sellerId);
+        setItemType(itemType);
         this.currentHighestPrice = startingPrice;
     }
 
@@ -60,6 +67,9 @@ public abstract class Item extends Entity {
             throw new IllegalArgumentException("Starting price must be greater than 0.");
         }
         this.startingPrice = startingPrice;
+        if (currentHighestPrice < startingPrice) {
+            currentHighestPrice = startingPrice;
+        }
     }
 
     public double getCurrentHighestPrice() {
@@ -73,33 +83,58 @@ public abstract class Item extends Entity {
         this.currentHighestPrice = currentHighestPrice;
     }
 
-    public LocalDateTime getStartTime() {
+    public Instant getStartTime() {
         return startTime;
     }
 
-    public void setStartTime(LocalDateTime startTime) {
+    public void setStartTime(Instant startTime) {
         if (startTime == null) {
             throw new IllegalArgumentException("Start time must not be null.");
+        }
+        if (endTime != null && startTime.isAfter(endTime)) {
+            throw new IllegalArgumentException("Start time must not be after end time.");
         }
         this.startTime = startTime;
     }
 
-    public LocalDateTime getEndTime() {
+    public Instant getEndTime() {
         return endTime;
     }
 
-    public void setEndTime(LocalDateTime endTime) {
+    public void setEndTime(Instant endTime) {
         if (endTime == null || (startTime != null && endTime.isBefore(startTime))) {
             throw new IllegalArgumentException("End time must not be before start time.");
         }
         this.endTime = endTime;
     }
 
+    public String getSellerId() {
+        return sellerId;
+    }
+
+    public void setSellerId(String sellerId) {
+        if (sellerId == null || sellerId.isBlank()) {
+            throw new IllegalArgumentException("Seller id must not be blank.");
+        }
+        this.sellerId = sellerId;
+    }
+
+    public ItemType getItemType() {
+        return itemType;
+    }
+
+    public void setItemType(ItemType itemType) {
+        if (itemType == null) {
+            throw new IllegalArgumentException("Item type must not be null.");
+        }
+        this.itemType = itemType;
+    }
+
     public abstract String getCategory();
 
     @Override
     public void printInfo() {
-        System.out.println("%s{id='%s', name='%s', startingPrice=%.2f, currentHighestPrice=%.2f, start=%s, end=%s}"
-                .formatted(getCategory(), getId(), name, startingPrice, currentHighestPrice, startTime, endTime));
+        System.out.println("%s{id='%s', name='%s', startingPrice=%.2f, currentHighestPrice=%.2f, sellerId='%s', itemType=%s, start=%s, end=%s}"
+                .formatted(getCategory(), getId(), name, startingPrice, currentHighestPrice, sellerId, itemType, startTime, endTime));
     }
 }

@@ -1,6 +1,6 @@
 package domain.auction;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import domain.entity.Entity;
 import domain.user.Bidder;
@@ -8,9 +8,9 @@ import domain.user.Bidder;
 public class BidTransaction extends Entity {
     private final Bidder bidder;
     private final double amount;
-    private final LocalDateTime bidTime;
+    private final Instant bidTime;
 
-    public BidTransaction(String id, Bidder bidder, double amount, LocalDateTime bidTime) {
+    public BidTransaction(String id, Bidder bidder, double amount, Instant bidTime) {
         super(id);
         if (bidder == null) {
             throw new IllegalArgumentException("Bidder must not be null.");
@@ -34,7 +34,7 @@ public class BidTransaction extends Entity {
         return amount;
     }
 
-    public LocalDateTime getBidTime() {
+    public Instant getBidTime() {
         return bidTime;
     }
 
