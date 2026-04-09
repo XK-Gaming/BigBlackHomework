@@ -11,6 +11,10 @@ import domain.item.Item;
 import domain.user.Bidder;
 import domain.user.Seller;
 
+/**
+ * Dai dien cho mot phien dau gia cua duy nhat mot item.
+ * Lop nay quan ly trang thai phien dau gia va lich su bid.
+ */
 public class Auction extends Entity {
     private final Item item;
     private final Seller seller;
@@ -56,6 +60,7 @@ public class Auction extends Entity {
         if (status != AuctionStatus.OPEN) {
             throw new AuctionException("Auction can only start from OPEN state.");
         }
+        // Chi cho phep bat dau khi da toi thoi diem mo dau gia.
         if (Instant.now().isBefore(item.getStartTime())) {
             throw new AuctionException("Auction cannot start before configured start time.");
         }
@@ -71,6 +76,7 @@ public class Auction extends Entity {
             throw new AuctionException("Bid amount must be greater than current highest price.");
         }
 
+        // Moi lan bid hop le se duoc ghi vao lich su va cap nhat gia cao nhat hien tai.
         BidTransaction transaction = new BidTransaction(
                 "BID-" + (bidHistory.size() + 1),
                 bidder,
@@ -84,6 +90,7 @@ public class Auction extends Entity {
 
     public void updateStatusByTime() {
         Instant now = Instant.now();
+        // Cac trang thai dong thi khong tu dong thay doi nua theo thoi gian.
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID || status == AuctionStatus.FINISHED) {
             return;
         }
@@ -91,6 +98,7 @@ public class Auction extends Entity {
             status = AuctionStatus.OPEN;
             return;
         }
+        // Het thoi gian thi chuyen sang FINISHED ngay ca khi khong ai goi start/finish thu cong.
         if (!now.isBefore(item.getEndTime())) {
             finish();
             return;
@@ -127,6 +135,7 @@ public class Auction extends Entity {
         if (status == AuctionStatus.OPEN || status == AuctionStatus.RUNNING) {
             return "Auction has not finished yet.";
         }
+        // Neu khong co ai bid, phien dau gia ket thuc nhung khong co nguoi thang.
         if (leadingBidder == null) {
             return "Auction finished with no winner.";
         }

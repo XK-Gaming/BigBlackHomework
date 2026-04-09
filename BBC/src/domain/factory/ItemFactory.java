@@ -10,7 +10,7 @@ import domain.item.Item;
 import domain.item.Vehicle;
 
 public final class ItemFactory {
-    public Item create(
+    public static Item create(
             ItemType itemType,
             String id,
             String name,
@@ -61,7 +61,7 @@ public final class ItemFactory {
         };
     }
 
-    private String requireString(Map<String, Object> attributes, String key) {
+    private static String requireString(Map<String, Object> attributes, String key) {
         Object value = attributes.get(key);
         if (value == null) {
             throw new ValidationException("Missing attribute: " + key);
