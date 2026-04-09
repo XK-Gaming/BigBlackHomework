@@ -1,5 +1,13 @@
 import java.time.LocalDateTime;
 
+import domain.auction.Auction;
+import domain.auction.AuctionPlatform;
+import domain.item.Electronics;
+import domain.item.Item;
+import domain.user.Admin;
+import domain.user.Bidder;
+import domain.user.Seller;
+
 public class Main {
     public static void main(String[] args) {
         AuctionPlatform platform = new AuctionPlatform();
