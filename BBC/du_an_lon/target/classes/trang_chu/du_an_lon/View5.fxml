@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.shape.Line?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+
+<Pane prefHeight="450.0" prefWidth="642.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="trang_chu.du_an_lon.ControllerSetInf">
+   <children>
+      <AnchorPane prefHeight="450.0" prefWidth="185.0" style="-fx-background-color: white;">
+         <children>
+            <ImageView fx:id="j_image" fitHeight="86.0" fitWidth="100.0" layoutX="49.0" layoutY="14.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+               <image>
+                  <Image url="@img/imgUSER.png" />
+               </image>
+               <cursor>
+                  <Cursor fx:constant="OPEN_HAND" />
+               </cursor>
+            </ImageView>
+            <Label fx:id="j_LabelName" layoutX="37.0" layoutY="108.0" prefHeight="24.0" prefWidth="112.0" textAlignment="CENTER" textFill="#8b3a3a">
+               <font>
+                  <Font name="System Bold" size="15.0" />
+               </font>
+            </Label>
+            <Label layoutX="19.0" layoutY="146.0" text="Username: " />
+            <Label fx:id="show_userName" layoutX="81.0" layoutY="145.0" prefHeight="17.0" prefWidth="88.0" textFill="#2905f6" />
+            <Label layoutX="20.0" layoutY="186.0" text="Password:" />
+            <Label fx:id="show_Password" layoutX="75.0" layoutY="186.0" prefHeight="17.0" prefWidth="81.0" textFill="#2905f6" />
+            <Button fx:id="j_return" layoutX="19.0" layoutY="403.0" mnemonicParsing="false" onAction="#j_event_return" text="Quay lại" />
+            <Label layoutX="35.0" layoutY="292.0" />
+            <Button fx:id="j_buttonThongTinDangNhap" layoutX="35.0" layoutY="236.0" mnemonicParsing="false" onAction="#j_OnbuttonThongTinDangNhap" prefHeight="25.0" prefWidth="132.0" style="-fx-background-color: #8B3A3A;" text="Thông tin tài khoản" textAlignment="CENTER" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Button>
+            <Button fx:id="j_buttonThanhToan" layoutX="35.0" layoutY="267.0" mnemonicParsing="false" onAction="#j_OnbuttonThanhToan" prefHeight="25.0" prefWidth="132.0" style="-fx-background-color: #8b3a3a;" text="Thanh toán" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Button>
+            <Button fx:id="j_buttonDoiMatKhau" layoutX="34.0" layoutY="297.0" mnemonicParsing="false" onAction="#j_OnbuttonDoiMatKhau" prefHeight="25.0" prefWidth="132.0" style="-fx-background-color: #8b3a3a;" text="Đổi mật khẩu" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Button>
+            <Button fx:id="j_buttonCaiDat" layoutX="35.0" layoutY="327.0" mnemonicParsing="false" onAction="#j_OnbuttonCaiDat" prefHeight="25.0" prefWidth="132.0" style="-fx-background-color: #8b3a3a;" text="Cài đặt" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Button>
+            <Button fx:id="j_buttonDangXuat" layoutX="36.0" layoutY="357.0" mnemonicParsing="false" onAction="#j_OnbuttonDangXuat" prefHeight="25.0" prefWidth="132.0" style="-fx-background-color: #8b3a3a;" text="Đăng xuất" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Button>
+            <Line endX="81.22976684570312" endY="-1.52587890625E-5" layoutX="93.0" layoutY="216.0" startX="-78.1717529296875" startY="-1.52587890625E-5" stroke="#00000048" />
+         </children>
+         <opaqueInsets>
+            <Insets />
+         </opaqueInsets>
+      </AnchorPane>
+      <AnchorPane fx:id="Pane_ThongTinTaiKhoan" layoutX="187.0" layoutY="1.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="455.0" prefWidth="455.0" visible="false">
+         <children>
+            <Label layoutX="74.0" layoutY="14.0" prefHeight="59.0" prefWidth="385.0" text=" THÔNG TIN CÁ NHÂN TÀI KHOẢN">
+               <font>
+                  <Font name="System Bold" size="18.0" />
+               </font>
+            </Label>
+            <Line endX="-62.66667175292969" endY="361.3333435058594" layoutX="62.0" layoutY="72.0" startX="-62.66667175292969" startY="-51.606101989746094" stroke="#0000003a" />
+            <Button layoutX="204.0" layoutY="251.0" mnemonicParsing="false" text="Ghi nhận" />
+            <Label layoutX="68.0" layoutY="87.0" prefHeight="17.0" prefWidth="59.0" text="Họ và tên" />
+            <TextField fx:id="j_SetName" layoutX="161.0" layoutY="83.0" onAction="#j_OnSetName" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="68.0" layoutY="132.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Số điện thoại" />
+            <TextField fx:id="j_SetTel" layoutX="161.0" layoutY="114.0" onAction="#j_OnSetTel" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="69.0" layoutY="164.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Email" wrappingWidth="34.32421875" />
+            <TextField fx:id="j_Set" layoutX="163.0" layoutY="146.0" prefHeight="25.0" prefWidth="184.0" />
+            <Text layoutX="66.0" layoutY="194.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Số CCCD" wrappingWidth="165.53004336282112" />
+            <TextField layoutX="163.0" layoutY="176.0" prefHeight="25.0" prefWidth="184.0" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="Pane_ĐoiMatKhau" layoutX="186.0" layoutY="-1.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="453.0" visible="false">
+         <children>
+            <Label layoutX="120.0" layoutY="14.0" prefHeight="59.0" prefWidth="165.0" text="ĐỔI MẬT KHẨU">
+               <font>
+                  <Font name="System Bold" size="18.0" />
+               </font>
+            </Label>
+            <Line endX="-62.66667175292969" endY="361.3333435058594" layoutX="62.0" layoutY="75.0" startX="-62.66668701171875" startY="-63.315547943115234" stroke="#0000003a" />
+            <Button layoutX="148.0" layoutY="212.0" mnemonicParsing="false" text="Ghi nhận" />
+            <Label layoutX="40.0" layoutY="103.0" prefHeight="17.0" prefWidth="70.0" text="Mật khẩu cũ" />
+            <TextField fx:id="j_SetName2" layoutX="133.0" layoutY="99.0" onAction="#j_OnSetName" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="40.0" layoutY="148.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Mật khẩu mới" />
+            <TextField fx:id="j_SetTel2" layoutX="133.0" layoutY="130.0" onAction="#j_OnSetTel" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="39.0" layoutY="179.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Nhập mật khẩu" wrappingWidth="141.41854858398438" />
+            <TextField fx:id="j_Set1" layoutX="135.0" layoutY="162.0" prefHeight="25.0" prefWidth="184.0" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="Pane_CaiDat" layoutX="188.0" layoutY="3.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="453.0" visible="false">
+         <children>
+            <Label layoutX="151.0" layoutY="14.0" prefHeight="59.0" prefWidth="165.0" text="CÀI ĐẶT">
+               <font>
+                  <Font name="System Bold" size="18.0" />
+               </font>
+            </Label>
+            <Line endX="-62.66667175292969" endY="361.3333435058594" layoutX="62.0" layoutY="65.0" startX="-62.666656494140625" startY="-43.57402801513672" stroke="#0000003a" />
+            <Button layoutX="135.0" layoutY="212.0" mnemonicParsing="false" text="Ghi nhận" />
+            <Label layoutX="27.0" layoutY="103.0" prefHeight="17.0" prefWidth="70.0" text="Ngôn ngữ" />
+            <TextField fx:id="j_SetName21" layoutX="159.0" layoutY="99.0" onAction="#j_OnSetName" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="27.0" layoutY="148.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Thông tin chính sách" />
+            <TextField fx:id="j_SetTel21" layoutX="160.0" layoutY="130.0" onAction="#j_OnSetTel" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="26.0" layoutY="179.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Trợ giúp" wrappingWidth="141.41854858398438" />
+            <TextField fx:id="j_Set11" layoutX="161.0" layoutY="161.0" prefHeight="25.0" prefWidth="184.0" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="Pane_ThanhToan" layoutX="187.0" layoutY="-1.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="449.0" prefWidth="453.0" visible="false">
+         <children>
+            <Label fx:id="Pane_ChuyenKhoan" layoutX="70.0" layoutY="14.0" prefHeight="59.0" prefWidth="385.0" text="THANH TOÁN - CHUYỂN KHOẢN">
+               <font>
+                  <Font name="System Bold" size="18.0" />
+               </font>
+            </Label>
+            <Button layoutX="178.0" layoutY="175.0" mnemonicParsing="false" text="Ghi nhận" />
+            <Label layoutX="56.0" layoutY="103.0" prefHeight="17.0" prefWidth="59.0" text="Nạp tiền" />
+            <TextField fx:id="j_SetName1" layoutX="149.0" layoutY="99.0" onAction="#j_OnSetName" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="56.0" layoutY="148.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Minh chứng" />
+            <TextField fx:id="j_SetTel1" layoutX="149.0" layoutY="130.0" onAction="#j_OnSetTel" prefHeight="25.0" prefWidth="185.0" />
+            <Text layoutX="238.0" layoutY="180.0" strokeType="OUTSIDE" strokeWidth="0.0" wrappingWidth="34.32421875" />
+            <TableView layoutX="12.0" layoutY="225.0" prefHeight="200.0" prefWidth="421.0">
+              <columns>
+                <TableColumn prefWidth="75.0" text="Số tiền nạp" />
+                <TableColumn prefWidth="75.0" text="Trạng thái" />
+              </columns>
+            </TableView>
+            <Line endX="-62.66667175292969" endY="361.3333435058594" layoutX="62.0" layoutY="65.0" startX="-62.666656494140625" startY="-43.57402801513672" stroke="#0000003a" />
+         </children>
+      </AnchorPane>
+   </children>
+</Pane>
