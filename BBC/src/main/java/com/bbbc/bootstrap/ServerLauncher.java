@@ -1,4 +1,4 @@
-package com.bbbc.bootstrap;
+package main.java.com.bbbc.bootstrap;
 
 import com.bbbc.server.network.AuctionServer;
 
