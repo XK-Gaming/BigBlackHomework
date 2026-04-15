@@ -151,6 +151,14 @@ public final class AuctionManager {
         auction.placeBid(bidder, amount);
     }
 
+    public void watchAuction(String auctionId, Bidder bidder) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder khong duoc null.");
+        }
+        Auction auction = requireAuction(auctionId);
+        bidder.watchAuction(auction);
+    }
+
     public void cancelAuction(String auctionId) {
         Auction auction = requireAuction(auctionId);
         auction.cancel();
