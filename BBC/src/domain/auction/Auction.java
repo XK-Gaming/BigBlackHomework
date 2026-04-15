@@ -66,8 +66,8 @@ public class Auction extends Entity {
         }
         status = AuctionStatus.RUNNING;
     }
-
-    public void placeBid(Bidder bidder, double amount) {
+    //synchronize placebid cho nhieu nguoi dung
+    public synchronized void  placeBid(Bidder bidder, double amount) {
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
             throw new AuctionException("Cannot bid because auction is not running.");
