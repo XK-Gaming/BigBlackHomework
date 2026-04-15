@@ -8,6 +8,7 @@ import java.util.List;
 import domain.entity.Entity;
 import domain.exception.AuctionException;
 import domain.item.Item;
+import domain.observer.AuctionObserver;
 import domain.user.Bidder;
 import domain.user.Seller;
 
@@ -21,6 +22,7 @@ public class Auction extends Entity {
     private final List<BidTransaction> bidHistory = new ArrayList<>();
     private AuctionStatus status;
     private Bidder leadingBidder;
+    private final List<AuctionObserver> observers = new ArrayList<>();//list cho subcribers
 
     public Auction(String id, Item item, Seller seller) {
         super(id);
@@ -86,6 +88,8 @@ public class Auction extends Entity {
         bidHistory.add(transaction);
         item.updateCurrentHighestPrice(amount);
         leadingBidder = bidder;
+        //update cho observer
+        notifyNewBid(transaction);
     }
 
     public void updateStatusByTime() {
@@ -110,7 +114,11 @@ public class Auction extends Entity {
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID) {
             throw new AuctionException("Closed auction cannot be finished again.");
         }
+        boolean wasRunning = status != AuctionStatus.FINISHED;
         status = AuctionStatus.FINISHED;
+        if (wasRunning) {
+            notifyAuctionFinished();
+        }
     }
 
     public void markPaid() {
@@ -149,5 +157,27 @@ public class Auction extends Entity {
     public void printInfo() {
         System.out.println("Auction{id='%s', item='%s', seller='%s', status=%s, highestPrice=%.2f}"
                 .formatted(getId(), item.getName(), seller.getUsername(), getStatus(), item.getCurrentHighestPrice()));
+    }
+
+    //observer stuffs
+    public void addObserver(AuctionObserver observer) {
+        if (!observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+    public void removeObserver(AuctionObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyNewBid(BidTransaction transaction) {
+        for (AuctionObserver observer : observers) {
+            observer.onNewBidPlaced(this, transaction);
+        }
+    }
+
+    private void notifyAuctionFinished() {
+        for (AuctionObserver observer : observers) {
+            observer.onAuctionFinished(this);
+        }
     }
 }
