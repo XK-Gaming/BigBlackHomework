@@ -6,8 +6,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="BigBlackHomework" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="BigBlackHomework" target="25" />
+    </bytecodeTargetLevel>
   </component>
 </project>
