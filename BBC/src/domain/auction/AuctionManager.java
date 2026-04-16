@@ -2,29 +2,26 @@ package domain.auction;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import domain.factory.ItemFactory;
 import domain.factory.ItemType;
 import domain.item.Item;
-import domain.user.Admin;
 import domain.user.Bidder;
 import domain.user.Seller;
-import domain.user.User;
 
 /**
  * Manager trung tam cho luong dau gia trong bo nho:
- * dang ky user, tao auction va dieu phoi cac thao tac chinh.
+ * tao auction va dieu phoi cac thao tac chinh lien quan den auction.
  */
 public final class AuctionManager {
 
-    private final List<User> users;
-    private final List<Auction> auctions;
+    private final Map<String, Auction> auctions;
 
     private AuctionManager() {
-        this.users = new ArrayList<>();
-        this.auctions = new ArrayList<>();
+        this.auctions = new LinkedHashMap<>();
     }
 
     public static AuctionManager getInstance() {
@@ -34,61 +31,6 @@ public final class AuctionManager {
 
     private static final class Holder {
         private static final AuctionManager INSTANCE = new AuctionManager();
-    }
-
-    public void addUser(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("User khong hop le.");
-        }
-        validateNewUser(user);
-        users.add(user);
-    }
-
-    public User registerUser(String role, String username, String password, String fullName) {
-        String userId = generateUserId();
-        String normalizedRole = normalizeRole(role);
-
-        // Role quyet dinh lop User cu the duoc tao ra.
-        User user = switch (normalizedRole) {
-            case "seller" -> new Seller(userId, fullName, username, password);
-            case "bidder" -> new Bidder(userId, fullName, username, password);
-            case "admin" -> new Admin(userId, fullName, username, password);
-            default -> throw new IllegalArgumentException("Role khong hop le: " + role);
-        };
-
-        addUser(user);
-        return user;
-    }
-
-    private String normalizeRole(String role) {
-        if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("Role khong duoc rong.");
-        }
-        return role.trim().toLowerCase();
-    }
-
-    private String generateUserId() {
-        return "U" + (users.size() + 1);
-    }
-
-    public User login(String username, String password) {
-        for (User user : users) {
-            if (user.getUsername().equals(username) && user.authenticate(password)) {
-                return user;
-            }
-        }
-        return null;
-    }
-
-    private void validateNewUser(User newUser) {
-        for (User user : users) {
-            if (user.getId().equals(newUser.getId())) {
-                throw new IllegalArgumentException("Id user da ton tai: " + newUser.getId());
-            }
-            if (user.getUsername().equalsIgnoreCase(newUser.getUsername())) {
-                throw new IllegalArgumentException("Username da ton tai: " + newUser.getUsername());
-            }
-        }
     }
 
     public Auction createAuction(
@@ -106,6 +48,7 @@ public final class AuctionManager {
         if (seller == null) {
             throw new IllegalArgumentException("Seller khong duoc null.");
         }
+        validateAuctionId(auctionId);
 
         // AuctionManager dung factory de tao dung loai item, manager khong tu new tung subclass.
         Item item = ItemFactory.create(
@@ -121,8 +64,16 @@ public final class AuctionManager {
         );
 
         Auction auction = new Auction(auctionId, item, seller);
-        auctions.add(auction);
+        auctions.put(auction.getId(), auction);
         return auction;
+    }
+
+    public void addAuction(Auction auction) {
+        if (auction == null) {
+            throw new IllegalArgumentException("Auction khong duoc null.");
+        }
+        validateAuctionId(auction.getId());
+        auctions.put(auction.getId(), auction);
     }
 
     private Map<String, Object> buildAttributes(ItemType type, String extraInfo) {
@@ -164,21 +115,19 @@ public final class AuctionManager {
         auction.cancel();
     }
 
-    public List<User> getUsers() {
-        return new ArrayList<>(users);
+    public void removeAuction(String auctionId) {
+        Auction removedAuction = auctions.remove(auctionId);
+        if (removedAuction == null) {
+            throw new IllegalArgumentException("Khong tim thay auction: " + auctionId);
+        }
     }
 
     public List<Auction> getAuctions() {
-        return new ArrayList<>(auctions);
+        return new ArrayList<>(auctions.values());
     }
 
     public Auction findAuctionById(String id) {
-        for (Auction auction : auctions) {
-            if (auction.getId().equals(id)) {
-                return auction;
-            }
-        }
-        return null;
+        return auctions.get(id);
     }
 
     private Auction requireAuction(String auctionId) {
@@ -188,5 +137,14 @@ public final class AuctionManager {
             throw new IllegalArgumentException("Khong tim thay auction: " + auctionId);
         }
         return auction;
+    }
+
+    private void validateAuctionId(String auctionId) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction id khong duoc rong.");
+        }
+        if (auctions.containsKey(auctionId)) {
+            throw new IllegalArgumentException("Auction id da ton tai: " + auctionId);
+        }
     }
 }

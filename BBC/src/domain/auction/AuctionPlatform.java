@@ -1,43 +1,34 @@
 package domain.auction;
 
 import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import domain.exception.AuctionException;
-import domain.user.User;
 
-public class AuctionPlatform {
-    private final Map<String, User> users = new LinkedHashMap<>();
-    private final Map<String, Auction> auctions = new LinkedHashMap<>();
+/**
+ * Lop facade giu lai de tuong thich voi code cu.
+ * Code moi nen lam viec truc tiep voi AuctionManager.
+ */
+@Deprecated
+public final class AuctionPlatform {
+    private final AuctionManager auctionManager;
 
-    public void registerUser(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("User must not be null.");
-        }
-        if (users.containsKey(user.getUsername())) {
-            throw new AuctionException("Username already exists.");
-        }
-        users.put(user.getUsername(), user);
+    public AuctionPlatform() {
+        this(AuctionManager.getInstance());
     }
 
-    public User login(String username, String password) {
-        User user = users.get(username);
-        if (user == null || !user.authenticate(password)) {
-            throw new AuctionException("Invalid username or password.");
+    AuctionPlatform(AuctionManager auctionManager) {
+        if (auctionManager == null) {
+            throw new IllegalArgumentException("AuctionManager must not be null.");
         }
-        return user;
+        this.auctionManager = auctionManager;
     }
 
     public void addAuction(Auction auction) {
-        if (auction == null) {
-            throw new IllegalArgumentException("Auction must not be null.");
-        }
-        auctions.put(auction.getId(), auction);
+        auctionManager.addAuction(auction);
     }
 
     public Auction getAuction(String auctionId) {
-        Auction auction = auctions.get(auctionId);
+        Auction auction = auctionManager.findAuctionById(auctionId);
         if (auction == null) {
             throw new AuctionException("Auction not found.");
         }
@@ -45,12 +36,10 @@ public class AuctionPlatform {
     }
 
     public void removeAuction(String auctionId) {
-        if (auctions.remove(auctionId) == null) {
-            throw new AuctionException("Auction not found.");
-        }
+        auctionManager.removeAuction(auctionId);
     }
 
     public Collection<Auction> getAllAuctions() {
-        return auctions.values();
+        return auctionManager.getAuctions();
     }
 }

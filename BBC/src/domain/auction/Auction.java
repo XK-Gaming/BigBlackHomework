@@ -59,6 +59,7 @@ public class Auction extends Entity {
     }
 
     public void start() {
+        updateStatusByTime();
         if (status != AuctionStatus.OPEN) {
             throw new AuctionException("Auction can only start from OPEN state.");
         }
@@ -70,6 +71,9 @@ public class Auction extends Entity {
     }
     //synchronize placebid cho nhieu nguoi dung
     public synchronized void  placeBid(Bidder bidder, double amount) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder must not be null.");
+        }
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
             throw new AuctionException("Cannot bid because auction is not running.");
@@ -161,11 +165,17 @@ public class Auction extends Entity {
 
     //observer stuffs
     public void addObserver(AuctionObserver observer) {
+        if (observer == null) {
+            throw new IllegalArgumentException("Observer must not be null.");
+        }
         if (!observers.contains(observer)) {
             observers.add(observer);
         }
     }
     public void removeObserver(AuctionObserver observer) {
+        if (observer == null) {
+            throw new IllegalArgumentException("Observer must not be null.");
+        }
         observers.remove(observer);
     }
 
