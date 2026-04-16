@@ -1,0 +1,20 @@
+package trang_chu.du_an_lon.dao;
+
+import trang_chu.du_an_lon.model.Person;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+
+public interface DaoInterface <T> {
+
+    int Insert(T t);
+
+    public int Update(T t);
+
+    public int Delete(T t);
+
+    public ArrayList<T> selectAll();
+
+    public  T selectByUsername(T t);
+    public ArrayList<T> selectByCondition (String condition);
+}
