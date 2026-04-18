@@ -11,6 +11,9 @@ public enum UserRole {
         if (text.equals("Người đấu giá")){
             return BIDDER;
         }
+        if (text.equals("Admin")){
+            return ADMIN;
+        }
         return null; // Hoặc trả về một Role mặc định
     }
 }

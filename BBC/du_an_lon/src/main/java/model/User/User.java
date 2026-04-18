@@ -1,5 +1,7 @@
 package model.User;
 
+
+
 public class User {
     private String username;
     private String password;
@@ -45,17 +47,21 @@ public class User {
 
     public void setAddress(String address) {this.email = address;}
 
-    public String getRole() {
+    public UserRole getRole() {
+        return role;
+    }
+    public String getRole_toString() {
         if (role.equals(UserRole.ADMIN)) {
             return "Admin";
         }
         if (role.equals(UserRole.SELLER)) {
             return "Người bán";
         }
-        if (role.equals(UserRole.ADMIN)) {
+        if (role.equals(UserRole.BIDDER)) {
             return "Người đấu giá";
         }
         return "";
     }
+
 
 }

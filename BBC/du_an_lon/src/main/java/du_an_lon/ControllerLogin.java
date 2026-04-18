@@ -16,6 +16,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import dao.DAOUser;
 import model.User.User;
+import model.User.UserRole;
 import model.User.UserSession;
 
 import java.io.IOException;
@@ -68,13 +69,16 @@ public class ControllerLogin {
 }
         else{
             UserSession.setLoggedInUser(p1);
-            SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");
+            if(p1.getRole() == UserRole.BIDDER){SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");}
+            if (p1.getRole() == UserRole.SELLER){SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");}
         }
     }
     public void resetStyle(javafx.scene.input.KeyEvent keyEvent) {
         TextField field = (TextField) keyEvent.getSource();
         field.setStyle(null);
     }
+
+
 }
 
 

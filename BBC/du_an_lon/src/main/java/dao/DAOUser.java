@@ -1,6 +1,7 @@
 package dao;
 
 import database.JDBCUtil;
+import model.Items.Item;
 import model.User.*;
 
 import java.sql.Connection;
@@ -25,12 +26,17 @@ public class DAOUser implements DaoInterface<User> {
 
             String sql = "INSERT INTO khach (username, password, name, email, role) " +
                     " VALUES('" + user.getUsername() + "', '" + user.getPassword() + "', '" +
-                    user.getName() + "', '" + user.getAddress() + "', '" + user.getRole() + "')";
+                    user.getName() + "', '" + user.getAddress() + "', '" + user.getRole_toString() + "')";
             int ketQua = st.executeUpdate(sql);
             JDBCUtil.closeConnection(con);
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return 0;
+    }
+
+    @Override
+    public int Insert(Item item) {
         return 0;
     }
 
@@ -54,6 +60,19 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    public static boolean selectByUsername(String username) {
+        Connection con = JDBCUtil.getConnection();
+
+        Statement st = null;
+        try {
+            st = con.createStatement();
+
+            String sql = "SELECT * FROM khach where username = '" + username + "'";
+            ResultSet rs = st.executeQuery(sql);
+            if (!rs.next()) {return false;}
+        } catch (SQLException e) {return false;}
+        return true;
+    }
     public User selectByUsername(String username, String password) {
         Connection con = JDBCUtil.getConnection();
 

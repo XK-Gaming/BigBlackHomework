@@ -1,28 +1,33 @@
 package model.Items;
 
 
+import model.User.UserRole;
 import model.entity.Entity;
 
+import java.io.File;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 public abstract class Item extends Entity {
-    private final String name;
-    private final String description;
-    private final double startingPrice;
+    private String name;
+    private String description;
+    private double startingPrice;
     private double currentHighestPrice;
-    private final Instant auctionStartTime;
+    private Instant auctionStartTime;
     private Instant auctionEndTime;
-    private final String sellerId;
-    private final ItemType itemType;
-
-    protected Item(
+    private String sellerId;
+    private ItemType itemType;
+    private byte[] img;
+    public Item(
             String name,
             String description,
             double startingPrice,
             Instant auctionStartTime,
             Instant auctionEndTime,
             String sellerId,
-            ItemType itemType
+            ItemType itemType,
+            byte[] img
     ) {
         this.name = name;
         this.description = description;
@@ -32,7 +37,12 @@ public abstract class Item extends Entity {
         this.auctionEndTime = auctionEndTime;
         this.sellerId = sellerId;
         this.itemType = itemType;
+        this.img = img;
     }
+    public Item(){};
+    public Map<String,String> getProperties(){
+        return null;}
+
 
     public String getName() {
         return name;
@@ -70,8 +80,57 @@ public abstract class Item extends Entity {
         return sellerId;
     }
 
-    public ItemType getItemType() {
-        return itemType;
+    public byte[] getImg(){
+        return img;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setStartingPrice(double startingPrice) {
+        this.startingPrice = startingPrice;
+    }
+
+    public void setCurrentHighestPrice(double currentHighestPrice) {
+        this.currentHighestPrice = currentHighestPrice;
+    }
+
+    public void setAuctionStartTime(Instant auctionStartTime) {
+        this.auctionStartTime = auctionStartTime;
+    }
+
+    public void setAuctionEndTime(Instant auctionEndTime) {
+        this.auctionEndTime = auctionEndTime;
+    }
+
+    public void setSellerId(String sellerId) {
+        this.sellerId = sellerId;
+    }
+
+    public void setItemType(ItemType itemType) {
+        this.itemType = itemType;
+    }
+
+    public void setImg(byte[] img) {
+        this.img = img;
+    }
+
+    public String getItemType() {
+            if(itemType.equals(ItemType.ART)){
+                return "Mỹ thuật";
+            }
+            if (itemType.equals(ItemType.ELECTRONICS)){
+                return "Đện tử";
+            }
+            if (itemType.equals(ItemType.VEHICLE)){
+                return "Phương tiện giao thông";
+            }
+            return "";
     }
 
     public abstract String printInfo();

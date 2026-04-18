@@ -68,7 +68,7 @@ public class ControllerRegister {
                 address.setStyle("-fx-border-color: red;");
             }
         }
-        if (username_DK.getText().equals("An")) {
+        if (DAOUser.selectByUsername(username_DK.getText())) {
             errorLabel1.setTextFill(Color.RED);
             errorLabel1.setText("Tài khoản đã tồn tại!");
             errorLabel1.setVisible(true);

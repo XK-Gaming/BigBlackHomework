@@ -19,11 +19,20 @@ public class JDBCUtil {
                 synchronized (JDBCUtil.class){ // Đa luồng - chỉ một luồng cầm khóa tương tác với databse
                     if (c == null || c.isClosed()) {
                         DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
-                        String url = "jdbc:mysql://localhost:3307/quanlydaugia";
-                        String username = "root";
-                        String password = "";
-                        c = DriverManager.getConnection(url, username, password);
-                    }}}
+                        String host = "db-daugia-java.mysql.database.azure.com";
+                        String database = "quan_ly_dau_gia";
+                        String user = "linhadmin";
+                        String pass = "Linh@611";
+
+                        // 2. Chuỗi URL với cấu hình SSL bắt buộc của Azure
+                        String url = "jdbc:mysql://" + host + ":3306/" + database +
+                                "?useSSL=true&requireSSL=false&serverTimezone=UTC";
+
+                        // 3. Tạo kết nối
+                        c = DriverManager.getConnection(url, user, pass);
+                    }
+                }
+            }
         }
         catch (SQLException e){
             e.printStackTrace();
