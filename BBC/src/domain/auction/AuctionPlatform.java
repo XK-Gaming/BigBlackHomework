@@ -2,7 +2,8 @@ package domain.auction;
 
 import java.util.Collection;
 
-import domain.exception.AuctionException;
+import domain.exception.AuctionNotFoundException;
+import domain.user.Seller;
 
 /**
  * Lop facade giu lai de tuong thich voi code cu.
@@ -30,13 +31,13 @@ public final class AuctionPlatform {
     public Auction getAuction(String auctionId) {
         Auction auction = auctionManager.findAuctionById(auctionId);
         if (auction == null) {
-            throw new AuctionException("Auction not found.");
+            throw new AuctionNotFoundException(auctionId);
         }
         return auction;
     }
 
-    public void removeAuction(String auctionId) {
-        auctionManager.removeAuction(auctionId);
+    public void removeAuction(String auctionId, Seller seller) {
+        auctionManager.removeAuction(auctionId,seller);
     }
 
     public Collection<Auction> getAllAuctions() {

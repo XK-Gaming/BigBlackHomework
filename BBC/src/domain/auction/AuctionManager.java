@@ -6,6 +6,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import domain.exception.AuctionNotFoundException;
+import domain.exception.AuthenticationException;
+import domain.exception.DuplicateAuctionException;
 import domain.factory.ItemFactory;
 import domain.factory.ItemType;
 import domain.item.Item;
@@ -46,7 +49,7 @@ public final class AuctionManager {
             Instant endTime
     ) {
         if (seller == null) {
-            throw new IllegalArgumentException("Seller khong duoc null.");
+            throw new IllegalArgumentException("Seller must not be null.");
         }
         validateAuctionId(auctionId);
 
@@ -70,7 +73,7 @@ public final class AuctionManager {
 
     public void addAuction(Auction auction) {
         if (auction == null) {
-            throw new IllegalArgumentException("Auction khong duoc null.");
+            throw new IllegalArgumentException("Auction must not be null.");
         }
         validateAuctionId(auction.getId());
         auctions.put(auction.getId(), auction);
@@ -78,10 +81,10 @@ public final class AuctionManager {
 
     private Map<String, Object> buildAttributes(ItemType type, String extraInfo) {
         if (type == null) {
-            throw new IllegalArgumentException("Item type khong duoc null.");
+            throw new IllegalArgumentException("Item type must not be null.");
         }
         if (extraInfo == null || extraInfo.isBlank()) {
-            throw new IllegalArgumentException("Extra info khong duoc rong.");
+            throw new IllegalArgumentException("Extra info must not be null.");
         }
 
         // Chuyen input don gian thanh bo attributes ma ItemFactory can.
@@ -98,28 +101,44 @@ public final class AuctionManager {
     }
 
     public void placeBid(String auctionId, Bidder bidder, double amount) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder must not be null."); }
         Auction auction = requireAuction(auctionId);
         auction.placeBid(bidder, amount);
     }
 
     public void watchAuction(String auctionId, Bidder bidder) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction must not be null.");
+        }
         if (bidder == null) {
-            throw new IllegalArgumentException("Bidder khong duoc null.");
+            throw new IllegalArgumentException("Bidder must not be nullg.");
         }
         Auction auction = requireAuction(auctionId);
         bidder.watchAuction(auction);
     }
-
-    public void cancelAuction(String auctionId) {
+    //kiểm tra quyền Seller.
+    public void cancelAuction(String auctionId, Seller seller) {
+        if (seller == null) {
+            throw new IllegalArgumentException("Seller must not be null.");
+        }
         Auction auction = requireAuction(auctionId);
+        if (!auction.getSeller().getId().equals(seller.getId())) {
+            throw new AuthenticationException("Only the seller can cancel this auction.");
+        }
         auction.cancel();
     }
 
-    public void removeAuction(String auctionId) {
-        Auction removedAuction = auctions.remove(auctionId);
-        if (removedAuction == null) {
-            throw new IllegalArgumentException("Khong tim thay auction: " + auctionId);
+    public void removeAuction(String auctionId,Seller seller) {
+        if (seller == null) {
+            throw new IllegalArgumentException("Seller không được null.");
         }
+        Auction auction = requireAuction(auctionId);
+        if (!auction.getSeller().getId().equals(seller.getId())) {
+            throw new AuthenticationException("Chỉ seller của phiên mới được hủy.");
+        }
+        auction.cancel();           // đổi trạng thái
+        auctions.remove(auctionId); // xóa khỏi map
     }
 
     public List<Auction> getAuctions() {
@@ -131,20 +150,23 @@ public final class AuctionManager {
     }
 
     private Auction requireAuction(String auctionId) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction ID must not be null.");
+        }
         // Ham helper de tranh lap lai kiem tra null trong start/placeBid/cancel.
         Auction auction = findAuctionById(auctionId);
         if (auction == null) {
-            throw new IllegalArgumentException("Khong tim thay auction: " + auctionId);
+            throw new AuctionNotFoundException(auctionId);
         }
         return auction;
     }
 
     private void validateAuctionId(String auctionId) {
         if (auctionId == null || auctionId.isBlank()) {
-            throw new IllegalArgumentException("Auction id khong duoc rong.");
+            throw new IllegalArgumentException("Auction id must not be null.");
         }
         if (auctions.containsKey(auctionId)) {
-            throw new IllegalArgumentException("Auction id da ton tai: " + auctionId);
+            throw new DuplicateAuctionException(auctionId);
         }
     }
 }

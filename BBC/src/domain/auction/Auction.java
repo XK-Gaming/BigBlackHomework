@@ -6,7 +6,9 @@ import java.util.Collections;
 import java.util.List;
 
 import domain.entity.Entity;
+import domain.exception.AuctionClosedException;
 import domain.exception.AuctionException;
+import domain.exception.InvalidBidException;
 import domain.item.Item;
 import domain.observer.AuctionObserver;
 import domain.user.Bidder;
@@ -61,7 +63,7 @@ public class Auction extends Entity {
     public void start() {
         updateStatusByTime();
         if (status != AuctionStatus.OPEN) {
-            throw new AuctionException("Auction can only start from OPEN state.");
+            throw new AuctionClosedException("Auction can only start from OPEN state.");
         }
         // Chi cho phep bat dau khi da toi thoi diem mo dau gia.
         if (Instant.now().isBefore(item.getStartTime())) {
@@ -71,15 +73,22 @@ public class Auction extends Entity {
     }
     //synchronize placebid cho nhieu nguoi dung
     public synchronized void  placeBid(Bidder bidder, double amount) {
+        //kiểm tra seller tự bid.
+        if (bidder.getId().equals(seller.getId())) {
+            throw new InvalidBidException("Seller cannot bid on their own auction.");
+        }
         if (bidder == null) {
             throw new IllegalArgumentException("Bidder must not be null.");
         }
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
-            throw new AuctionException("Cannot bid because auction is not running.");
+            throw new AuctionClosedException("Cannot bid because auction is not running.");
         }
-        if (amount <= item.getCurrentHighestPrice()) {
-            throw new AuctionException("Bid amount must be greater than current highest price.");
+        if (amount <= 0) {
+            throw new InvalidBidException("Bid amount must be positive.");
+        }
+            if (amount <= item.getCurrentHighestPrice()) {
+            throw new InvalidBidException("Bid amount must be greater than current highest price.");
         }
 
         // Moi lan bid hop le se duoc ghi vao lich su va cap nhat gia cao nhat hien tai.
@@ -98,10 +107,11 @@ public class Auction extends Entity {
 
     public void updateStatusByTime() {
         Instant now = Instant.now();
-        // Cac trang thai dong thi khong tu dong thay doi nua theo thoi gian.
+        // Các trạng thái đóng thì không tự động thay đổi nữa.
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID || status == AuctionStatus.FINISHED) {
             return;
         }
+        // Chỉ chạy được nếu status == OPEN và đã tới giờ bắt đầu
         if (now.isBefore(item.getStartTime())) {
             status = AuctionStatus.OPEN;
             return;
@@ -116,7 +126,7 @@ public class Auction extends Entity {
 
     public void finish() {
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID) {
-            throw new AuctionException("Closed auction cannot be finished again.");
+            throw new AuctionClosedException("Closed auction cannot be finished again.");
         }
         boolean wasRunning = status != AuctionStatus.FINISHED;
         status = AuctionStatus.FINISHED;
@@ -127,17 +137,18 @@ public class Auction extends Entity {
 
     public void markPaid() {
         if (status != AuctionStatus.FINISHED) {
-            throw new AuctionException("Only a finished auction can be marked as paid.");
+            throw new AuctionClosedException("Only a finished auction can be marked as paid.");
         }
+        // // Không có người thắng → IllegalStateException (lỗi logic, không phải trạng thái phiên)
         if (leadingBidder == null) {
-            throw new AuctionException("Auction has no winner to mark as paid.");
+            throw new IllegalStateException("Auction has no winner to mark as paid.");
         }
         status = AuctionStatus.PAID;
     }
 
     public void cancel() {
         if (status == AuctionStatus.PAID) {
-            throw new AuctionException("Paid auction cannot be canceled.");
+            throw new AuctionClosedException("Paid auction cannot be canceled.");
         }
         status = AuctionStatus.CANCELED;
     }
