@@ -1,49 +1,39 @@
 package model.Items;
 
-import java.io.File;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
-public final class Vehicle extends Item {
-    private final String manufacturer;
-    private final String year;
+import model.factory.ItemType;
+
+public class Vehicle extends Item {
+    private String manufacturer;
 
     public Vehicle(
+            String id,
             String name,
             String description,
             double startingPrice,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
+            Instant startTime,
+            Instant endTime,
             String sellerId,
-            String manufacturer,
-            String year,
-            String img
+            String manufacturer
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.VEHICLE, img);
-        this.manufacturer = manufacturer;
-        this.year = year;
+        super(id, name, description, startingPrice, startTime, endTime, sellerId, ItemType.VEHICLE);
+        setManufacturer(manufacturer);
     }
 
     public String getManufacturer() {
         return manufacturer;
     }
 
-    public String getYear() {
-        return year;
+    public void setManufacturer(String manufacturer) {
+        if (manufacturer == null || manufacturer.isBlank()) {
+            throw new IllegalArgumentException("Manufacturer must not be blank.");
+        }
+        this.manufacturer = manufacturer;
     }
-
 
     @Override
-    public String printInfo() {
-        return "Vehicle{name='%s', manufacturer='%s', year=%d}".formatted(getName(), manufacturer, year);
-    }
-
-    public Map<String,String> getProperties(){
-        Map<String,String> map = new HashMap<>();
-        map.put("description", getDescription());
-        map.put("manufacturer", getManufacturer());
-        map.put("year", getYear());
-        return map;
+    public String getCategory() {
+        return "Vehicle";
     }
 }

@@ -1,38 +1,39 @@
 package model.Items;
 
-import java.io.File;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
-public final class Art extends Item {
-    private final String artist;
+import model.factory.ItemType;
+
+public class Art extends Item {
+    private String artist;
+
     public Art(
+            String id,
             String name,
             String description,
             double startingPrice,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
+            Instant startTime,
+            Instant endTime,
             String sellerId,
-            String artist,
-            String img
+            String artist
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.ART, img);
-        this.artist = artist;
+        super(id, name, description, startingPrice, startTime, endTime, sellerId, ItemType.ART);
+        setArtist(artist);
     }
 
     public String getArtist() {
         return artist;
     }
 
-    @Override
-    public String printInfo() {
-        return "Art{name='%s', artist='%s'}".formatted(getName(), artist);
+    public void setArtist(String artist) {
+        if (artist == null || artist.isBlank()) {
+            throw new IllegalArgumentException("Artist must not be blank.");
+        }
+        this.artist = artist;
     }
-    public Map<String,String> getProperties(){
-        Map<String,String> map = new HashMap<>();
-        map.put("description", getDescription());
-        map.put("artist", getArtist());
-        return map;
+
+    @Override
+    public String getCategory() {
+        return "Art";
     }
 }

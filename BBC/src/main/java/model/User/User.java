@@ -1,20 +1,28 @@
 package model.User;
 
+import model.Entity.Entity;
 
-
-public class User {
+public abstract class User extends Entity {
+    private String fullName;
     private String username;
     private String password;
-    private String name;
-    private String email;
-    private UserRole role;
 
-    public User(String username, String password, String name, String email, UserRole role) {
-        this.username = username;
-        this.password = password;
-        this.name = name;
-        this.email = email;
-        this.role = role;
+    protected User(String id, String fullName, String username, String password) {
+        super(id);
+        setFullName(fullName);
+        setUsername(username);
+        setPassword(password);
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            throw new IllegalArgumentException("Full name must not be blank.");
+        }
+        this.fullName = fullName;
     }
 
     public String getUsername() {
@@ -22,46 +30,28 @@ public class User {
     }
 
     public void setUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be blank.");
+        }
         this.username = username;
     }
 
-    public String getPassword() {
-        return password;
+    public boolean authenticate(String rawPassword) {
+        return password.equals(rawPassword);
     }
 
-    public void setPassword(String password) {
+    protected void setPassword(String password) {
+        if (password == null || password.length() < 6) {
+            throw new IllegalArgumentException("Password must contain at least 6 characters.");
+        }
         this.password = password;
     }
 
-    public String getName() {
-        return name;
+    public abstract String getRole();
+
+    @Override
+    public void printInfo() {
+        System.out.println("User{id='%s', role='%s', fullName='%s', username='%s'}"
+                .formatted(getId(), getRole(), fullName, username));
     }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getAddress() {
-        return email;
-    }
-
-    public void setAddress(String address) {this.email = address;}
-
-    public UserRole getRole() {
-        return role;
-    }
-    public String getRole_toString() {
-        if (role.equals(UserRole.ADMIN)) {
-            return "Admin";
-        }
-        if (role.equals(UserRole.SELLER)) {
-            return "Người bán";
-        }
-        if (role.equals(UserRole.BIDDER)) {
-            return "Người đấu giá";
-        }
-        return "";
-    }
-
-
 }

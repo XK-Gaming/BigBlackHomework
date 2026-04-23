@@ -1,64 +1,75 @@
 package model.Items;
 
+import java.time.Instant;
 
 import model.Entity.Entity;
-
-import java.time.Instant;
-import java.util.Map;
+import model.factory.ItemType;
 
 public abstract class Item extends Entity {
-    private int id;
     private String name;
     private String description;
     private double startingPrice;
     private double currentHighestPrice;
-    private Instant auctionStartTime;
-    private Instant auctionEndTime;
+    private Instant startTime;
+    private Instant endTime;
     private String sellerId;
     private ItemType itemType;
-    private String img;
-    public Item(
+
+    protected Item(
+            String id,
             String name,
             String description,
             double startingPrice,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
+            Instant startTime,
+            Instant endTime,
             String sellerId,
-            ItemType itemType,
-            String img
+            ItemType itemType
     ) {
-        this.name = name;
-        this.description = description;
-        this.startingPrice = startingPrice;
+        super(id);
+        setName(name);
+        setDescription(description);
+        setStartingPrice(startingPrice);
+        setStartTime(startTime);
+        setEndTime(endTime);
+        setSellerId(sellerId);
+        setItemType(itemType);
         this.currentHighestPrice = startingPrice;
-        this.auctionStartTime = auctionStartTime;
-        this.auctionEndTime = auctionEndTime;
-        this.sellerId = sellerId;
-        this.itemType = itemType;
-        this.img = img;
-    }
-    public Item(){};
-    public Map<String,String> getProperties(){
-        return null;}
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public int getId_Item() {
-        return id;
     }
 
     public String getName() {
         return name;
     }
 
+    public void setName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Item name must not be blank.");
+        }
+        this.name = name;
+    }
+
     public String getDescription() {
         return description;
     }
 
+    public void setDescription(String description) {
+        if (description == null || description.isBlank()) {
+            throw new IllegalArgumentException("Description must not be blank.");
+        }
+        this.description = description;
+    }
+
     public double getStartingPrice() {
         return startingPrice;
+    }
+
+    public void setStartingPrice(double startingPrice) {
+        if (startingPrice <= 0) {
+            throw new IllegalArgumentException("Starting price must be greater than 0.");
+        }
+        this.startingPrice = startingPrice;
+        if (currentHighestPrice < startingPrice) {
+            currentHighestPrice = startingPrice;
+        }
     }
 
     public double getCurrentHighestPrice() {
@@ -66,76 +77,64 @@ public abstract class Item extends Entity {
     }
 
     public void updateCurrentHighestPrice(double currentHighestPrice) {
+        if (currentHighestPrice < startingPrice) {
+            throw new IllegalArgumentException("Current highest price must be at least starting price.");
+        }
         this.currentHighestPrice = currentHighestPrice;
     }
 
-    public Instant getAuctionStartTime() {
-        return auctionStartTime;
+    public Instant getStartTime() {
+        return startTime;
     }
 
-    public Instant getAuctionEndTime() {
-        return auctionEndTime;
+    public void setStartTime(Instant startTime) {
+        if (startTime == null) {
+            throw new IllegalArgumentException("Start time must not be null.");
+        }
+        if (endTime != null && startTime.isAfter(endTime)) {
+            throw new IllegalArgumentException("Start time must not be after end time.");
+        }
+        this.startTime = startTime;
     }
 
-    public void updateAuctionEndTime(Instant auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
+    public Instant getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(Instant endTime) {
+        if (endTime == null || (startTime != null && endTime.isBefore(startTime))) {
+            throw new IllegalArgumentException("End time must not be before start time.");
+        }
+        this.endTime = endTime;
     }
 
     public String getSellerId() {
         return sellerId;
     }
 
-    public String getImg(){
-        return img;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setStartingPrice(double startingPrice) {
-        this.startingPrice = startingPrice;
-    }
-
-    public void setCurrentHighestPrice(double currentHighestPrice) {
-        this.currentHighestPrice = currentHighestPrice;
-    }
-
-    public void setAuctionStartTime(Instant auctionStartTime) {
-        this.auctionStartTime = auctionStartTime;
-    }
-
-    public void setAuctionEndTime(Instant auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
-
     public void setSellerId(String sellerId) {
+        if (sellerId == null || sellerId.isBlank()) {
+            throw new IllegalArgumentException("Seller id must not be blank.");
+        }
         this.sellerId = sellerId;
     }
 
+    public ItemType getItemType() {
+        return itemType;
+    }
+
     public void setItemType(ItemType itemType) {
+        if (itemType == null) {
+            throw new IllegalArgumentException("Item type must not be null.");
+        }
         this.itemType = itemType;
     }
 
-    public void setImg(String img) {
-        this.img = img;
-    }
+    public abstract String getCategory();
 
-    public String getItemType() {
-            if(itemType.equals(ItemType.ART)){
-                return "Mỹ thuật";
-            }
-            if (itemType.equals(ItemType.ELECTRONICS)){
-                return "Đện tử";
-            }
-            if (itemType.equals(ItemType.VEHICLE)){
-                return "Phương tiện giao thông";
-            }
-            return "";
+    @Override
+    public void printInfo() {
+        System.out.println("%s{id='%s', name='%s', startingPrice=%.2f, currentHighestPrice=%.2f, sellerId='%s', itemType=%s, start=%s, end=%s}"
+                .formatted(getCategory(), getId(), name, startingPrice, currentHighestPrice, sellerId, itemType, startTime, endTime));
     }
-
 }

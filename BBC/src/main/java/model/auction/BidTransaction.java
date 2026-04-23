@@ -39,8 +39,8 @@ public class BidTransaction extends Entity {
     }
 
     @Override
-    public String printInfo() {
-        return "BidTransaction{id='%s', bidder='%s', amount=%.2f, bidTime=%s}"
-                .formatted(getId(), bidder.getUsername(), amount, bidTime);
+    public void printInfo() {
+        System.out.println("BidTransaction{id='%s', bidder='%s', amount=%.2f, bidTime=%s}"
+                .formatted(getId(), bidder.getUsername(), amount, bidTime));
     }
 }

@@ -1,8 +1,12 @@
 package model.User;
 
-public final class Seller extends User {
-    public Seller(String username, String password, String name, String email) {
-        super(username, password, name, email, UserRole.SELLER);
+public class Seller extends User {
+    public Seller(String id, String fullName, String username, String password) {
+        super(id, fullName, username, password);
     }
 
+    @Override
+    public String getRole() {
+        return "Seller";
+    }
 }

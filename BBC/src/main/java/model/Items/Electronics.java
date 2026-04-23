@@ -1,47 +1,39 @@
 package model.Items;
 
-import java.io.File;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
-public final class Electronics extends Item {
-    private final String brand;
-    private final String model;
+import model.factory.ItemType;
+
+public class Electronics extends Item {
+    private String brand;
 
     public Electronics(
+            String id,
             String name,
             String description,
             double startingPrice,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
+            Instant startTime,
+            Instant endTime,
             String sellerId,
-            String brand,
-            String model,
-            String img
+            String brand
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.ELECTRONICS,img );
-        this.brand = brand;
-        this.model = model;
+        super(id, name, description, startingPrice, startTime, endTime, sellerId, ItemType.ELECTRONICS);
+        setBrand(brand);
     }
 
     public String getBrand() {
         return brand;
     }
 
-    public String getModel() {
-        return model;
+    public void setBrand(String brand) {
+        if (brand == null || brand.isBlank()) {
+            throw new IllegalArgumentException("Brand must not be blank.");
+        }
+        this.brand = brand;
     }
 
     @Override
-    public String printInfo() {
-        return "Electronics{name='%s', brand='%s', model='%s'}".formatted(getName(), brand, model);
-    }
-    public Map<String,String> getProperties(){
-        Map<String,String> map = new HashMap<>();
-        map.put("description", getDescription());
-        map.put("brand", getBrand());
-        map.put("model", getModel());
-        return map;
+    public String getCategory() {
+        return "Electronics";
     }
 }

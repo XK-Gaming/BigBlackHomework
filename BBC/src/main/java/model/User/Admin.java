@@ -1,8 +1,12 @@
 package model.User;
 
-public final class Admin extends User {
-    public Admin(String username, String password, String name, String email) {
-        super(username, password, name, email, UserRole.ADMIN);
+public class Admin extends User {
+    public Admin(String id, String fullName, String username, String password) {
+        super(id, fullName, username, password);
     }
 
+    @Override
+    public String getRole() {
+        return "Admin";
+    }
 }
