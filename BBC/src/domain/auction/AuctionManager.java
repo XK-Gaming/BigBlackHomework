@@ -2,29 +2,29 @@ package domain.auction;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import domain.exception.AuctionNotFoundException;
+import domain.exception.AuthenticationException;
+import domain.exception.DuplicateAuctionException;
 import domain.factory.ItemFactory;
 import domain.factory.ItemType;
 import domain.item.Item;
-import domain.user.Admin;
 import domain.user.Bidder;
 import domain.user.Seller;
-import domain.user.User;
 
 /**
  * Manager trung tam cho luong dau gia trong bo nho:
- * dang ky user, tao auction va dieu phoi cac thao tac chinh.
+ * tao auction va dieu phoi cac thao tac chinh lien quan den auction.
  */
 public final class AuctionManager {
 
-    private final List<User> users;
-    private final List<Auction> auctions;
+    private final Map<String, Auction> auctions;
 
     private AuctionManager() {
-        this.users = new ArrayList<>();
-        this.auctions = new ArrayList<>();
+        this.auctions = new LinkedHashMap<>();
     }
 
     public static AuctionManager getInstance() {
@@ -34,61 +34,6 @@ public final class AuctionManager {
 
     private static final class Holder {
         private static final AuctionManager INSTANCE = new AuctionManager();
-    }
-
-    public void addUser(User user) {
-        if (user == null) {
-            throw new IllegalArgumentException("User khong hop le.");
-        }
-        validateNewUser(user);
-        users.add(user);
-    }
-
-    public User registerUser(String role, String username, String password, String fullName) {
-        String userId = generateUserId();
-        String normalizedRole = normalizeRole(role);
-
-        // Role quyet dinh lop User cu the duoc tao ra.
-        User user = switch (normalizedRole) {
-            case "seller" -> new Seller(userId, fullName, username, password);
-            case "bidder" -> new Bidder(userId, fullName, username, password);
-            case "admin" -> new Admin(userId, fullName, username, password);
-            default -> throw new IllegalArgumentException("Role khong hop le: " + role);
-        };
-
-        addUser(user);
-        return user;
-    }
-
-    private String normalizeRole(String role) {
-        if (role == null || role.isBlank()) {
-            throw new IllegalArgumentException("Role khong duoc rong.");
-        }
-        return role.trim().toLowerCase();
-    }
-
-    private String generateUserId() {
-        return "U" + (users.size() + 1);
-    }
-
-    public User login(String username, String password) {
-        for (User user : users) {
-            if (user.getUsername().equals(username) && user.authenticate(password)) {
-                return user;
-            }
-        }
-        return null;
-    }
-
-    private void validateNewUser(User newUser) {
-        for (User user : users) {
-            if (user.getId().equals(newUser.getId())) {
-                throw new IllegalArgumentException("Id user da ton tai: " + newUser.getId());
-            }
-            if (user.getUsername().equalsIgnoreCase(newUser.getUsername())) {
-                throw new IllegalArgumentException("Username da ton tai: " + newUser.getUsername());
-            }
-        }
     }
 
     public Auction createAuction(
@@ -104,8 +49,9 @@ public final class AuctionManager {
             Instant endTime
     ) {
         if (seller == null) {
-            throw new IllegalArgumentException("Seller khong duoc null.");
+            throw new IllegalArgumentException("Seller must not be null.");
         }
+        validateAuctionId(auctionId);
 
         // AuctionManager dung factory de tao dung loai item, manager khong tu new tung subclass.
         Item item = ItemFactory.create(
@@ -121,16 +67,24 @@ public final class AuctionManager {
         );
 
         Auction auction = new Auction(auctionId, item, seller);
-        auctions.add(auction);
+        auctions.put(auction.getId(), auction);
         return auction;
+    }
+
+    public void addAuction(Auction auction) {
+        if (auction == null) {
+            throw new IllegalArgumentException("Auction must not be null.");
+        }
+        validateAuctionId(auction.getId());
+        auctions.put(auction.getId(), auction);
     }
 
     private Map<String, Object> buildAttributes(ItemType type, String extraInfo) {
         if (type == null) {
-            throw new IllegalArgumentException("Item type khong duoc null.");
+            throw new IllegalArgumentException("Item type must not be null.");
         }
         if (extraInfo == null || extraInfo.isBlank()) {
-            throw new IllegalArgumentException("Extra info khong duoc rong.");
+            throw new IllegalArgumentException("Extra info must not be null.");
         }
 
         // Chuyen input don gian thanh bo attributes ma ItemFactory can.
@@ -147,46 +101,72 @@ public final class AuctionManager {
     }
 
     public void placeBid(String auctionId, Bidder bidder, double amount) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder must not be null."); }
         Auction auction = requireAuction(auctionId);
         auction.placeBid(bidder, amount);
     }
 
     public void watchAuction(String auctionId, Bidder bidder) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction must not be null.");
+        }
         if (bidder == null) {
-            throw new IllegalArgumentException("Bidder khong duoc null.");
+            throw new IllegalArgumentException("Bidder must not be nullg.");
         }
         Auction auction = requireAuction(auctionId);
         bidder.watchAuction(auction);
     }
-
-    public void cancelAuction(String auctionId) {
+    //kiểm tra quyền Seller.
+    public void cancelAuction(String auctionId, Seller seller) {
+        if (seller == null) {
+            throw new IllegalArgumentException("Seller must not be null.");
+        }
         Auction auction = requireAuction(auctionId);
+        if (!auction.getSeller().getId().equals(seller.getId())) {
+            throw new AuthenticationException("Only the seller can cancel this auction.");
+        }
         auction.cancel();
     }
 
-    public List<User> getUsers() {
-        return new ArrayList<>(users);
+    public void removeAuction(String auctionId,Seller seller) {
+        if (seller == null) {
+            throw new IllegalArgumentException("Seller không được null.");
+        }
+        Auction auction = requireAuction(auctionId);
+        if (!auction.getSeller().getId().equals(seller.getId())) {
+            throw new AuthenticationException("Chỉ seller của phiên mới được hủy.");
+        }
+        auction.cancel();           // đổi trạng thái
+        auctions.remove(auctionId); // xóa khỏi map
     }
 
     public List<Auction> getAuctions() {
-        return new ArrayList<>(auctions);
+        return new ArrayList<>(auctions.values());
     }
 
     public Auction findAuctionById(String id) {
-        for (Auction auction : auctions) {
-            if (auction.getId().equals(id)) {
-                return auction;
-            }
-        }
-        return null;
+        return auctions.get(id);
     }
 
     private Auction requireAuction(String auctionId) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction ID must not be null.");
+        }
         // Ham helper de tranh lap lai kiem tra null trong start/placeBid/cancel.
         Auction auction = findAuctionById(auctionId);
         if (auction == null) {
-            throw new IllegalArgumentException("Khong tim thay auction: " + auctionId);
+            throw new AuctionNotFoundException(auctionId);
         }
         return auction;
+    }
+
+    private void validateAuctionId(String auctionId) {
+        if (auctionId == null || auctionId.isBlank()) {
+            throw new IllegalArgumentException("Auction id must not be null.");
+        }
+        if (auctions.containsKey(auctionId)) {
+            throw new DuplicateAuctionException(auctionId);
+        }
     }
 }
