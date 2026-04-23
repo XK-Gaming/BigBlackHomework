@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane fx:id="Pane1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="559.0" prefWidth="696.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="du_an_lon.ControllerSeller">
+   <children>
+      <Label layoutX="285.0" layoutY="14.0" prefHeight="59.0" prefWidth="296.0" text="TRANG NGƯỜI BÁN HÀNG">
+         <font>
+            <Font name="System Bold" size="18.0" />
+         </font>
+      </Label>
+      <ImageView fx:id="j_image" fitHeight="59.0" fitWidth="60.0" layoutX="25.0" layoutY="14.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@img/imgUSER.png" />
+         </image>
+         <cursor>
+            <Cursor fx:constant="OPEN_HAND" />
+         </cursor>
+      </ImageView>
+      <Label layoutX="85.0" layoutY="47.0" text="Số dư:" />
+      <Label fx:id="j_textSoDu" layoutX="126.0" layoutY="47.0" prefHeight="17.0" prefWidth="95.0" text="0.0 VNĐ" textFill="#eb0a0a" />
+      <Label fx:id="j_LabelName" layoutX="87.0" layoutY="20.0" prefHeight="24.0" prefWidth="112.0" textAlignment="CENTER" textFill="#eb0404">
+         <font>
+            <Font name="System Bold" size="15.0" />
+         </font>
+      </Label>
+      <Label layoutX="358.0" layoutY="73.0" prefHeight="27.0" prefWidth="247.0" text="THÊM SẢN PHẨM ĐẤU GIÁ">
+         <font>
+            <Font name="System Bold" size="18.0" />
+         </font>
+      </Label>
+      <TextField fx:id="j_name" layoutX="319.0" layoutY="121.0" prefHeight="25.0" prefWidth="199.0" promptText="Tên sản phẩm" />
+      <TextField fx:id="j_StartingPrice" layoutX="318.0" layoutY="233.0" prefHeight="25.0" prefWidth="199.0" promptText="Giá khởi điểm" />
+      <TextArea fx:id="j_description" layoutX="327.0" layoutY="269.0" prefHeight="141.0" prefWidth="296.0" promptText="Mô tả" />
+      <ComboBox fx:id="j_ItemType" layoutX="319.0" layoutY="424.0" onAction="#handle_Info" prefHeight="25.0" prefWidth="119.0" promptText="Loại sản phẩm" />
+      <Button fx:id="j_ApplyItem" layoutX="319.0" layoutY="469.0" mnemonicParsing="false" onAction="#handle_Items" text="Đăng sản phẩm" />
+      <Label fx:id="error_Label" layoutX="319.0" layoutY="499.0" prefHeight="24.0" prefWidth="296.0" visible="false" />
+      <Button fx:id="LogOut" layoutX="76.0" layoutY="495.0" mnemonicParsing="false" onAction="#On_LogOut" text="Đăng xuất" />
+      <DatePicker fx:id="j_DateStart" layoutX="407.0" layoutY="154.0" prefHeight="25.0" prefWidth="112.0" promptText="Ngày bắt đầu" />
+      <DatePicker fx:id="j_DateEnd" layoutX="407.0" layoutY="186.0" prefHeight="25.0" prefWidth="112.0" promptText="Ngày kết thúc" />
+      <TextField fx:id="j_TimeStart" layoutX="319.0" layoutY="154.0" prefHeight="25.0" prefWidth="78.0" text="00:00:00" />
+      <TextField fx:id="j_TimeEnd" layoutX="319.0" layoutY="186.0" prefHeight="25.0" prefWidth="78.0" text="23:59:59" />
+      <Label layoutX="319.0" layoutY="215.0" text="Định dạng giờ: HH:mm:ss" textFill="#ef1515" />
+      <AnchorPane fx:id="j_paneVehicle" layoutX="454.0" layoutY="417.0" prefHeight="79.0" prefWidth="155.0" visible="false">
+         <children>
+            <TextField fx:id="j_manufacturer" layoutX="3.0" layoutY="7.0" promptText="Nhà sản xuất" />
+            <TextField fx:id="j_year" layoutX="3.0" layoutY="40.0" promptText="Năm sản xuất" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="j_paneElectronics" layoutX="454.0" layoutY="417.0" prefHeight="79.0" prefWidth="155.0" visible="false">
+         <children>
+            <TextField fx:id="j_brand" layoutX="3.0" layoutY="7.0" promptText="Thương hiệu" />
+            <TextField fx:id="j_model" layoutX="3.0" layoutY="40.0" promptText="Model" />
+         </children>
+      </AnchorPane>
+      <AnchorPane fx:id="j_paneArt" layoutX="454.0" layoutY="417.0" prefHeight="79.0" prefWidth="155.0">
+         <children>
+            <TextField fx:id="j_artist" layoutX="3.0" layoutY="7.0" promptText="Tác giả" />
+         </children>
+      </AnchorPane>
+      <ImageView fx:id="MyImgView" fitHeight="112.0" fitWidth="99.0" layoutX="531.0" layoutY="119.0" pickOnBounds="true" preserveRatio="true" />
+      <Button fx:id="j_img" layoutX="547.0" layoutY="233.0" mnemonicParsing="false" onAction="#handle_SelectImage" text="Thêm ảnh" />
+   </children>
+</AnchorPane>
