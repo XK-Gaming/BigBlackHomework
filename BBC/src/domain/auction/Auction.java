@@ -73,12 +73,12 @@ public class Auction extends Entity {
     }
     //synchronize placebid cho nhieu nguoi dung
     public synchronized void  placeBid(Bidder bidder, double amount) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder must not be null.");
+        }
         //kiểm tra seller tự bid.
         if (bidder.getId().equals(seller.getId())) {
             throw new InvalidBidException("Seller cannot bid on their own auction.");
-        }
-        if (bidder == null) {
-            throw new IllegalArgumentException("Bidder must not be null.");
         }
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
