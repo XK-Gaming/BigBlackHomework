@@ -1,23 +1,17 @@
 package du_an_lon;
 
-import dao.DAOItems;
-import javafx.fxml.FXML;
-import javafx.scene.Node;
-import javafx.scene.control.Label;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
-import model.Items.*;
-
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.text.DecimalFormat;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
+import model.Items.Item;
+import service.dto.CatalogItemView;
+
 public class ItemCardController {
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+            .withZone(ZoneId.systemDefault());
 
     @FXML
     private Label j_EndTime;
@@ -33,28 +27,17 @@ public class ItemCardController {
 
     @FXML
     private Label j_name;
-    public void setData(Item item){
+
+    public void setData(CatalogItemView data) {
+        Item item = data.item();
         j_name.setText(item.getName());
-        DecimalFormat df = new DecimalFormat("#,###");
-        double price = item.getCurrentHighestPrice();
-        j_StartPrice.setText(df.format(price) + " VNĐ");
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
-                .withZone(ZoneId.systemDefault());
-        // Quan trọng: Phải có .withZone để máy biết dùng múi giờ nào
+        j_StartPrice.setText(String.format("%,.0f VND", item.getCurrentHighestPrice()));
+        j_StartTime.setText(FORMATTER.format(item.getStartTime()));
+        j_EndTime.setText(FORMATTER.format(item.getEndTime()));
+        FxViewUtils.loadImage(j_img, data.imagePath());
+    }
 
-        // 3. Chuyển đổi
-        String formattedString_Start = formatter.format(item.getAuctionStartTime());
-        String formattedString_End = formatter.format(item.getAuctionEndTime());
-        j_StartTime.setText(formattedString_Start);
-        j_EndTime.setText(formattedString_End);
-        String path = "src/main/java/imgs/" + item.getImg(); // Hoặc đường dẫn bạn lưu
-        File file = new File(path);
-        if (file.exists()) {
-            Image img = new Image(file.toURI().toString());
-            j_img.setImage(img);
-    }
-    }
     @FXML
-    void on_choice(MouseEvent event) {}
-
+    void on_choice(javafx.scene.input.MouseEvent event) {
+    }
 }

@@ -1,39 +1,29 @@
 package du_an_lon;
 
-import dao.DAOItems;
-import dao.DAOUser;
-import javafx.event.ActionEvent;
+import java.io.IOException;
+import java.util.List;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
+import javafx.scene.control.Pagination;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.paint.Color;
-import model.Items.Item;
 import model.Items.ItemSession;
 import model.User.User;
-import model.User.UserRole;
 import model.User.UserSession;
-
-import java.awt.*;
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.List;
+import service.AppServices;
+import service.CatalogService;
+import service.dto.CatalogItemView;
 
 public class ControllerBidder {
-    public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "View5.fxml");
-        // Mục đích (Node) event.getSource() là để lấy Node hiện tại đó
-    }
-    @FXML
-    void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "View1.fxml");
-    }
+    private static final int ITEMS_PER_PAGE = 4;
+
+    private final CatalogService catalogService = AppServices.catalogService();
+
     @FXML
     private Button LogOut;
 
@@ -48,63 +38,57 @@ public class ControllerBidder {
 
     @FXML
     private Label j_LabelName;
-    private int itemsPerPage = 4; // Số lượng ô trên 1 trang
-    private List<Item> allAssets; // Danh sách dữ liệu (ví dụ lấy từ DB)
-    public void initialize() throws SQLException {
-        User p1 = UserSession.getLoggedInUser();
-        j_LabelName.setText(p1.getName());
-        allAssets = DAOItems.selectedAll();
 
-        // 2. Tính số lượng trang
-        int pageCount = (int) Math.ceil((double) allAssets.size() / itemsPerPage);
+    private List<CatalogItemView> allAssets = List.of();
+
+    public void initialize() {
+        User user = UserSession.getLoggedInUser();
+        if (user != null) {
+            j_LabelName.setText(user.getFullName());
+        }
+        j_textSoDu.setText("--");
+        allAssets = catalogService.listCatalogItems();
+
+        int pageCount = allAssets.isEmpty() ? 1 : (int) Math.ceil((double) allAssets.size() / ITEMS_PER_PAGE);
         List_Items_Bid.setPageCount(pageCount);
-
-        // 3. Cấu hình nội dung cho mỗi trang
         List_Items_Bid.setPageFactory(this::createPage);
     }
 
+    public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "View5.fxml");
+    }
+
+    @FXML
+    void On_LogOut(javafx.event.ActionEvent event) {
+        UserSession.cleanUserSession();
+        ItemSession.cleanItemSession();
+        SceneHelper.changeScene(LogOut, "View1.fxml");
+    }
+
     private Node createPage(int pageIndex) {
-        // FlowPane là nơi chứa các ô Card, nó sẽ tự xuống dòng
         FlowPane flowPane = new FlowPane();
         flowPane.setHgap(20);
         flowPane.setVgap(20);
         flowPane.setPadding(new Insets(20));
 
-        int start = pageIndex * itemsPerPage;
-        int end = Math.min(start + itemsPerPage, allAssets.size());
-
-        for (int i = start; i < end; i++) {
+        int start = pageIndex * ITEMS_PER_PAGE;
+        int end = Math.min(start + ITEMS_PER_PAGE, allAssets.size());
+        for (int index = start; index < end; index++) {
+            CatalogItemView data = allAssets.get(index);
             try {
-                // Load file FXML của ô Card
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("AssetCard.fxml"));
                 Node card = loader.load();
-                Item data = allAssets.get(i);
-                // Đổ dữ liệu vào Card
                 ItemCardController controller = loader.getController();
                 controller.setData(data);
-                // Gắn sự kiện click tại đây
                 card.setOnMouseClicked(event -> {
-                    // 1. Ghi dữ liệu vào Session TRƯỚC
-                    ItemSession.setLoggedInItem(data);
-
-                    // 2. Chuyển cảnh SAU
+                    ItemSession.setLoggedInItem(data.item());
                     SceneHelper.changeScene((Node) event.getSource(), "View4.fxml");
-
                 });
                 flowPane.getChildren().add(card);
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException exception) {
+                exception.printStackTrace();
             }
         }
         return flowPane;
     }
-
-
-
-
-
 }
-
-
-
-

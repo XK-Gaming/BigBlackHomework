@@ -89,7 +89,7 @@
             <TextField layoutX="163.0" layoutY="176.0" prefHeight="25.0" prefWidth="184.0" />
          </children>
       </AnchorPane>
-      <AnchorPane fx:id="Pane_ĐoiMatKhau" layoutX="186.0" layoutY="-1.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="453.0" visible="false">
+      <AnchorPane fx:id="Pane_DoiMatKhau" layoutX="186.0" layoutY="-1.0" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="453.0" visible="false">
          <children>
             <Label layoutX="120.0" layoutY="14.0" prefHeight="59.0" prefWidth="165.0" text="ĐỔI MẬT KHẨU">
                <font>

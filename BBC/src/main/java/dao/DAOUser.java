@@ -1,39 +1,22 @@
 package dao;
 
-import database.JDBCUtil;
-import model.Items.Item;
-import model.User.*;
-import model.auction.Auction;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+
+import model.Items.Item;
+import model.User.User;
+import model.auction.Auction;
+import service.AppServices;
 
 public class DAOUser implements DaoInterface<User> {
 
     public static DAOUser getInstance() {
         return new DAOUser();
     }
-    // lấy dữ liệu bằng CreateStatement...
+
     @Override
     public int Insert(User user) {
-        Connection con = JDBCUtil.getConnection();
-
-        Statement st = null;
-        try {
-            st = con.createStatement();
-
-            String sql = "INSERT INTO khach (username, password, name, email, role) " +
-                    " VALUES('" + user.getUsername() + "', '" + user.getPassword() + "', '" +
-                    user.getName() + "', '" + user.getAddress() + "', '" + user.getRole_toString() + "')";
-            int ketQua = st.executeUpdate(sql);
-            JDBCUtil.closeConnection(con);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return 0;
+        AppServices.userRepository().save(user);
+        return 1;
     }
 
     @Override
@@ -48,9 +31,12 @@ public class DAOUser implements DaoInterface<User> {
 
     @Override
     public int Update(User user) {
-        return 0;
+        if (user == null) {
+            return 0;
+        }
+        AppServices.userRepository().save(user);
+        return 1;
     }
-
 
     @Override
     public int Delete(User user) {
@@ -58,67 +44,32 @@ public class DAOUser implements DaoInterface<User> {
     }
 
     @Override
-    public ArrayList selectAll() {
-        return null;
+    public ArrayList<User> selectAll() {
+        return new ArrayList<>(AppServices.userRepository().findAll());
     }
 
     @Override
     public User selectByUsername(User user) {
-        return null;
+        if (user == null) {
+            return null;
+        }
+        return AppServices.userRepository().findByUsername(user.getUsername()).orElse(null);
     }
 
     public static boolean selectByUsername(String username) {
-        Connection con = JDBCUtil.getConnection();
-
-        Statement st = null;
-        try {
-            st = con.createStatement();
-
-            String sql = "SELECT * FROM khach where username = '" + username + "'";
-            ResultSet rs = st.executeQuery(sql);
-            if (!rs.next()) {return false;}
-        } catch (SQLException e) {return false;}
-        return true;
+        return AppServices.userRepository().existsByUsername(username);
     }
+
     public User selectByUsername(String username, String password) {
-        Connection con = JDBCUtil.getConnection();
-
-        Statement st = null;
-        try {
-            st = con.createStatement();
-
-            String sql = "SELECT * FROM khach where username = '" + username + "'";
-            ResultSet rs = st.executeQuery(sql);
-            if (!rs.next()) {
-                return null;
-            } else {
-                String check_username = rs.getString("username");
-                String check_password = rs.getString("password");
-                if (check_password.equals(password) && check_username.equals(username)) {
-                    if(rs.getString("role").equals("Người bán")){
-                        return new Seller(check_username,check_password,rs.getString("name"),rs.getString("email"));
-                    } else if (rs.getString("role").equals("Người đấu giá")) {
-                        return new Bidder(check_username,check_password,rs.getString("name"),rs.getString("email"));
-                    } else if (rs.getString("role").equals("Admin")) {
-                        return new Admin(check_username,check_password,rs.getString("name"),rs.getString("email"));
-                    }
-
-                } else {
-                    return null;
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        User user = AppServices.userRepository().findByUsername(username).orElse(null);
+        if (user == null) {
+            return null;
         }
-        finally {
-            // Đừng quên đóng connection để tránh tràn bộ nhớ
-            JDBCUtil.closeConnection(con);
-        }
-        return null;
+        return user.authenticate(password) ? user : null;
     }
 
     @Override
-    public ArrayList selectByCondition(String condition) {
-        return null;
+    public ArrayList<User> selectByCondition(String condition) {
+        return new ArrayList<>(AppServices.userRepository().findAll());
     }
 }

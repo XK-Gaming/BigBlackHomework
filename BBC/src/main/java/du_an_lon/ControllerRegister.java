@@ -1,26 +1,24 @@
 package du_an_lon;
 
-import dao.DAOUser;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.image.ImageView;
-import javafx.scene.paint.Color;
-import model.User.User;
-import model.User.UserRole;
-import model.User.UserSession;
-
-import java.io.IOException;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Control;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import service.AppServices;
+import service.AuthService;
+import service.dto.RegistrationRequest;
 
 public class ControllerRegister {
-    public User p1 = null;
+    private final AuthService authService = AppServices.authService();
 
     @FXML
     private TextField address;
-
-    @FXML
-    private Button jbuton_GhiNhanDangKy;
 
     @FXML
     private TextField name;
@@ -33,60 +31,51 @@ public class ControllerRegister {
 
     @FXML
     private TextField username_DK;
+
     @FXML
     private Button jbuton_TrangChu;
-    public void setJbutton_TrangChu() throws IOException {
-        SceneHelper.changeScene(jbuton_TrangChu, "View1.fxml");
-    }
-    public void resetStyle(javafx.scene.input.KeyEvent keyEvent) {
-        TextField field = (TextField) keyEvent.getSource();
-        field.setStyle(null);
-    }
+
     @FXML
     private Label errorLabel1;
+
+    @FXML
+    private Button LogOut;
+
+    @FXML
+    private ComboBox<String> jComboBox_Role;
+
+    public void initialize() {
+        jComboBox_Role.getItems().setAll(authService.getSupportedRoleLabels());
+        jComboBox_Role.setValue(AuthService.SELLER_ROLE_LABEL);
+    }
+
+    public void setJbutton_TrangChu() {
+        SceneHelper.changeScene(jbuton_TrangChu, "View1.fxml");
+    }
+
+    public void resetStyle(Event event) {
+        Object source = event.getSource();
+        if (source instanceof Control control) {
+            control.setStyle(null);
+        }
+    }
+
     public void handleRegister_DangKy() {
-        boolean check = true;
-        if (username_DK.getText().isEmpty() || password_DK1.getText().isEmpty() || password_DK2.getText().isEmpty() || name.getText().isEmpty() || address.getText().isEmpty()) {
-            errorLabel1.setTextFill(Color.RED);
-            errorLabel1.setText("Điền thông tin bắt buộc!");
-            errorLabel1.setVisible(true);
-            check = false;
+        errorLabel1.setVisible(false);
+        highlightMissingFields();
 
-            if (username_DK.getText().isEmpty()) {
-                username_DK.setStyle("-fx-border-color: red;");
-            }
-            if (password_DK1.getText().isEmpty()) {
-                password_DK1.setStyle("-fx-border-color: red;");
-            }
-            if (password_DK2.getText().isEmpty()) {
-                password_DK2.setStyle("-fx-border-color: red;");
-            }
-            if (name.getText().isEmpty()) {
-                name.setStyle("-fx-border-color: red;");
-            }
-            if (address.getText().isEmpty()) {
-                address.setStyle("-fx-border-color: red;");
-            }
-        }
-        if (DAOUser.selectByUsername(username_DK.getText())) {
-            errorLabel1.setTextFill(Color.RED);
-            errorLabel1.setText("Tài khoản đã tồn tại!");
-            errorLabel1.setVisible(true);
-            check = false;
-        }
-        if (!(password_DK1.getText().equals(password_DK2.getText()))) {
-            errorLabel1.setTextFill(Color.RED);
-            errorLabel1.setText("Sai mật khẩu");
-            errorLabel1.setVisible(true);
-            password_DK2.setStyle("-fx-border-color: red;");
-            check = false;
-        }
-
-        if (check) {
-            DAOUser.getInstance().Insert((new User(username_DK.getText(), password_DK1.getText(), name.getText(), address.getText(), UserRole.fromString(jComboBox_Role.getValue()))));
-            errorLabel1.setTextFill(Color.BLUE);
-            errorLabel1.setText("Đăng ký tài khoản thành công");
-            errorLabel1.setVisible(true);
+        try {
+            authService.register(new RegistrationRequest(
+                    name.getText(),
+                    username_DK.getText(),
+                    password_DK1.getText(),
+                    password_DK2.getText(),
+                    jComboBox_Role.getValue(),
+                    address.getText()
+            ));
+            FxViewUtils.showSuccess(errorLabel1, "Dang ky thanh cong.");
+        } catch (RuntimeException exception) {
+            FxViewUtils.showError(errorLabel1, exception.getMessage());
         }
     }
 
@@ -94,24 +83,20 @@ public class ControllerRegister {
     void On_LogOut(ActionEvent event) {
         SceneHelper.changeScene((Node) LogOut, "View1.fxml");
     }
-    @FXML
-    private Button LogOut;
-    @FXML
-    private ComboBox<String> jComboBox_Role;
 
-    private String[] list = new String[]{"Người bán", "Người đấu giá"};
+    private void highlightMissingFields() {
+        markIfBlank(username_DK);
+        markIfBlank(password_DK1);
+        markIfBlank(password_DK2);
+        markIfBlank(name);
+        markIfBlank(address);
+    }
 
-
-    public void initialize() {
-        jComboBox_Role.getItems().setAll(list);
-
-        // Nếu muốn khi mở app lên nó chọn sẵn một cái (không bị trống)
-        jComboBox_Role.setValue(list[0]);
-
-
+    private void markIfBlank(Control control) {
+        if (control instanceof TextField textField && textField.getText().isBlank()) {
+            control.setStyle("-fx-border-color: red;");
+        } else if (control instanceof PasswordField passwordField && passwordField.getText().isBlank()) {
+            control.setStyle("-fx-border-color: red;");
+        }
     }
 }
-
-
-
-
