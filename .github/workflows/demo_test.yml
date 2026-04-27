@@ -1,0 +1,23 @@
+name: demo_test.yml
+on:
+  push:
+    branches: [ "main", "master" ]
+    pull_request:
+      branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4 # Bước 1: Tải code từ repo về máy ảo
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4 # Bước 2: Cài đặt Java
+        with:
+          java-version: '25'
+          distribution: 'temurin' # Bản phân phối phổ biến và ổn định
+          cache: maven           # Tự động cache thư viện để lần sau build nhanh hơn
+
+      - name: Build with Maven
+        run: mvn -B clean verify # Bước 3: Chạy lệnh build và test (verify bao gồm cả checkstyle)
