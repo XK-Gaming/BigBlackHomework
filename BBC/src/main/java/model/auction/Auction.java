@@ -6,13 +6,13 @@ import java.util.Collections;
 import java.util.List;
 
 import model.Entity.Entity;
+import model.Items.Item;
+import model.User.Bidder;
+import model.User.Seller;
 import model.exception.AuctionClosedException;
 import model.exception.AuctionException;
 import model.exception.InvalidBidException;
-import model.Items.Item;
 import model.observer.AuctionObserver;
-import model.User.Bidder;
-import model.User.Seller;
 
 /**
  * Dai dien cho mot phien dau gia cua duy nhat mot item.
@@ -24,7 +24,7 @@ public class Auction extends Entity {
     private final List<BidTransaction> bidHistory = new ArrayList<>();
     private AuctionStatus status;
     private Bidder leadingBidder;
-    private final List<AuctionObserver> observers = new ArrayList<>();//list cho subcribers
+    private final List<AuctionObserver> observers = new ArrayList<>();
 
     public Auction(String id, Item item, Seller seller) {
         super(id);
@@ -61,25 +61,29 @@ public class Auction extends Entity {
     }
 
     public void start() {
-        updateStatusByTime();
         if (status != AuctionStatus.OPEN) {
             throw new AuctionClosedException("Auction can only start from OPEN state.");
         }
-        // Chi cho phep bat dau khi da toi thoi diem mo dau gia.
-        if (Instant.now().isBefore(item.getStartTime())) {
+
+        Instant now = Instant.now();
+        if (now.isBefore(item.getStartTime())) {
             throw new AuctionException("Auction cannot start before configured start time.");
+        }
+        if (!now.isBefore(item.getEndTime())) {
+            finish();
+            throw new AuctionClosedException("Auction cannot start after configured end time.");
         }
         status = AuctionStatus.RUNNING;
     }
-    //synchronize placebid cho nhieu nguoi dung
-    public synchronized void  placeBid(Bidder bidder, double amount) {
-        //kiểm tra seller tự bid.
-        if (bidder.getId().equals(seller.getId())) {
-            throw new InvalidBidException("Seller cannot bid on their own auction.");
-        }
+
+    public synchronized void placeBid(Bidder bidder, double amount) {
         if (bidder == null) {
             throw new IllegalArgumentException("Bidder must not be null.");
         }
+        if (bidder.getId().equals(seller.getId())) {
+            throw new InvalidBidException("Seller cannot bid on their own auction.");
+        }
+
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
             throw new AuctionClosedException("Cannot bid because auction is not running.");
@@ -87,11 +91,10 @@ public class Auction extends Entity {
         if (amount <= 0) {
             throw new InvalidBidException("Bid amount must be positive.");
         }
-            if (amount <= item.getCurrentHighestPrice()) {
+        if (amount <= item.getCurrentHighestPrice()) {
             throw new InvalidBidException("Bid amount must be greater than current highest price.");
         }
 
-        // Moi lan bid hop le se duoc ghi vao lich su va cap nhat gia cao nhat hien tai.
         BidTransaction transaction = new BidTransaction(
                 "BID-" + (bidHistory.size() + 1),
                 bidder,
@@ -101,22 +104,18 @@ public class Auction extends Entity {
         bidHistory.add(transaction);
         item.updateCurrentHighestPrice(amount);
         leadingBidder = bidder;
-        //update cho observer
         notifyNewBid(transaction);
     }
 
     public void updateStatusByTime() {
         Instant now = Instant.now();
-        // Các trạng thái đóng thì không tự động thay đổi nữa.
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID || status == AuctionStatus.FINISHED) {
             return;
         }
-        // Chỉ chạy được nếu status == OPEN và đã tới giờ bắt đầu
         if (now.isBefore(item.getStartTime())) {
             status = AuctionStatus.OPEN;
             return;
         }
-        // Het thoi gian thi chuyen sang FINISHED ngay ca khi khong ai goi start/finish thu cong.
         if (!now.isBefore(item.getEndTime())) {
             finish();
             return;
@@ -139,7 +138,6 @@ public class Auction extends Entity {
         if (status != AuctionStatus.FINISHED) {
             throw new AuctionClosedException("Only a finished auction can be marked as paid.");
         }
-        // // Không có người thắng → IllegalStateException (lỗi logic, không phải trạng thái phiên)
         if (leadingBidder == null) {
             throw new IllegalStateException("Auction has no winner to mark as paid.");
         }
@@ -158,7 +156,6 @@ public class Auction extends Entity {
         if (status == AuctionStatus.OPEN || status == AuctionStatus.RUNNING) {
             return "Auction has not finished yet.";
         }
-        // Neu khong co ai bid, phien dau gia ket thuc nhung khong co nguoi thang.
         if (leadingBidder == null) {
             return "Auction finished with no winner.";
         }
@@ -174,7 +171,6 @@ public class Auction extends Entity {
                 .formatted(getId(), item.getName(), seller.getUsername(), getStatus(), item.getCurrentHighestPrice()));
     }
 
-    //observer stuffs
     public void addObserver(AuctionObserver observer) {
         if (observer == null) {
             throw new IllegalArgumentException("Observer must not be null.");
@@ -183,6 +179,7 @@ public class Auction extends Entity {
             observers.add(observer);
         }
     }
+
     public void removeObserver(AuctionObserver observer) {
         if (observer == null) {
             throw new IllegalArgumentException("Observer must not be null.");
