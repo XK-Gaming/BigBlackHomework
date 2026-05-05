@@ -1,7 +1,0 @@
-dao\DAOAution_Items$2.class
-network\AuctionServer$1.class
-utils\GsonUtils$BidTransactionTypeAdapter.class
-utils\GsonUtils$InstantTypeAdapter.class
-utils\GsonUtils.class
-Service_\UserService.class
-network\SetAuctionHandler.class
