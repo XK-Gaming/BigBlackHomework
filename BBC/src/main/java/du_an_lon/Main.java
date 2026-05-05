@@ -11,7 +11,12 @@ import java.io.IOException;
 public class Main extends Application {
     @Override
     public void start(Stage stage) throws IOException {
-        Parent root = FXMLLoader.load(getClass().getResource("View1.fxml"));
+        var view = getClass().getResource("View1.fxml");
+        if (view == null) {
+            throw new IOException("Cannot find View1.fxml");
+        }
+
+        Parent root = FXMLLoader.load(view);
         stage.setTitle("Hệ thống đấu giá trực tuyến");
         stage.setScene(new Scene(root));
         stage.show();

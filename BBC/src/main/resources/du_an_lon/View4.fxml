@@ -5,7 +5,6 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.HBox?>
@@ -13,7 +12,7 @@
 <?import javafx.scene.shape.Line?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane fx:id="Pane1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="621.0" prefWidth="696.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="du_an_lon.ControllerAuction">
+<AnchorPane fx:id="Pane1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="621.0" prefWidth="696.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="du_an_lon.ControllerAuction">
    <children>
       <Label layoutX="285.0" layoutY="14.0" prefHeight="59.0" prefWidth="296.0" text="HỆ THỐNG ĐẤU GIÁ ">
          <font>
@@ -21,9 +20,6 @@
          </font>
       </Label>
       <ImageView fx:id="j_image" fitHeight="59.0" fitWidth="60.0" layoutX="25.0" layoutY="14.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
-         <image>
-            <Image url="@img/imgUSER.png" />
-         </image>
          <cursor>
             <Cursor fx:constant="OPEN_HAND" />
          </cursor>
