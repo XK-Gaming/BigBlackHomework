@@ -75,3 +75,75 @@ Mở file `Clients/src/main/resources/client.properties` và chỉnh sửa:
 - **Nguyên nhân:** Do sử dụng đường dẫn tuyệt đối (File) thay vì Resource.
 - **Khắc phục:** Tôi đã cập nhật mã nguồn để sử dụng `getClass().getResource()`. Hãy đảm bảo bạn đã chạy `mvn clean package` để đóng gói lại phiên bản mới nhất.
 
+## Kiến trúc Hệ thống
+
+Dưới đây là sơ đồ luồng hoạt động và cấu trúc mã nguồn của hệ thống Đấu giá:
+
+```mermaid
+graph TD
+    %% --- SERVER SIDE ---
+    subgraph "Server (du_an_lon)"
+        Main[AuctionServer.main] --> Launch[AuctionServer.launch]
+        Launch --> Accept[ServerSocket.accept loop]
+        Pool[ThreadPoolExecutor / worker pool]
+        
+        Accept -->|New Socket| Pool
+        Pool --> CH[ClientHandler / implements Runnable]
+        
+        subgraph "Handler Architecture"
+            CH --> InitH[initHandlers]
+            InitH --> MapH["Map<String, RequestHandler>"]
+            
+            BaseH[BaseHandler] ---|Kế thừa: cung cấp sendResponse| LogicH
+            ReqH[RequestHandler] ---|Triển khai: handle logic| LogicH
+            
+            subgraph "Specific Handlers (Ví dụ)"
+                LogicH(LoginHandler / BidHandler / etc.)
+            end
+        end
+        
+        CH -->|in.readObject| Dispatch[Điều phối theo Command]
+        Dispatch --> LogicH
+        LogicH -->|sendResponse| out[ObjectOutputStream]
+    end
+
+    %% --- COMMUNICATION ---
+    CH <-->|Object Streams / DataPacket| AC
+
+    %% --- CLIENT SIDE ---
+    subgraph "Client (Clients)"
+        AC[AuctionClient / Singleton]
+        
+        subgraph "Threads & Concurrency"
+            L[auction-client-listener thread] ---|Nghe ngầm| AC
+            IO[ClientNetworkExecutor / client-io-pool] ---|Xử lý tác vụ mạng| UI_Trigger
+        end
+        
+        subgraph "UI & Flow"
+            FX[JavaFX Thread / Controller] --> UI_Trigger[Bấm nút / Gửi lệnh]
+            UI_Trigger -->|execute task| IO
+            IO -->|AC.sendCommand| AC
+            AC -->|writeLock| Send[out.writeObject]
+            
+            L -->|in.readObject| Read[DataPacket]
+            Read --> Listener[currentListener / ServerListener]
+            Listener -->|Platform.runLater| UpdateUI[Cập nhật Giao diện]
+        end
+    end
+```
+
+### Giải thích cấu trúc:
+
+#### Phía Server (`du_an_lon`)
+*   **AuctionServer:** Điểm khởi đầu, quản lý cổng kết nối và sử dụng `ThreadPoolExecutor` để xử lý đa luồng hiệu quả.
+*   **ClientHandler:** Đại diện cho mỗi kết nối Client. Nhiệm vụ chính là đọc gói tin (`DataPacket`) và điều phối tới các Handler cụ thể.
+*   **Hệ thống Handler:** 
+    *   `BaseHandler`: Cung cấp công cụ gửi phản hồi (`sendResponse`).
+    *   `RequestHandler`: Interface định nghĩa cách xử lý một yêu cầu.
+    *   Các Handler cụ thể (`LoginHandler`, `BidHandler`...) chứa logic nghiệp vụ riêng biệt.
+
+#### Phía Client (`Clients`)
+*   **AuctionClient:** Lớp Singleton quản lý kết nối duy nhất tới Server. Chứa `writeLock` để đảm bảo an toàn đa luồng khi gửi dữ liệu.
+*   **Luồng lắng nghe (Listener):** Một luồng chạy ngầm liên tục nhận dữ liệu từ Server mà không làm treo giao diện.
+*   **ClientNetworkExecutor:** Pool luồng riêng cho các tác vụ mạng, giúp tách biệt logic I/O ra khỏi luồng giao diện JavaFX chính.
+*   **Cập nhật UI:** Sử dụng `Platform.runLater` để đảm bảo dữ liệu từ Server được hiển thị lên màn hình một cách an toàn.
