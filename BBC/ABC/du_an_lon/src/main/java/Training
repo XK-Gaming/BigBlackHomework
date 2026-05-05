@@ -1,0 +1,9 @@
+Server_Project/
+└── src/main/java/
+    ├── database/       # JDBCUtil (Kết nối DB)
+    ├── dao/            # Các lớp UserDAO, ItemDAO, AuctionDAO
+    ├── model/          # Các đối tượng Person, Items... (Phải implements Serializable)
+    ├── network/
+    │   ├── server/     # AuctionServer.java, ClientHandler.java
+    │   └── protocol/   # Định nghĩa Message/DataPacket chung
+    └── utils/          # Các công cụ hỗ trợ logic tại server
