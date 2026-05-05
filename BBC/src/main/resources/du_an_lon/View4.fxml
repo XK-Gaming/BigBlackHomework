@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Line?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane fx:id="Pane1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="621.0" prefWidth="696.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="du_an_lon.ControllerAuction">
+   <children>
+      <Label layoutX="285.0" layoutY="14.0" prefHeight="59.0" prefWidth="296.0" text="HỆ THỐNG ĐẤU GIÁ ">
+         <font>
+            <Font name="System Bold" size="18.0" />
+         </font>
+      </Label>
+      <ImageView fx:id="j_image" fitHeight="59.0" fitWidth="60.0" layoutX="25.0" layoutY="14.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+         <image>
+            <Image url="@img/imgUSER.png" />
+         </image>
+         <cursor>
+            <Cursor fx:constant="OPEN_HAND" />
+         </cursor>
+      </ImageView>
+      <Label layoutX="85.0" layoutY="47.0" text="Số dư:" />
+      <Label fx:id="j_textSoDu" layoutX="126.0" layoutY="47.0" prefHeight="17.0" prefWidth="95.0" text="0.0 VNĐ" textFill="#eb0a0a" />
+      <Label fx:id="j_LabelName" layoutX="87.0" layoutY="20.0" prefHeight="24.0" prefWidth="112.0" textAlignment="CENTER" textFill="#eb0404">
+         <font>
+            <Font name="System Bold" size="15.0" />
+         </font>
+      </Label>
+      <Button fx:id="j_return" layoutX="488.0" layoutY="580.0" mnemonicParsing="false" onAction="#On_Return" text="Quay lại" />
+      <ScrollPane fitToWidth="true" hbarPolicy="NEVER" layoutX="9.0" layoutY="81.0">
+         <content>
+            <VBox prefHeight="522.0" prefWidth="448.0">
+               <children>
+                  <Label fx:id="j_name" prefHeight="37.0" prefWidth="458.0">
+                     <font>
+                        <Font size="20.0" />
+                     </font>
+                  </Label>
+                  <ImageView fx:id="j_img" fitHeight="351.0" fitWidth="448.0" pickOnBounds="true" preserveRatio="true" />
+                  <AnchorPane prefHeight="237.0" prefWidth="448.0">
+                     <children>
+                        <Label layoutX="30.0" layoutY="22.0" text="Mô tả:" />
+                        <Label fx:id="j_description" layoutX="33.0" layoutY="47.0" prefHeight="17.0" prefWidth="354.0" />
+                        <Label layoutX="47.0" layoutY="70.0" prefHeight="17.0" prefWidth="120.0" />
+                     </children>
+                  </AnchorPane>
+               </children>
+            </VBox>
+         </content>
+      </ScrollPane>
+      <VBox layoutX="477.0" layoutY="82.0" prefHeight="483.0" prefWidth="205.0">
+         <children>
+            <HBox prefHeight="44.0" prefWidth="205.0">
+               <children>
+                  <VBox prefHeight="200.0" prefWidth="100.0">
+                     <children>
+                        <Label fx:id="j_days" prefHeight="33.0" prefWidth="51.0" textAlignment="CENTER" textFill="#fb0808">
+                           <font>
+                              <Font name="System Bold" size="17.0" />
+                           </font></Label>
+                        <Label layoutX="10.0" layoutY="10.0" prefHeight="18.0" prefWidth="51.0" text="Days" textAlignment="CENTER">
+                           <font>
+                              <Font name="System Bold" size="12.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </VBox>
+                  <VBox layoutX="10.0" layoutY="10.0" prefHeight="200.0" prefWidth="100.0">
+                     <children>
+                        <Label fx:id="j_hours" prefHeight="33.0" prefWidth="51.0" textAlignment="CENTER" textFill="#fb0808">
+                           <font>
+                              <Font size="17.0" />
+                           </font></Label>
+                        <Label layoutX="10.0" layoutY="10.0" prefHeight="18.0" prefWidth="51.0" text="Hours" textAlignment="CENTER">
+                           <font>
+                              <Font name="System Bold" size="12.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </VBox>
+                  <VBox layoutX="10.0" layoutY="10.0" prefHeight="200.0" prefWidth="100.0">
+                     <children>
+                        <Label fx:id="j_mins" prefHeight="33.0" prefWidth="51.0" textAlignment="CENTER" textFill="#fb0808">
+                           <font>
+                              <Font name="System Bold" size="17.0" />
+                           </font></Label>
+                        <Label layoutX="10.0" layoutY="10.0" prefHeight="18.0" prefWidth="51.0" text="Mins" textAlignment="CENTER">
+                           <font>
+                              <Font name="System Bold" size="12.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </VBox>
+                  <VBox layoutX="147.0" layoutY="10.0" prefHeight="200.0" prefWidth="100.0">
+                     <children>
+                        <Label fx:id="j_secs" prefHeight="33.0" prefWidth="51.0" textFill="#fb0808">
+                           <font>
+                              <Font size="17.0" />
+                           </font></Label>
+                        <Label layoutX="10.0" layoutY="10.0" prefHeight="18.0" prefWidth="51.0" text="Secs" textAlignment="CENTER">
+                           <font>
+                              <Font name="System Bold" size="12.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </VBox>
+               </children>
+            </HBox>
+            <Line endX="100.0" startX="-100.0" />
+            <Label prefHeight="55.0" prefWidth="110.0" text="Giá hiện tại">
+               <font>
+                  <Font name="System Bold" size="17.0" />
+               </font>
+            </Label>
+            <Label fx:id="j_CurrentPrice" prefHeight="45.0" prefWidth="203.0" textFill="#e61212">
+               <font>
+                  <Font name="System Bold" size="22.0" />
+               </font></Label>
+            <Label prefHeight="26.0" prefWidth="67.0" text="Đấu giá bởi: " />
+            <Label fx:id="j_leadingBidder" prefHeight="47.0" prefWidth="161.0">
+               <font>
+                  <Font name="System Bold" size="15.0" />
+               </font></Label>
+            <AnchorPane prefHeight="200.0" prefWidth="200.0">
+               <children>
+                  <Button layoutX="14.0" layoutY="34.0" mnemonicParsing="false" text="giá 1" />
+                  <Button layoutX="77.0" layoutY="34.0" mnemonicParsing="false" text="giá 2" />
+                  <Button layoutX="139.0" layoutY="34.0" mnemonicParsing="false" text="giá 3" />
+                  <TextField fx:id="j_setPrice" layoutX="24.0" layoutY="88.0" promptText="Đặt giá" />
+                  <Button fx:id="j_apply" layoutX="59.0" layoutY="125.0" mnemonicParsing="false" onAction="#On_apply" text="Hoàn thành" />
+                  <Label fx:id="j_notified" layoutX="19.0" layoutY="161.0" prefHeight="17.0" prefWidth="161.0" textFill="#f61111" visible="false" />
+               </children>
+            </AnchorPane>
+         </children>
+      </VBox>
+   </children>
+</AnchorPane>
