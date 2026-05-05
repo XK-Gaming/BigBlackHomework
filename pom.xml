@@ -84,6 +84,6 @@
 
     <modules>
         <module>Clients</module>
-        <module>du_an_lon</module>
+        <module>Server</module>
     </modules>
 </project>

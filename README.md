@@ -3,7 +3,7 @@
 Dự án này được tái cấu trúc để có thể dễ dàng triển khai trên nhiều máy khác nhau và sẵn sàng để đẩy lên GitHub.
 
 ## Cấu trúc dự án
-- `du_an_lon`: Module Server (Xử lý logic đấu giá và kết nối Database).
+- `controller`: Module Server (Xử lý logic đấu giá và kết nối Database).
 - `Clients`: Module Client (Giao diện người dùng JavaFX).
 - `.gitignore`: Cấu hình các file không đẩy lên GitHub (build, logs, idea config).
 
@@ -15,7 +15,7 @@ Dự án này được tái cấu trúc để có thể dễ dàng triển khai 
 ## Hướng dẫn cấu hình
 
 ### 1. Cấu hình Server
-Mở file `du_an_lon/src/main/resources/server.properties` và chỉnh sửa các thông số sau:
+Mở file `controller/src/main/resources/server.properties` và chỉnh sửa các thông số sau:
 - `db.host`: Địa chỉ host của Database.
 - `db.name`: Tên database.
 - `db.user`: Tên đăng nhập database.
@@ -32,7 +32,7 @@ Mở file `Clients/src/main/resources/client.properties` và chỉnh sửa:
 ### Cách 1: Chạy bằng Maven (Khuyên dùng khi phát triển)
 1. **Chạy Server:**
    ```bash
-   cd du_an_lon
+   cd controller
    mvn clean javafx:run
    ```
    *(Hoặc chạy hàm main trong `network.AuctionServer`)*
@@ -42,7 +42,7 @@ Mở file `Clients/src/main/resources/client.properties` và chỉnh sửa:
    cd Clients
    mvn clean javafx:run
    ```
-   *(Hoặc chạy hàm main trong `du_an_lon.Launcher`)*
+   *(Hoặc chạy hàm main trong `controller.Launcher`)*
 
 ### Cách 2: Đóng gói và chạy file JAR
 1. Tại thư mục gốc của dự án, chạy lệnh:
@@ -50,7 +50,7 @@ Mở file `Clients/src/main/resources/client.properties` và chỉnh sửa:
    mvn clean package -DskipTests
    ```
 2. Sau khi build xong:
-   - File chạy của Server sẽ nằm tại: `du_an_lon/target/Server-1.0-SNAPSHOT.jar`
+   - File chạy của Server sẽ nằm tại: `controller/target/Server-1.0-SNAPSHOT.jar`
    - File chạy của Client sẽ nằm tại: `Clients/target/Clients-1.0-SNAPSHOT.jar`
 3. Chạy lệnh:
    ```bash
@@ -82,7 +82,7 @@ Dưới đây là sơ đồ luồng hoạt động và cấu trúc mã nguồn c
 ```mermaid
 graph TD
     %% --- SERVER SIDE ---
-    subgraph "Server (du_an_lon)"
+    subgraph "Server (controller)"
         Main[AuctionServer.main] --> Launch[AuctionServer.launch]
         Launch --> Accept[ServerSocket.accept loop]
         Pool[ThreadPoolExecutor / worker pool]
@@ -120,7 +120,7 @@ graph TD
         end
         
         subgraph "UI & Flow"
-            FX[JavaFX Thread / Controller] --> UI_Trigger[Bấm nút / Gửi lệnh]
+            FX[JavaFX Thread / controller] --> UI_Trigger[Bấm nút / Gửi lệnh]
             UI_Trigger -->|execute task| IO
             IO -->|AC.sendCommand| AC
             AC -->|writeLock| Send[out.writeObject]
@@ -134,7 +134,7 @@ graph TD
 
 ### Giải thích cấu trúc:
 
-#### Phía Server (`du_an_lon`)
+#### Phía Server (`controller`)
 *   **AuctionServer:** Điểm khởi đầu, quản lý cổng kết nối và sử dụng `ThreadPoolExecutor` để xử lý đa luồng hiệu quả.
 *   **ClientHandler:** Đại diện cho mỗi kết nối Client. Nhiệm vụ chính là đọc gói tin (`DataPacket`) và điều phối tới các Handler cụ thể.
 *   **Hệ thống Handler:** 

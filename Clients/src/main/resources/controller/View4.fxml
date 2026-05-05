@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane fx:id="Pane1" prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #f8f9fa;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAuction">
+   <children>
+      <HBox alignment="CENTER_LEFT" prefHeight="70.0" spacing="20.0" style="-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <padding>
+            <Insets left="20.0" right="20.0" />
+         </padding>
+         <children>
+            <ImageView fx:id="j_image" fitHeight="50.0" fitWidth="50.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+               <image><Image url="@img/imgUSER.png" /></image>
+               <cursor><Cursor fx:constant="HAND" /></cursor>
+            </ImageView>
+            <VBox alignment="CENTER_LEFT">
+               <children>
+                  <Label fx:id="j_LabelName" text="Username" textFill="#2c3e50">
+                     <font><Font name="System Bold" size="14.0" /></font>
+                  </Label>
+                  <HBox spacing="5.0">
+                     <children>
+                        <Label text="Ví:" textFill="#7f8c8d" />
+                        <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#27ae60">
+                           <font><Font name="System Bold" size="13.0" /></font>
+                        </Label>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+            <HBox alignment="CENTER" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="CHI TIẾT ĐẤU GIÁ" textFill="#2c3e50">
+                     <font><Font name="System Bold" size="22.0" /></font>
+                  </Label>
+               </children>
+            </HBox>
+            <Button fx:id="j_return" mnemonicParsing="false" onAction="#On_Return" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" text="Quay lại" />
+         </children>
+      </HBox>
+
+      <HBox layoutY="70.0" spacing="25.0" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="90.0">
+         <children>
+            <VBox spacing="15.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <VBox style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 0);">
+                     <children>
+                        <Label fx:id="j_name" text="Tên sản phẩm" textFill="#34495e" wrapText="true">
+                           <font><Font name="System Bold" size="24.0" /></font>
+                           <padding><Insets bottom="10.0" left="15.0" right="15.0" top="15.0" /></padding>
+                        </Label>
+                        <Separator />
+                        <HBox alignment="CENTER" style="-fx-padding: 20;">
+                           <children>
+                              <ImageView fx:id="j_img" fitHeight="380.0" fitWidth="500.0" pickOnBounds="true" preserveRatio="true" style="-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 0);" />
+                           </children>
+                        </HBox>
+                     </children>
+                  </VBox>
+                  <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background-insets: 0;" VBox.vgrow="ALWAYS">
+                     <content>
+                        <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;">
+                           <children>
+                              <Label text="MÔ TẢ SẢN PHẨM" textFill="#7f8c8d">
+                                 <font><Font name="System Bold" size="14.0" /></font>
+                              </Label>
+                              <Label fx:id="j_description" text="Nội dung mô tả chi tiết..." textFill="#2c3e50" wrapText="true">
+                                 <font><Font size="15.0" /></font>
+                              </Label>
+                           </children>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
+               </children>
+            </VBox>
+
+            <VBox maxWidth="350.0" minWidth="320.0" spacing="20.0">
+               <children>
+                  <VBox alignment="CENTER" spacing="10.0" style="-fx-background-color: #2c3e50; -fx-background-radius: 10; -fx-padding: 20;">
+                     <children>
+                        <Label fx:id="j_status" text="ĐANG DIỄN RA" textFill="#f1c40f">
+                           <font><Font name="System Bold" size="14.0" /></font>
+                        </Label>
+                        <HBox fx:id="j_countdown" alignment="CENTER" spacing="15.0">
+                           <children>
+                              <VBox alignment="CENTER">
+                                 <children>
+                                    <Label fx:id="j_days" text="00" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                                    <Label text="Ngày" textFill="#bdc3c7"><font><Font size="10.0" /></font></Label>
+                                 </children>
+                              </VBox>
+                              <Label text=":" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                              <VBox alignment="CENTER">
+                                 <children>
+                                    <Label fx:id="j_hours" text="00" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                                    <Label text="Giờ" textFill="#bdc3c7"><font><Font size="10.0" /></font></Label>
+                                 </children>
+                              </VBox>
+                              <Label text=":" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                              <VBox alignment="CENTER">
+                                 <children>
+                                    <Label fx:id="j_mins" text="00" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                                    <Label text="Phút" textFill="#bdc3c7"><font><Font size="10.0" /></font></Label>
+                                 </children>
+                              </VBox>
+                              <Label text=":" textFill="WHITE"><font><Font name="System Bold" size="20.0" /></font></Label>
+                              <VBox alignment="CENTER">
+                                 <children>
+                                    <Label fx:id="j_secs" text="00" textFill="#e74c3c"><font><Font name="System Bold" size="20.0" /></font></Label>
+                                    <Label text="Giây" textFill="#bdc3c7"><font><Font size="10.0" /></font></Label>
+                                 </children>
+                              </VBox>
+                           </children>
+                        </HBox>
+                     </children>
+                  </VBox>
+
+                  <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 25; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 0);">
+                     <children>
+                        <VBox spacing="5.0">
+                           <children>
+                              <Label text="GIÁ HIỆN TẠI" textFill="#7f8c8d">
+                                 <font><Font name="System Bold" size="13.0" /></font>
+                              </Label>
+                              <Label fx:id="j_CurrentPrice" text="1.000.000 VNĐ" textFill="#e74c3c">
+                                 <font><Font name="System Bold" size="28.0" /></font>
+                              </Label>
+                           </children>
+                        </VBox>
+                        <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #f1f2f6; -fx-padding: 10; -fx-background-radius: 5;">
+                           <children>
+                              <Label text="Người dẫn đầu:" textFill="#2f3542" />
+                              <Label fx:id="j_leadingBidder" text="Chưa có" textFill="#2980b9">
+                                 <font><Font name="System Bold" size="14.0" /></font>
+                              </Label>
+                           </children>
+                        </HBox>
+                        <Separator />
+                        <VBox spacing="15.0">
+                           <children>
+                              <Label text="ĐẶT GIÁ CỦA BẠN" textFill="#7f8c8d">
+                                 <font><Font name="System Bold" size="13.0" /></font>
+                              </Label>
+                              <HBox spacing="10.0">
+                                 <children>
+                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+10k" />
+                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+50k" />
+                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+100k" />
+                                 </children>
+                              </HBox>
+                              <TextField fx:id="j_setPrice" prefHeight="45.0" promptText="Nhập số tiền..." style="-fx-font-size: 16; -fx-background-radius: 5;" />
+                              <Button fx:id="j_apply" mnemonicParsing="false" onAction="#On_apply" prefHeight="50.0" prefWidth="300.0" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-background-radius: 5;" text="ĐẶT GIÁ NGAY">
+                                 <font><Font name="System Bold" size="16.0" /></font>
+                                 <cursor><Cursor fx:constant="HAND" /></cursor>
+                              </Button>
+                              <Label fx:id="j_notified" alignment="CENTER" prefHeight="40.0" prefWidth="250.0" text="Lỗi thông báo" textFill="#e74c3c" visible="false" wrapText="true">
+                                 <font><Font name="System Italic" size="13.0" /></font>
+                              </Label>
+                           </children>
+                        </VBox>
+                     </children>
+                  </VBox>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </children>
+</AnchorPane>

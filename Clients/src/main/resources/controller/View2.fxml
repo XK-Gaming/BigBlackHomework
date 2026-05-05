@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<HBox fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="500.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerRegister">
+   <children>
+      <VBox alignment="CENTER" prefHeight="500.0" prefWidth="300.0" spacing="20.0" style="-fx-background-color: #2980b9;">
+         <children>
+            <Label text="ĐĂNG KÝ" textFill="WHITE">
+               <font>
+                  <Font name="System Bold" size="32.0" />
+               </font>
+            </Label>
+            <Label text="Tham gia sàn đấu giá ngay hôm nay" textAlignment="CENTER" textFill="WHITE" wrapText="true">
+               <font>
+                  <Font size="14.0" />
+               </font>
+               <padding>
+                  <Insets left="20.0" right="20.0" />
+               </padding>
+            </Label>
+            <Button fx:id="jbuton_TrangChu" mnemonicParsing="false" onAction="#setJbutton_TrangChu" style="-fx-background-color: transparent; -fx-border-color: white; -fx-border-radius: 20;" text="QUAY LẠI ĐĂNG NHẬP" textFill="WHITE">
+               <padding>
+                  <Insets bottom="8.0" left="20.0" right="20.0" top="8.0" />
+               </padding>
+               <VBox.margin>
+                  <Insets top="30.0" />
+               </VBox.margin>
+            </Button>
+         </children>
+      </VBox>
+
+      <VBox alignment="CENTER" prefHeight="500.0" prefWidth="500.0" spacing="12.0" style="-fx-background-color: white;">
+         <padding>
+            <Insets left="60.0" right="60.0" />
+         </padding>
+         <children>
+            <Label text="Tạo tài khoản mới" textFill="#2c3e50">
+               <font>
+                  <Font name="System Bold" size="24.0" />
+               </font>
+               <VBox.margin>
+                  <Insets bottom="10.0" />
+               </VBox.margin>
+            </Label>
+
+            <TextField fx:id="username_DK" onAction="#resetStyle" prefHeight="35.0" promptText="Tên đăng nhập" style="-fx-background-radius: 5;" />
+
+            <HBox spacing="10.0">
+               <children>
+                  <PasswordField fx:id="password_DK1" onAction="#resetStyle" prefHeight="35.0" prefWidth="250.0" promptText="Mật khẩu" style="-fx-background-radius: 5;" />
+                  <PasswordField fx:id="password_DK2" onAction="#resetStyle" prefHeight="35.0" prefWidth="250.0" promptText="Nhập lại mật khẩu" style="-fx-background-radius: 5;" />
+               </children>
+            </HBox>
+
+            <TextField fx:id="name" onAction="#resetStyle" onKeyTyped="#resetStyle" prefHeight="35.0" promptText="Họ và tên" style="-fx-background-radius: 5;" />
+            <TextField fx:id="address" onAction="#resetStyle" onKeyTyped="#resetStyle" prefHeight="35.0" promptText="Địa chỉ Email" style="-fx-background-radius: 5;" />
+
+            <VBox spacing="5.0">
+               <children>
+                  <Label text="Bạn tham gia với vai trò:" textFill="#7f8c8d" />
+                  <ComboBox fx:id="jComboBox_Role" prefHeight="35.0" prefWidth="400.0" promptText="-- Chọn vai trò --" style="-fx-background-radius: 5; -fx-background-color: #f1f1f1;" />
+               </children>
+            </VBox>
+
+            <Label fx:id="errorLabel1" text="Thông báo lỗi" textFill="#e74c3c" visible="false">
+               <font>
+                  <Font size="13.0" />
+               </font>
+            </Label>
+
+            <Button fx:id="jbuton_GhiNhanDangKy" mnemonicParsing="false" onAction="#handleRegister_DangKy" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #27ae60; -fx-background-radius: 25; -fx-text-fill: white; -fx-cursor: hand;" text="HOÀN TẤT ĐĂNG KÝ">
+               <font>
+                  <Font name="System Bold" size="13.0" />
+               </font>
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Button>
+         </children>
+      </VBox>
+   </children>
+</HBox>
