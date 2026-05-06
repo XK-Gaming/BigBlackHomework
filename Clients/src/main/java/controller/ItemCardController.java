@@ -16,8 +16,20 @@ import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Controller cho một "thẻ item" (card) trong danh sách sản phẩm (FXML: `AssetCard.fxml`).
+ *
+ * <p>Trách nhiệm:
+ * <ul>
+ *   <li>Bind dữ liệu {@link Item} lên UI (tên, giá hiện tại, thời gian, ảnh).</li>
+ *   <li>Đăng ký theo dõi trạng thái đấu giá bằng {@link AuctionEngine#watchItem} để cập nhật label trạng thái theo thời gian.</li>
+ *   <li>Huỷ theo dõi (unwatch) khi card bị remove khỏi scene để tránh leak callback.</li>
+ * </ul>
+ */
 public class ItemCardController {
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
+
+    /** Token dùng để huỷ đăng ký watch trong {@link AuctionEngine}. */
     private String watchToken;
 
     @FXML
@@ -38,6 +50,19 @@ public class ItemCardController {
     @FXML
     private Label j_status;
 
+    /**
+     * Precondition: {@code item} khác null và có đủ thông tin tối thiểu (name, currentHighestPrice, start/end time).
+     * Postcondition:
+     * - UI labels được cập nhật theo dữ liệu item.
+     * - Nếu có ảnh: load ảnh từ URL http(s) hoặc từ resource `/controller/img/`.
+     * - Đăng ký watch trạng thái đấu giá cho item; token được lưu để unwatch khi cần.
+     * NOTE:
+     * - Watch callback chạy từ luồng nền -> chuyển về UI thread bằng {@code Platform.runLater}.
+     * - Múi giờ hiển thị sử dụng {@code ZoneId.systemDefault()}.
+     * Method returns: nothing.
+     * @throws IOException NOTE: Có thể ném từ logic gọi/khai báo; hiện method không trực tiếp I/O ngoại trừ load ảnh URL.
+     * @throws URISyntaxException NOTE: Khai báo theo signature hiện tại.
+     */
     public void setData(Item item) throws IOException, URISyntaxException {
         if (watchToken != null) {
             auctionEngine.unwatch(watchToken);
@@ -89,8 +114,18 @@ public class ItemCardController {
     }
 
     @FXML
+    /**
+     * Precondition: Không có.
+     * Postcondition: Không có (placeholder handler; click logic thường gắn từ bên ngoài ở controller danh sách).
+     * Method returns: nothing.
+     */
     void on_choice(MouseEvent event) {}
 
+    /**
+     * Precondition: {@code totalSeconds >= 0}.
+     * Postcondition: Không thay đổi state.
+     * Method returns: Chuỗi định dạng {@code HH:mm:ss} dùng hiển thị countdown.
+     */
     private String formatDuration(long totalSeconds) {
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;

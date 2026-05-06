@@ -29,15 +29,53 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.Map;
 
+/**
+ * Controller cho màn hình phiên đấu giá của một {@link model.Items.Item} đã được chọn.
+ *
+ * <p>Chức năng chính:
+ * <ul>
+ *   <li>Hiển thị thông tin item (tên, mô tả, ảnh, giá hiện tại).</li>
+ *   <li>Lấy thông tin {@link Auction} từ server bằng {@code GET_AUCTION}.</li>
+ *   <li>Gửi bid bằng {@code BID} và nhận update real-time ({@code BID_UPDATE}).</li>
+ *   <li>Chạy engine trạng thái thời gian (countdown) bằng {@link AuctionEngine} để khoá/mở nút đặt giá theo trạng thái.</li>
+ * </ul>
+ */
 public class ControllerAuction implements ServerListener {
+    /** Singleton network client dùng chung cho toàn app. */
     private AuctionClient client = AuctionClient.getInstance();
+
+    /** Engine client-side để tính trạng thái OPEN/RUNNING/FINISHED theo thời gian. */
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
+
+    /** User hiện tại (từ session). */
     User p1 = UserSession.getLoggedInUser();
+
+    /** Item đang xem/đấu giá (từ session). */
     Item item1 = ItemSession.getLoggedInItem();
+
+    /**
+     * Phiên đấu giá đang hiển thị.
+     * NOTE: static -> dùng chung giữa các instance controller; dễ gây side-effect nếu mở nhiều màn.
+     */
     static Auction this_Auction;
+
+    /** Token dùng để huỷ đăng ký watch trong {@link AuctionEngine}. */
     private String watchToken;
+
+    /** Tránh xử lý kết thúc nhiều lần khi status engine callback lặp lại. */
     private boolean finishHandled;
 
+    /**
+     * Precondition: User và Item đã được set trong session trước khi chuyển sang màn này.
+     * Postcondition:
+     * - Đăng ký listener cho màn hiện tại.
+     * - Điền ngay thông tin item từ session để tránh nháy UI.
+     * - Gửi {@code GET_AUCTION} để load {@link Auction} từ server.
+     * - Gửi {@code SET_AUCTION} để server biết client đang "theo dõi" item nào (phục vụ push {@code BID_UPDATE}).
+     * NOTE: Nếu {@code p1} hoặc {@code item1} null có thể phát sinh {@link NullPointerException}.
+     * Method returns: nothing.
+     * @throws IOException NOTE: Ném ra nếu gửi command lỗi.
+     */
     public void initialize() throws IOException {
         client.setListener(this);
         showSessionProductAndLoadingAuctionState();
@@ -70,6 +108,14 @@ public class ControllerAuction implements ServerListener {
         j_notified.setVisible(false);
     }
 
+    /**
+     * Precondition: {@code auction} là kết quả từ server (có thể null nếu server không tìm thấy).
+     * Postcondition:
+     * - Nếu null: khoá đặt giá và hiển thị trạng thái "chưa diễn ra".
+     * - Nếu có dữ liệu: gọi {@link #setupUI()} để bật countdown và start engine.
+     * NOTE: UI update chạy trên JavaFX thread bằng {@code Platform.runLater}.
+     * Method returns: nothing.
+     */
     public void onAuctionDataLoaded(Auction auction) {
         this_Auction = auction;
         Platform.runLater(() -> {
@@ -100,6 +146,13 @@ public class ControllerAuction implements ServerListener {
         });
     }
 
+    /**
+     * Precondition: {@code this_Auction != null}, {@code p1 != null}, {@code item1 != null}.
+     * Postcondition: UI được bind đầy đủ và status engine được start.
+     * NOTE: Khai báo throws {@link SQLException} nhưng method không truy cập DB trực tiếp; có thể do code cũ.
+     * Method returns: nothing.
+     * @throws SQLException NOTE: Theo signature hiện tại.
+     */
     private void setupUI() throws SQLException {
         j_status.setTextFill(Color.web("#f1c40f"));
         if (j_countdown != null) {
@@ -113,6 +166,12 @@ public class ControllerAuction implements ServerListener {
         startStatusEngine();
     }
 
+    /**
+     * Precondition: {@code item1} khác null; {@code this_Auction} có thể null.
+     * Postcondition: Label giá và người dẫn đầu được cập nhật.
+     * NOTE: Khi {@code this_Auction == null}, leader hiển thị "—" và giá lấy từ {@link ItemSession}.
+     * Method returns: nothing.
+     */
     private void updatePriceAndLeader() {
         if (this_Auction == null) {
             // Nếu chưa có Auction, hiển thị giá từ ItemSession
@@ -139,6 +198,12 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    /**
+     * Precondition: {@code item1} khác null.
+     * Postcondition: Nếu item có ảnh -> hiển thị ảnh từ URL hoặc resource.
+     * NOTE: Nếu resource không tồn tại thì giữ nguyên image hiện tại (không crash).
+     * Method returns: nothing.
+     */
     private void renderImage() {
         if (item1.getImg() != null && !item1.getImg().isEmpty()) {
             if (item1.getImg().startsWith("http")) {
@@ -164,6 +229,17 @@ public class ControllerAuction implements ServerListener {
     private Label j_leadingBidder;
 
     @FXML
+    /**
+     * Precondition:
+     * - {@code item1} và {@code p1} khác null
+     * - {@code j_setPrice} chứa số hợp lệ (parseDouble được)
+     * Postcondition:
+     * - Nếu input rỗng/<= current price -> hiển thị lỗi, không gửi.
+     * - Nếu hợp lệ -> gửi command {@code BID} lên server với itemId, bidderId, amount.
+     * NOTE: Hiện code không bắt {@link NumberFormatException} khi parse giá; nếu nhập chữ sẽ crash.
+     * Method returns: nothing.
+     * @throws IOException NOTE: Ném ra nếu gửi bid lỗi (stream/socket).
+     */
     void On_apply(ActionEvent event) throws IOException {
         j_notified.setVisible(false);
 
@@ -218,6 +294,16 @@ public class ControllerAuction implements ServerListener {
     }
 
     @FXML
+    /**
+     * Precondition: Người dùng đang ở màn đấu giá; có thể đang watch engine.
+     * Postcondition:
+     * - Huỷ watch countdown (cleanup)
+     * - Chuyển về màn danh sách (View3.fxml)
+     * - Xoá {@link ItemSession}
+     * - Báo server ngừng theo dõi item bằng {@code SET_AUCTION} (itemId="").
+     * Method returns: nothing.
+     * @throws IOException NOTE: Ném ra nếu gửi command lỗi.
+     */
     void On_Return(ActionEvent event) throws IOException {
         cleanup();
         SceneHelper.changeScene(j_return, "View3.fxml");
@@ -266,6 +352,12 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    /**
+     * Precondition: {@code item1} khác null.
+     * Postcondition: Đăng ký watch countdown từ {@link AuctionEngine} và cập nhật UI theo trạng thái.
+     * NOTE: Khi status = FINISHED sẽ gọi {@link #handleFinishedAuction()} đúng 1 lần nhờ {@code finishHandled}.
+     * Method returns: nothing.
+     */
     private void startStatusEngine() {
         cleanup();
         finishHandled = false;
@@ -299,6 +391,14 @@ public class ControllerAuction implements ServerListener {
         }));
     }
 
+    /**
+     * Precondition: {@code this_Auction} đã có leadingBidder (hoặc null).
+     * Postcondition:
+     * - Nếu user hiện tại là người thắng -> hiển thị chúc mừng và tự chuyển sang {@code ViewPaid.fxml} sau 3s.
+     * - Nếu không -> hiển thị thông báo phiên đã kết thúc.
+     * NOTE: Đây là xử lý UI-side; logic thắng thua nguồn gốc vẫn do server/Auction xác định.
+     * Method returns: nothing.
+     */
     private void handleFinishedAuction() {
         if (this_Auction != null && this_Auction.getLeadingBidder() != null
                 && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
@@ -314,6 +414,18 @@ public class ControllerAuction implements ServerListener {
     }
 
     @Override
+    /**
+     * Precondition:
+     * - {@code GET_AUCTION_RESULT}: payload là {@link Auction} (có thể null).
+     * - {@code BID_UPDATE}: payload là {@code Map<String,Object>} có keys: itemId, newPrice, bidderId, auction (tuỳ).
+     * - {@code BID_RESULT}: payload là {@code Map<String,Object>} có keys: success(boolean), message(String).
+     * Postcondition:
+     * - GET_AUCTION_RESULT: gọi {@link #onAuctionDataLoaded(Auction)}.
+     * - BID_UPDATE: nếu update cho đúng item -> cập nhật giá, cập nhật leadingBidder và refresh UI.
+     * - BID_RESULT: hiển thị thông báo thành công/thất bại.
+     * NOTE: UI update đều dùng {@code Platform.runLater}.
+     * Method returns: nothing.
+     */
     public void onServerResponse(DataPacket response) {
         String command = response.getCommand();
 

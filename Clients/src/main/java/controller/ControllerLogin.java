@@ -23,7 +23,10 @@ import java.util.Map;
 
 public class ControllerLogin implements ServerListener {
 
+    /** Singleton network client dùng chung cho toàn app. */
     private AuctionClient client = AuctionClient.getInstance();
+
+    /** User sau khi đăng nhập thành công (được lấy từ payload). */
     public User p1 = null;
 
     @FXML
@@ -39,12 +42,23 @@ public class ControllerLogin implements ServerListener {
     @FXML
     private TextField username;
 
+    /**
+     * Precondition: Các trường @FXML đã được inject bởi JavaFX runtime.
+     * Postcondition: Controller này được đăng ký làm {@link ServerListener} hiện tại, để nhận response từ server cho màn hình login.
+     * NOTE: Do kiến trúc chỉ có 1 listener active, việc chuyển màn hình cần controller mới gọi {@code client.setListener(this)}.
+     * Method returns: nothing.
+     */
     public void initialize() {
         // Đăng ký controller này làm người nghe tin nhắn từ Server
         client.setListener(this);
     }
 
-    // Xử lý chuyển sang màn hình Đăng ký
+    /**
+     * Precondition: Button {@code jbutton_DangKy} đang nằm trong một Scene/Stage hợp lệ.
+     * Postcondition: Scene được chuyển sang {@code View2.fxml} (màn hình đăng ký) nếu load thành công.
+     * NOTE: Nếu load FXML thất bại sẽ hiển thị message lỗi trên {@code errorLabel}.
+     * Method returns: nothing.
+     */
     @FXML
     public void setJbutton_DangKy() {
         try {
@@ -60,7 +74,12 @@ public class ControllerLogin implements ServerListener {
         }
     }
 
-    // Xử lý nút Đăng nhập
+    /**
+     * Precondition: Người dùng đã nhập {@code username} và {@code password}.
+     * Postcondition: Nếu input hợp lệ, một command {@code LOGIN} sẽ được gửi lên server (chạy trên luồng nền).
+     * NOTE: Không cập nhật UI trực tiếp trong luồng nền; các thông báo lỗi được chuyển về UI thread bằng {@code Platform.runLater}.
+     * Method returns: nothing.
+     */
     @FXML
     public void handleRegister() {
         if (username.getText().isEmpty() || password.getText().isEmpty()) {
@@ -95,7 +114,13 @@ public class ControllerLogin implements ServerListener {
         });
     }
 
-    // Xóa viền đỏ khi người dùng gõ lại
+    /**
+     * Precondition: {@code keyEvent.getSource()} là {@link TextField}.
+     * Postcondition: Xoá style viền đỏ của field hiện tại và ẩn {@code errorLabel}.
+     * NOTE: Được bind vào event gõ phím để reset trạng thái lỗi khi người dùng sửa input.
+     * Method returns: nothing.
+     * @throws ClassCastException NOTE: Có thể xảy ra nếu source không phải {@link TextField}.
+     */
     @FXML
     public void resetStyle(javafx.scene.input.KeyEvent keyEvent) {
         TextField field = (TextField) keyEvent.getSource();
@@ -103,7 +128,14 @@ public class ControllerLogin implements ServerListener {
         errorLabel.setVisible(false);
     }
 
-    // Nhận phản hồi từ Server qua ObjectStream
+    /**
+     * Precondition: {@code response} được server gửi về; với {@code LOGIN_RESULT} thì payload phải là {@code Map<String,Object>}
+     * chứa các khoá tối thiểu: {@code success}, {@code message} (tuỳ), {@code user} (khi success).
+     * Postcondition: Nếu login fail -> hiển thị lỗi; nếu success -> lưu session và điều hướng đến màn hình theo role.
+     * NOTE: UI luôn được cập nhật trong {@code Platform.runLater}.
+     * Method returns: nothing.
+     * NOTE: Có thể phát sinh {@link ClassCastException} nếu payload không đúng format (đã bắt và hiển thị).
+     */
     @Override
     public void onServerResponse(DataPacket response) {
         String command = response.getCommand();

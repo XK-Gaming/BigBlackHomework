@@ -21,8 +21,19 @@ import java.io.IOException;
 
 import java.util.Map;
 
+/**
+ * Controller cho màn hình "Cài đặt / Thông tin tài khoản" (đổi tên, đổi số điện thoại, đổi mật khẩu, logout).
+ *
+ * <p>Giao tiếp server:
+ * <ul>
+ *   <li>{@code UPDATE_USER} -> {@code UPDATE_USER_RESULT}</li>
+ *   <li>{@code CHANGE_PASSWORD} -> {@code CHANGE_PASSWORD_RESULT}</li>
+ *   <li>{@code LOGOUT}</li>
+ * </ul>
+ */
 public class ControllerSetInf implements ServerListener {
 
+    /** Singleton network client dùng chung cho toàn app. */
     private AuctionClient client = AuctionClient.getInstance();
 
     @FXML
@@ -71,6 +82,13 @@ public class ControllerSetInf implements ServerListener {
     void On_MouseClickImg(MouseEvent event) {
 
     }
+
+    /**
+     * Precondition: Các trường @FXML đã inject; user đã đăng nhập (có {@link UserSession}).
+     * Postcondition: Đăng ký listener, hiển thị username và mask password, hiển thị tên user trên header.
+     * NOTE: Hiện code gọi {@code p1.getName()} ngoài block null-check; nếu session null sẽ NullPointerException.
+     * Method returns: nothing.
+     */
     public void initialize() {
         client.setListener(this);
         User p1 = UserSession.getLoggedInUser();
@@ -82,6 +100,11 @@ public class ControllerSetInf implements ServerListener {
 
     }
     @FXML
+    /**
+     * Precondition: {@code j_return} thuộc scene hiện tại.
+     * Postcondition: Chuyển về {@code View3.fxml}.
+     * Method returns: nothing.
+     */
     void j_event_return(ActionEvent event) {
         SceneHelper.changeScene((Node) j_return, "View3.fxml");
 
@@ -117,6 +140,12 @@ public class ControllerSetInf implements ServerListener {
         private Button j_buttonThongTinDangNhap;
 
         @FXML
+        /**
+         * Precondition: User đã login; {@code j_inputNewName} có nội dung mới.
+         * Postcondition: Nếu tên hợp lệ thì gửi {@code UPDATE_USER} lên server (field=name).
+         * NOTE: Nếu input rỗng thì chỉ hiển thị lỗi, không gửi request.
+         * Method returns: nothing.
+         */
         void j_OnSetName(ActionEvent event)  {
             User p1 = UserSession.getLoggedInUser();
             String newName = j_inputNewName.getText();
@@ -142,6 +171,12 @@ public class ControllerSetInf implements ServerListener {
         }
 
         @FXML
+        /**
+         * Precondition: User đã login; {@code j_inputNewTel} có nội dung (có thể rỗng - hiện chưa validate).
+         * Postcondition: Gửi {@code UPDATE_USER} lên server (field=phone).
+         * NOTE: Hiện chưa validate số điện thoại; nếu cần có thể kiểm tra regex/độ dài trước khi gửi.
+         * Method returns: nothing.
+         */
         void j_OnSetTel(ActionEvent event) {
             User p1 = UserSession.getLoggedInUser();
             String newTel = j_inputNewTel.getText();
@@ -170,30 +205,56 @@ public class ControllerSetInf implements ServerListener {
     // --- Xử lý sự kiện các nút bấm bên menu trái ---
 
     @FXML
+    /**
+     * Precondition: Các pane đã được inject.
+     * Postcondition: Hiển thị pane thông tin tài khoản; ẩn các pane khác.
+     * Method returns: nothing.
+     */
     void j_OnbuttonThongTinDangNhap(ActionEvent event) {
         hideAllPanes();
         Pane_ThongTinTaiKhoan.setVisible(true);
     }
 
     @FXML
+    /**
+     * Precondition: Các pane đã được inject.
+     * Postcondition: Hiển thị pane thanh toán; ẩn các pane khác.
+     * Method returns: nothing.
+     */
     void j_OnbuttonThanhToan(ActionEvent event) {
         hideAllPanes();
         Pane_ThanhToan.setVisible(true);
     }
 
     @FXML
+    /**
+     * Precondition: Các pane đã được inject.
+     * Postcondition: Hiển thị pane đổi mật khẩu; ẩn các pane khác.
+     * Method returns: nothing.
+     */
     void j_OnbuttonDoiMatKhau(ActionEvent event) {
         hideAllPanes();
         Pane_ĐoiMatKhau.setVisible(true);
     }
 
     @FXML
+    /**
+     * Precondition: Các pane đã được inject.
+     * Postcondition: Hiển thị pane cài đặt; ẩn các pane khác.
+     * Method returns: nothing.
+     */
     void j_OnbuttonCaiDat(ActionEvent event) {
         hideAllPanes();
         Pane_CaiDat.setVisible(true);
     }
 
     @FXML
+    /**
+     * Precondition: User đã login; server đang kết nối.
+     * Postcondition: Gửi {@code LOGOUT} lên server, xoá {@link UserSession} và chuyển về {@code View1.fxml}.
+     * Method returns: nothing.
+     * @throws IOException NOTE: Ném ra nếu gửi logout lỗi (stream/socket).
+     */
     void j_OnbuttonDangXuat(ActionEvent event) throws IOException {
         client.sendCommand("LOGOUT", UserSession.getLoggedInUser().getUsername());
         UserSession.cleanUserSession();
@@ -201,6 +262,14 @@ public class ControllerSetInf implements ServerListener {
     }
 
     @FXML
+    /**
+     * Precondition: User đã login; các trường password đã được nhập.
+     * Postcondition:
+     * - Nếu validate fail -> hiển thị lỗi.
+     * - Nếu pass -> gửi {@code CHANGE_PASSWORD} lên server.
+     * NOTE: Validate gồm đủ 3 trường và mật khẩu mới khớp xác nhận.
+     * Method returns: nothing.
+     */
     void j_OnChangePassword(ActionEvent event) {
         User p1 = UserSession.getLoggedInUser();
         String oldPassword = j_inputOldPassword.getText();
@@ -238,6 +307,17 @@ public class ControllerSetInf implements ServerListener {
     }
 
     @Override
+    /**
+     * Precondition:
+     * - Với {@code UPDATE_USER_RESULT} payload là {@code Map<String,Object>} có keys {@code success}, {@code message}.
+     * - Với {@code CHANGE_PASSWORD_RESULT} payload là {@code Map<String,Object>} có keys {@code success}, {@code message}.
+     * Postcondition:
+     * - Hiển thị thông báo tương ứng trên UI.
+     * - Nếu update name thành công -> cập nhật {@link User} trong {@link UserSession} (chỉ field name).
+     * - Nếu đổi mật khẩu thành công -> clear các ô password.
+     * NOTE: UI update dùng {@code Platform.runLater}.
+     * Method returns: nothing.
+     */
     public void onServerResponse(DataPacket response) {
         String command = response.getCommand();
 

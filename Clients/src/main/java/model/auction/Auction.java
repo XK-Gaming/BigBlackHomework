@@ -14,19 +14,46 @@ import model.User.Bidder;
 import model.User.Seller;
 
 /**
- * Dai dien cho mot phien dau gia cua duy nhat mot item.
- * Lop nay quan ly trang thai phien dau gia va lich su bid.
+ * Đại diện cho một phiên đấu giá của duy nhất một {@link model.Items.Item}.
+ *
+ * <p>Trách nhiệm:
+ * <ul>
+ *   <li>Quản lý trạng thái phiên đấu giá ({@link AuctionStatus}).</li>
+ *   <li>Lưu lịch sử bid ({@link BidTransaction}).</li>
+ *   <li>Quản lý người dẫn đầu (leading bidder).</li>
+ *   <li>Thông báo cho các {@link AuctionObserver} khi có bid mới hoặc khi phiên kết thúc.</li>
+ * </ul>
+ *
+ * <p>NOTE: Ở module client hiện class này thường được nhận từ server (payload) qua {@link network.DataPacket}.
  */
 public class Auction extends Entity implements Serializable {
     private static final long serialVersionUID = 1L;
     private long itemId;
-    private  Item item;
-    private  String sellerID;
+    /** Item thuộc phiên đấu giá này. */
+    private Item item;
+
+    /** Username/id của người bán. */
+    private String sellerID;
+
+    /** Lịch sử bid (có thể rỗng). */
     private List<BidTransaction> bidHistory = new ArrayList<>();
+
+    /** Trạng thái hiện tại của phiên. */
     private AuctionStatus status;
+
+    /** Username/id người đang dẫn đầu (có thể null nếu chưa ai bid). */
     private String leadingBidder;
+
+    /** Danh sách observer/subscriber nhận sự kiện từ auction. */
     private final List<AuctionObserver> observers = new ArrayList<>();//list cho subcribers
 
+    /**
+     * Precondition: {@code item} khác null; {@code sellerID} hợp lệ; {@code createdAt} khác null.
+     * Postcondition: Tạo auction ở trạng thái {@link AuctionStatus#OPEN}.
+     * NOTE: Không tự start; status sẽ được cập nhật theo thời gian thông qua {@link #getStatus()} hoặc {@link #updateStatusByTime()}.
+     * Method returns: đối tượng {@link Auction} mới.
+     * @throws IllegalArgumentException NOTE: Nếu {@code item} null.
+     */
     public Auction(String id, Item item, String sellerID, Instant createdAt) {
         super(id, createdAt);
         if (item == null) {
@@ -37,29 +64,69 @@ public class Auction extends Entity implements Serializable {
         this.status = AuctionStatus.OPEN;
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Tạo auction rỗng (phục vụ serialize/deserialize).
+     * NOTE: Sau khi tạo bằng constructor này, các field có thể null cho tới khi được set từ DB/server.
+     */
     public Auction() {
 
     }
 
+    /**
+     * Precondition: {@link Auction} đã có item (có thể null nếu dùng constructor rỗng).
+     * Postcondition: Không đổi state.
+     * Method returns: {@link Item}.
+     */
     public Item getItem() {
         return item;
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Không đổi state.
+     * Method returns: sellerID.
+     */
     public String getSellerID() {
         return sellerID;
     }
 
+    /**
+     * Precondition: {@link Auction} có item với start/end time hợp lệ.
+     * Postcondition: Gọi {@link #updateStatusByTime()} để đồng bộ status theo thời gian hiện tại.
+     * Method returns: trạng thái hiện tại sau cập nhật.
+     */
     public AuctionStatus getStatus() {
         updateStatusByTime();
         return status;
     }
+
+    /**
+     * Precondition: Không có.
+     * Postcondition: Không đổi state.
+     * NOTE: Method này có vẻ dùng cho UI để hiển thị mặc định khi chưa có bidder.
+     * Method returns: chuỗi "Người bán".
+     */
     public String getDefaultBidder(){
         return "Người bán";
     }
+
+    /**
+     * Precondition: Không có.
+     * Postcondition: Không đổi state.
+     * Method returns: leadingBidder (có thể null).
+     */
     public String getLeadingBidder() {
         return leadingBidder;
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Không đổi state.
+     * NOTE: Trả về danh sách chỉ-đọc để tránh bên ngoài sửa trực tiếp lịch sử bid.
+     * Method returns: unmodifiable view của bidHistory.
+     * @throws UnsupportedOperationException NOTE: Nếu caller cố gắng modify list trả về.
+     */
     public List<BidTransaction> getBidHistory() {
         return Collections.unmodifiableList(bidHistory);
     }
@@ -83,6 +150,14 @@ public class Auction extends Entity implements Serializable {
         status = AuctionStatus.RUNNING;
     }
     //synchronize placebid cho nhieu nguoi dung
+
+    /**
+     * Precondition: {@code bidder} khác null; {@code amount} là số dương; auction đang RUNNING.
+     * Postcondition: (Dự kiến) thêm một {@link BidTransaction} vào history, cập nhật leadingBidder và giá hiện tại của item.
+     * NOTE: Hiện method chưa hoàn thiện (chỉ validate rồi return).
+     * Method returns: nothing.
+     * @throws AuctionException NOTE: Nếu auction không RUNNING hoặc amount không hợp lệ.
+     */
     public synchronized void  placeBid(Bidder bidder, double amount) {
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
@@ -94,6 +169,13 @@ public class Auction extends Entity implements Serializable {
 
 
     }
+
+    /**
+     * Precondition: {@code item} có start/end time hợp lệ.
+     * Postcondition: Cập nhật {@code status} theo thời gian hiện tại, trừ khi đang ở trạng thái đóng (CANCELED/PAID/FINISHED).
+     * NOTE: Khi quá endTime sẽ gọi {@link #finish()} để kích hoạt notify.
+     * Method returns: nothing.
+     */
     public void updateStatusByTime() {
         Instant now = Instant.now();
         // Cac trang thai dong thi khong tu dong thay doi nua theo thoi gian.
@@ -112,6 +194,12 @@ public class Auction extends Entity implements Serializable {
         status = AuctionStatus.RUNNING;
     }
 
+    /**
+     * Precondition: Auction không ở trạng thái PAID/CANCELED.
+     * Postcondition: {@code status} được set FINISHED; nếu trước đó chưa FINISHED thì notify observer.
+     * Method returns: nothing.
+     * @throws AuctionException NOTE: Nếu auction đã đóng (PAID/CANCELED) mà vẫn gọi finish.
+     */
     public void finish() {
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID) {
             throw new AuctionException("Closed auction cannot be finished again.");
@@ -123,6 +211,12 @@ public class Auction extends Entity implements Serializable {
         }
     }
 
+    /**
+     * Precondition: Auction đang FINISHED và có {@code leadingBidder} (tức có người thắng).
+     * Postcondition: {@code status} được set PAID.
+     * Method returns: nothing.
+     * @throws AuctionException NOTE: Nếu auction chưa FINISHED hoặc không có winner.
+     */
     public void markPaid() {
         if (status != AuctionStatus.FINISHED) {
             throw new AuctionException("Only a finished auction can be marked as paid.");
@@ -133,6 +227,12 @@ public class Auction extends Entity implements Serializable {
         status = AuctionStatus.PAID;
     }
 
+    /**
+     * Precondition: Auction chưa PAID.
+     * Postcondition: {@code status} được set CANCELED.
+     * Method returns: nothing.
+     * @throws AuctionException NOTE: Nếu auction đã PAID.
+     */
     public void cancel() {
         if (status == AuctionStatus.PAID) {
             throw new AuctionException("Paid auction cannot be canceled.");
@@ -140,6 +240,11 @@ public class Auction extends Entity implements Serializable {
         status = AuctionStatus.CANCELED;
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Trạng thái được cập nhật theo thời gian trước khi kết luận.
+     * Method returns: Chuỗi mô tả winner; nếu chưa kết thúc hoặc không có winner sẽ trả chuỗi tương ứng.
+     */
     public String getWinnerSummary() {
         updateStatusByTime();
         if (status == AuctionStatus.OPEN || status == AuctionStatus.RUNNING) {
@@ -162,11 +267,23 @@ public class Auction extends Entity implements Serializable {
     }
 
     //observer stuffs
+
+    /**
+     * Precondition: {@code observer} khác null.
+     * Postcondition: Observer được thêm vào list nếu chưa tồn tại.
+     * Method returns: nothing.
+     */
     public void addObserver(AuctionObserver observer) {
         if (!observers.contains(observer)) {
             observers.add(observer);
         }
     }
+
+    /**
+     * Precondition: {@code observer} khác null.
+     * Postcondition: Observer bị xoá khỏi list (nếu có).
+     * Method returns: nothing.
+     */
     public void removeObserver(AuctionObserver observer) {
         observers.remove(observer);
     }
@@ -183,19 +300,40 @@ public class Auction extends Entity implements Serializable {
         }
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Gán {@code itemId}.
+     * Method returns: nothing.
+     */
     public void setItemId(long itemId) {
         this.itemId =itemId;
     }
 
 
+    /**
+     * Precondition: Có thể null (nghĩa là chưa có winner).
+     * Postcondition: Cập nhật {@code leadingBidder}.
+     * Method returns: nothing.
+     */
     public void setLeadingBidder(String leadingBidder) {
         this.leadingBidder = leadingBidder;
     }
 
+    /**
+     * Precondition: {@code status} khác null.
+     * Postcondition: Cập nhật {@code status}.
+     * Method returns: nothing.
+     */
     public void setStatus(AuctionStatus status) {
         this.status = status;
     }
 
+    /**
+     * Precondition: {@code bidHistory} khác null.
+     * Postcondition: Thay thế toàn bộ lịch sử bid.
+     * NOTE: Tên method hiện tại là {@code setbidHistory} (không theo camelCase chuẩn).
+     * Method returns: nothing.
+     */
     public void setbidHistory(List<BidTransaction> bidHistory) {
         this.bidHistory = bidHistory;
     }
