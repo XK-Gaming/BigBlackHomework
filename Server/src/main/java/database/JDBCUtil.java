@@ -7,8 +7,15 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 /* Tạo kết nối với database bằng JDBC */
+/**
+ * Utility tạo kết nối JDBC cho module server.
+ *
+ * Trách nhiệm class: load server.properties từ classpath và tạo Connection MySQL mới
+ * cho các DAO sử dụng.
+ */
 public class JDBCUtil {
 
+    /** Cấu hình database đã load từ server.properties. */
     private static final Properties props = new Properties();
 
     static {
@@ -23,9 +30,19 @@ public class JDBCUtil {
         }
     }
 
+    /**
+     * Precondition: Không có.
+     * Postcondition: Ngăn code bên ngoài khởi tạo utility class này.
+     */
     private JDBCUtil(){}; // Private constructor
 
     // 2. Phương thức lấy kết nối (Trả về kết nối MỚI mỗi lần gọi)
+    /**
+     * Precondition: server.properties có sẵn hoặc default value chấp nhận được; MySQL driver,
+     * network và thông tin đăng nhập DB hợp lệ.
+     * Postcondition: Method trả về Connection mới nếu thành công, hoặc null nếu tạo connection lỗi.
+     * NOTE: Mỗi lần gọi tạo một connection mới; hiện chưa có connection pool.
+     */
     public static Connection getConnection() {
         Connection con = null;
         try {
@@ -51,6 +68,12 @@ public class JDBCUtil {
     }
 
     // 4. Giữ lại hàm này đề phòng bạn còn dùng ở các file DAO cũ chưa kịp sửa sang try-with-resources
+    /**
+     * Precondition: c là null hoặc là JDBC Connection do ứng dụng này tạo.
+     * Postcondition: c được đóng nếu khác null và đang mở.
+     * Method không trả về giá trị.
+     * NOTE: Exception được catch và in ra log.
+     */
     public static void closeConnection(Connection c) {
         try {
             if (c != null && !c.isClosed()) {

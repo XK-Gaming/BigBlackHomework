@@ -6,11 +6,20 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Item loại phương tiện giao thông.
+ */
 public final class Vehicle extends Item implements Serializable {
     private static final long serialVersionUID = 1L;
+    /** Hãng sản xuất phương tiện. */
     private final String manufacturer;
+    /** Năm sản xuất hoặc đời xe. */
     private final String year;
 
+    /**
+     * Precondition: Các tham số mô tả phương tiện được truyền đầy đủ.
+     * Postcondition: Tạo Vehicle item với ItemType.VEHICLE, manufacturer và year riêng.
+     */
     public Vehicle(
             String name,
             String description,
@@ -27,16 +36,22 @@ public final class Vehicle extends Item implements Serializable {
         this.year = year;
     }
 
+    /** Precondition: Vehicle đã được khởi tạo. Postcondition: Method trả về manufacturer. */
     public String getManufacturer() {
         return manufacturer;
     }
 
+    /** Precondition: Vehicle đã được khởi tạo. Postcondition: Method trả về year. */
     public String getYear() {
         return year;
     }
 
 
 
+    /**
+     * Precondition: Vehicle đã được khởi tạo.
+     * Postcondition: Method trả về map thuộc tính riêng để DAO serialize vào description/properties.
+     */
     public Map<String,String> getProperties(){
         Map<String,String> map = new HashMap<>();
         map.put("description", getDescription());

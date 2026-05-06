@@ -20,15 +20,32 @@ import java.util.ArrayList;
 /** Tạo Data Access Object (Đối tượng Truy cập Dữ liệu).
  *Lây dữ liệu tương tác với database
  */
+/**
+ * DAO thao tác bảng items.
+ *
+ * Trách nhiệm class: insert item đấu giá, cập nhật giá cao nhất hiện tại, và map dữ liệu
+ * từ bảng items về Item object.
+ */
 public class DAOItems implements DaoInterface<Item> {
+    /** Jackson mapper dùng để serialize các thuộc tính riêng của subclass item. */
     static final ObjectMapper mapper = new ObjectMapper();
+    /**
+     * Precondition: Không có.
+     * Postcondition: Method trả về một instance DAOItems mới.
+     */
     public static DAOItems getInstance() {
         return new DAOItems();
     }
+    /** Snapshot user đăng nhập ở nhánh JavaFX UI; không dùng trong luồng socket server. */
     User p1 = UserSession.getLoggedInUser();
 
     @Override
     //Logic thêm sản phẩm__ dùng PrepareStatement
+    /**
+     * Precondition: item có các field cơ bản, seller id, khoảng thời gian, dữ liệu ảnh và loại item.
+     * Postcondition: Insert một dòng vào bảng items và copy primary key sinh ra về item.databaseId.
+     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu insert lỗi.
+     */
     public int Insert(Item item) {
         Connection con = JDBCUtil.getConnection();
         String sql = "INSERT INTO items (name, startingPrice, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -84,16 +101,30 @@ public class DAOItems implements DaoInterface<Item> {
     }
 
     @Override
+    /**
+     * Precondition: Không được implement cho DAOItems.
+     * Postcondition: Không thay đổi state. Method trả 0.
+     */
     public int Update(Item item) {
         return 0;
     }
 
     @Override
+    /**
+     * Precondition: Không được implement cho DAOItems.
+     * Postcondition: Không thay đổi state. Method trả 0.
+     */
     public int Insert(Auction auction, Item item1) {
         return 0;
     }
 
 
+    /**
+     * Precondition: item.databaseId xác định một dòng items tồn tại, Pricecurrent là giá cao nhất
+     * vừa được chấp nhận.
+     * Postcondition: Cập nhật items.currentHighestBid cho dòng đó.
+     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
+     */
     public int Update(Item item, Double Pricecurrent) {
         // ✅ FIXED: Cập nhật cột currentHighestBid (tên cột thực tế trong DB)
         String sql = "UPDATE items SET currentHighestBid = ? WHERE my_row_id = ?";
@@ -128,15 +159,27 @@ public class DAOItems implements DaoInterface<Item> {
 
 
     @Override
+    /**
+     * Precondition: Không được implement cho DAOItems.
+     * Postcondition: Không thay đổi state. Method trả 0.
+     */
     public int Delete(Item item) {
         return 0;
     }
 
     @Override
+    /**
+     * Precondition: API instance này chưa được implement cho DAOItems.
+     * Postcondition: Method trả null.
+     */
     public ArrayList<Item> selectAll(){
         return null;
     }
 
+    /**
+     * Precondition: Có thể tạo kết nối database và bảng items tồn tại.
+     * Postcondition: Method trả về toàn bộ item được map từ bảng items, hoặc null nếu SQLException.
+     */
     public static ArrayList<Item> selectedAll(){
         ArrayList<Item> list = new ArrayList<>();
             String sql = "SELECT * FROM items";
@@ -176,10 +219,19 @@ public class DAOItems implements DaoInterface<Item> {
         }
 
     @Override
+    /**
+     * Precondition: Không được implement cho DAOItems.
+     * Postcondition: Method trả null.
+     */
     public Item selectByUsername(Item item) {
         return null;
     }
 
+    /**
+     * Precondition: itemId là chuỗi số không null, khớp với items.my_row_id.
+     * Postcondition: Method trả về Item đã map nếu tìm thấy; ngược lại trả null.
+     * NOTE: Chuỗi không parse được số sẽ bị catch và ghi log.
+     */
     public Item selectById(String itemId) {
         // ✅ FIX: Validate itemId không rỗng
         if (itemId == null || itemId.isEmpty() || "null".equals(itemId)) {
@@ -205,6 +257,11 @@ public class DAOItems implements DaoInterface<Item> {
         return null;
     }
 
+    /**
+     * Precondition: rs đang trỏ tới một dòng hợp lệ trong bảng items.
+     * Postcondition: Method trả về Item được populate từ dòng ResultSet hiện tại.
+     * NOTE: Method tạo base Item, không tạo subtype như Art hay Vehicle.
+     */
     private Item mapResultSetToItem(ResultSet rs) throws SQLException {
         String itemType = rs.getString("itemType");
         String name = rs.getString("name");
@@ -229,6 +286,10 @@ public class DAOItems implements DaoInterface<Item> {
 
 
     @Override
+    /**
+     * Precondition: Không được implement cho DAOItems.
+     * Postcondition: Method trả null.
+     */
     public ArrayList selectByCondition(String condition) {
         return null;
     }

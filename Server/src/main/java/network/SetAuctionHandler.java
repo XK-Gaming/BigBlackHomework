@@ -7,16 +7,32 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Xử lý request SET_AUCTION, dùng để đánh dấu item client đang xem.
+ *
+ * Payload mong đợi: Map chứa itemId và userId.
+ */
 public class SetAuctionHandler extends BaseHandler implements RequestHandler {
     private UserService userService;
     private ClientHandler clientHandler;
 
+    /**
+     * Precondition: userService và clientHandler đã được khởi tạo cho kết nối hiện tại.
+     * Postcondition: Handler có thể cập nhật item đang xem của ClientHandler này.
+     */
     public SetAuctionHandler(UserService userService, ClientHandler clientHandler) {
         this.userService = userService;
         this.clientHandler = clientHandler;
     }
 
     @Override
+    /**
+     * Precondition: payload là Map chứa itemId và userId; out còn mở.
+     * Postcondition: Gán ClientHandler.viewingItemId và gửi SET_AUCTION_RESULT với dữ liệu
+     * auction hoặc message lỗi.
+     * Method không trả về giá trị.
+     * NOTE: itemId rỗng hoặc chuỗi "null" sẽ trả success=false mà không query auction.
+     */
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> Lst = (Map) payload;
         String itemId_Str = String.valueOf(Lst.get("itemId"));

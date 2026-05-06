@@ -20,11 +20,30 @@ import java.util.List;
  *Lây dữ liệu tương tác với database
  */
 
+/**
+ * DAO thao tác bảng auction_items.
+ *
+ * Trách nhiệm class: tạo dòng auction, cập nhật bid/trạng thái, serialize và deserialize
+ * status cùng bid history.
+ */
 public class DAOAution_Items {
+    /** Jackson mapper còn giữ từ implementation cũ; bid history hiện dùng Gson. */
     public  static ObjectMapper mapper = new ObjectMapper();
+    /**
+     * Precondition: Không có.
+     * Postcondition: Method trả về một instance DAOAution_Items mới.
+     */
     public static DAOAution_Items getInstance() {return new DAOAution_Items();}
+    /** Gson đã cấu hình TypeAdapter cho Instant và BidTransaction trong cột JSON. */
     private Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
         // Hàm Insert này đảm bảo không bao giờ bị NULL status khi tạo mới
+        /**
+         * Precondition: auction và item1 mô tả item đấu giá mới; item1.databaseId đã được
+         * DAOItems.Insert() gán sau khi insert items.
+         * Postcondition: auction_items có thêm dòng mới với status OPEN, bidHistory rỗng,
+         * seller id, leading bidder và current price.
+         * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu lỗi.
+         */
         public int Insert(Auction auction, Item item1) {
             String sql = "INSERT INTO auction_items (id_item, sellerID, status, leadingbider, bidHistory, currentPrice) VALUES (?, ?, ?, ?, ?, ?)";
 
@@ -53,6 +72,13 @@ public class DAOAution_Items {
             return 0;
         }
 
+        /**
+         * Precondition: itemId xác định một dòng auction_items, UsernameLeadingBiddder là username
+         * đang dẫn đầu, CurrentPrice là mức giá vừa được chấp nhận.
+         * Postcondition: Cập nhật currentPrice, leadingbider và bidHistory cho item.
+         * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu validate/database lỗi.
+         * NOTE: leading bidder rỗng sẽ bị từ chối trước khi chạy SQL.
+         */
         public int Update(Auction auction, int itemId, String UsernameLeadingBiddder, Double CurrentPrice) {
             // ✅ Cập nhật currentPrice, leading bidder username, và bid history vào auction_items table
 
@@ -90,6 +116,12 @@ public class DAOAution_Items {
             }
         }
 
+        /**
+         * Precondition: item khác null và item.databaseId xác định dòng items/auction_items.
+         * Postcondition: Method trả về Auction đã nạp item, status, leadingBidder và bidHistory.
+         * Trả null nếu không có dòng auction.
+         * NOTE: Nếu parse JSON bidHistory lỗi thì gán lịch sử rỗng.
+         */
         public Auction selectByItemId(Item item) {
             String sql = "SELECT * FROM auction_items WHERE id_item = ?";
             try (Connection con = JDBCUtil.getConnection();
@@ -150,6 +182,12 @@ public class DAOAution_Items {
             }
             return null;
         }
+    /**
+     * Precondition: item1.databaseId xác định dòng auction_items và status là trạng thái đích.
+     * Postcondition: Cập nhật auction_items.status và cập nhật cả status trong object auction
+     * nếu dòng database tồn tại.
+     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
+     */
     public int Update_Status(Auction auction, Item item1, AuctionStatus status) {
         // 1. SQL: Cập nhật status trong auction_items table
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
@@ -180,6 +218,12 @@ public class DAOAution_Items {
             return 0;
         }
     }
+    /**
+     * Precondition: item1.databaseId và sellerId đã có dữ liệu.
+     * Postcondition: Insert một dòng auction_items tối thiểu với currentPrice.
+     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
+     * NOTE: Overload Insert(Auction, Item) là luồng đầy đủ hơn mà UserService.creater_item() dùng.
+     */
     public int Insert(Item item1) {
         String sql = "INSERT INTO auction_items (id_item, sellerID, currentPrice) VALUES (?, ?, ?)";
 
@@ -204,6 +248,11 @@ public class DAOAution_Items {
         // Không cần finally ở đây nữa!
     }
 
+    /**
+     * Precondition: Có thể tạo kết nối database và bảng auction_items tồn tại.
+     * Postcondition: Method trả về toàn bộ dòng auction_items đã map sang Auction object.
+     * NOTE: Method này chưa gắn Item object; AuctionEngine sẽ load Item sau bằng itemId.
+     */
     public List<Auction> selectAll() {
         List<Auction> list = new ArrayList<>();
         // Câu lệnh lấy tất cả dữ liệu từ bảng

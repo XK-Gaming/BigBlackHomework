@@ -1,9 +1,16 @@
 package model.User;
 
+/**
+ * Enum vai trò user trong hệ thống.
+ */
 public enum UserRole {
     BIDDER,
     SELLER,
     ADMIN;
+    /**
+     * Precondition: text là tên vai trò dạng tiếng Việt từ UI/database.
+     * Postcondition: Method trả về UserRole tương ứng, hoặc null nếu không khớp.
+     */
     public static UserRole fromString(String text) {
         if(text.equals("Người bán")){
             return SELLER;

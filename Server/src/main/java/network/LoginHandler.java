@@ -8,17 +8,33 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Xử lý request LOGIN từ client.
+ *
+ * Payload mong đợi: Map<String, String> chứa username và password.
+ */
 public class LoginHandler extends BaseHandler implements RequestHandler {
     private UserService userService;
     private ClientHandler clientHandler; // Thêm biến này để biết Handler nào đang xử lý
 
     // Cập nhật Constructor để nhận ClientHandler
+    /**
+     * Precondition: userService dùng được và clientHandler là worker của socket hiện tại.
+     * Postcondition: Handler có thể xác thực user và đăng ký kết nối hiện tại vào danh sách online.
+     */
     public LoginHandler(UserService userService, ClientHandler clientHandler) {
         this.userService = userService;
         this.clientHandler = clientHandler;
     }
 
     @Override
+    /**
+     * Precondition: payload là Map có key username và password; out còn mở.
+     * Postcondition: Gửi LOGIN_RESULT gồm success flag, user object khi thành công, và message.
+     * Method không trả về giá trị.
+     * NOTE: Khi login thành công, user được gắn vào ClientHandler và đăng ký vào
+     * AuctionServer.onlineClients.
+     */
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, String> loginInfo = (Map<String, String>) payload;
 

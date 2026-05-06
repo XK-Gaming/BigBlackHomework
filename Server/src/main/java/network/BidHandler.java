@@ -7,14 +7,30 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Xử lý request BID.
+ *
+ * Payload mong đợi: Map chứa itemId, bidderId và amount.
+ */
 public class BidHandler extends BaseHandler implements RequestHandler {
     private UserService userService;
 
+    /**
+     * Precondition: userService đã được khởi tạo.
+     * Postcondition: Handler có thể validate và lưu bid qua service layer.
+     */
     public BidHandler(UserService userService) {
         this.userService = userService;
     }
 
     @Override
+    /**
+     * Precondition: payload chứa itemId, bidderId và amount dạng số; out còn mở.
+     * Postcondition: Gửi BID_RESULT cho client đặt giá. Nếu thành công, broadcast BID_UPDATE
+     * tới mọi client online đang xem cùng item.
+     * Method không trả về giá trị.
+     * NOTE: Payload sai hoặc service lỗi sẽ trả success=false kèm message lỗi.
+     */
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> bidInfo = (Map<String, Object>) payload;
 
