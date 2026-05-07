@@ -225,7 +225,7 @@ public class ControllerAuction implements ServerListener {
      * Postcondition:
      * - Nếu input rỗng/<= current price -> hiển thị lỗi, không gửi.
      * - Nếu hợp lệ -> gửi command {@code BID} lên server với itemId, bidderId, amount.
-     * NOTE: Hiện code không bắt {@link NumberFormatException} khi parse giá; nếu nhập chữ sẽ crash.
+     * NOTE: Nếu giá không parse được số, lỗi sẽ được hiển thị trên UI thay vì làm crash màn hình.
      * Method returns: nothing.
      * @throws IOException NOTE: Ném ra nếu gửi bid lỗi (stream/socket).
      */
@@ -237,17 +237,28 @@ public class ControllerAuction implements ServerListener {
             j_notified.setText("Vui lòng nhập giá đặt!");
             j_notified.setVisible(true);
             return;
-        } else if (Double.parseDouble(priceText) <=  item1.getCurrentHighestPrice()) {
+        }
+
+        double bidAmount;
+        try {
+            bidAmount = Double.parseDouble(priceText.trim());
+        } catch (NumberFormatException e) {
+            j_notified.setText("Vui lòng nhập số tiền hợp lệ.");
+            j_notified.setVisible(true);
+            return;
+        }
+
+        if (bidAmount <=  item1.getCurrentHighestPrice()) {
             j_notified.setText("Đặt giá không hợp lệ");
             j_notified.setVisible(true);
             return;
-        }else{
+        }
 
         client.sendCommand("BID", Map.of(
                 "itemId", item1.getDatabaseId(),
                 "bidderId", p1.getUsername(),
-                "amount", priceText
-        ));}
+                "amount", String.valueOf(bidAmount)
+        ));
     }
 
     @FXML

@@ -2,6 +2,8 @@ package network;
 
 import service.UserService;
 import model.auction.Auction;
+import model.exception.AuctionException;
+import model.exception.ValidationException;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
@@ -32,13 +34,19 @@ public class BidHandler extends BaseHandler implements RequestHandler {
      * NOTE: Payload sai hoặc service lỗi sẽ trả success=false kèm message lỗi.
      */
     public void handle(Object payload, ObjectOutputStream out) {
-        Map<String, Object> bidInfo = (Map<String, Object>) payload;
-
         Map<String, Object> response = new HashMap<>();
 
         try {
+            if (!(payload instanceof Map<?, ?> rawBidInfo)) {
+                throw new ValidationException("Invalid BID payload.");
+            }
+
+            Map<String, Object> bidInfo = (Map<String, Object>) rawBidInfo;
             String itemId = String.valueOf(bidInfo.get("itemId"));
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
+            if (bidInfo.get("amount") == null) {
+                throw new ValidationException("amount is required.");
+            }
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
 
             double newPrice = userService.processBid(itemId, bidderId, amount);
@@ -63,11 +71,14 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 AuctionServer.broadcastToSpecificAuction(itemId, "BID_UPDATE", bidUpdate);
             } else {
                 response.put("success", false);
-                response.put("message", "Giá đặt phải cao hơn giá hiện tại");
+                response.put("message", "Bid amount must be greater than current highest price.");
             }
+        } catch (AuctionException | ValidationException | IllegalArgumentException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
         } catch (Exception e) {
             response.put("success", false);
-            response.put("message", "Lỗi: " + e.getMessage());
+            response.put("message", "Server error: " + e.getMessage());
         }
 
         sendResponse(out, "BID_RESULT", response);

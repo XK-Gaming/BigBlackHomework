@@ -7,7 +7,9 @@ import java.util.Collections;
 import java.util.List;
 
 import model.Entity.Entity;
+import model.exception.AuctionClosedException;
 import model.exception.AuctionException;
+import model.exception.InvalidBidException;
 import model.Items.Item;
 import model.observer.AuctionObserver;
 import model.User.Bidder;
@@ -141,7 +143,7 @@ public class Auction extends Entity implements Serializable {
      */
     public void start() {
         if (status != AuctionStatus.OPEN) {
-            throw new AuctionException("Auction can only start from OPEN state.");
+            throw new AuctionClosedException("Auction can only start from OPEN state.");
         }
         // Chi cho phep bat dau khi da toi thoi diem mo dau gia.
         if (Instant.now().isBefore(item.getAuctionStartTime())) {
@@ -159,12 +161,21 @@ public class Auction extends Entity implements Serializable {
      * @throws AuctionException NOTE: Nếu auction không RUNNING hoặc amount không hợp lệ.
      */
     public synchronized void  placeBid(Bidder bidder, double amount) {
+        if (bidder == null) {
+            throw new IllegalArgumentException("Bidder must not be null.");
+        }
+        if (bidder.getUsername() != null && bidder.getUsername().equals(sellerID)) {
+            throw new InvalidBidException("Seller cannot bid on their own auction.");
+        }
         updateStatusByTime();
         if (status != AuctionStatus.RUNNING) {
-            throw new AuctionException("Cannot bid because auction is not running.");
+            throw new AuctionClosedException("Cannot bid because auction is not running.");
+        }
+        if (amount <= 0) {
+            throw new InvalidBidException("Bid amount must be positive.");
         }
         if (amount <= item.getCurrentHighestPrice()) {
-            throw new AuctionException("Bid amount must be greater than current highest price.");
+            throw new InvalidBidException("Bid amount must be greater than current highest price.");
         }
 
 
@@ -202,7 +213,7 @@ public class Auction extends Entity implements Serializable {
      */
     public void finish() {
         if (status == AuctionStatus.CANCELED || status == AuctionStatus.PAID) {
-            throw new AuctionException("Closed auction cannot be finished again.");
+            throw new AuctionClosedException("Closed auction cannot be finished again.");
         }
         boolean wasRunning = status != AuctionStatus.FINISHED;
         status = AuctionStatus.FINISHED;
@@ -219,7 +230,7 @@ public class Auction extends Entity implements Serializable {
      */
     public void markPaid() {
         if (status != AuctionStatus.FINISHED) {
-            throw new AuctionException("Only a finished auction can be marked as paid.");
+            throw new AuctionClosedException("Only a finished auction can be marked as paid.");
         }
         if (leadingBidder == null) {
             throw new AuctionException("Auction has no winner to mark as paid.");
@@ -235,7 +246,7 @@ public class Auction extends Entity implements Serializable {
      */
     public void cancel() {
         if (status == AuctionStatus.PAID) {
-            throw new AuctionException("Paid auction cannot be canceled.");
+            throw new AuctionClosedException("Paid auction cannot be canceled.");
         }
         status = AuctionStatus.CANCELED;
     }

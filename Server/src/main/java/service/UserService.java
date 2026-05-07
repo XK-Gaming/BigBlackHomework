@@ -7,6 +7,11 @@ import model.Items.Item;
 import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.exception.AuctionClosedException;
+import model.exception.AuctionException;
+import model.exception.AuctionNotFoundException;
+import model.exception.InvalidBidException;
+import model.exception.ValidationException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -108,12 +113,40 @@ public class UserService {
      * giá cao nhất hiện tại.
      * Postcondition: Nếu thành công, cập nhật items.currentHighestBid và auction_items.currentPrice,
      * leadingbider, bidHistory. Method trả về amount đã được chấp nhận.
-     * NOTE: Method trả -1 khi validate fail, không tìm thấy item/auction, hoặc update DB lỗi.
+      * NOTE: Method ném exception nghiệp vụ khi validate fail, không tìm thấy auction, hoặc update DB lỗi.
      */
     public double processBid(String itemId, String bidderId, double amount) {
+        if (itemId == null || itemId.isBlank() || "null".equalsIgnoreCase(itemId.trim())) {
+            throw new ValidationException("itemId is required.");
+        }
+        if (bidderId == null || bidderId.isBlank() || "null".equalsIgnoreCase(bidderId.trim())) {
+            throw new ValidationException("bidderId is required.");
+        }
+        if (!Double.isFinite(amount) || amount <= 0) {
+            throw new InvalidBidException("Bid amount must be positive.");
+        }
+
         Item item = itemDAO.selectById(itemId);
-        int updatedRows = itemDAO.Update(item);
+        if (item == null) {
+            throw new AuctionNotFoundException(itemId);
+        }
+
         Auction auction = auctionDAO.selectByItemId(item);
+        if (auction == null) {
+            throw new AuctionNotFoundException(itemId);
+        }
+        if (item.getAuctionStartTime() == null || item.getAuctionEndTime() == null) {
+            throw new ValidationException("Auction time is not configured.");
+        }
+        if (item.getSellerId() != null && item.getSellerId().equals(bidderId)) {
+            throw new InvalidBidException("Seller cannot bid on their own auction.");
+        }
+        if (auction.getStatus() != AuctionStatus.RUNNING) {
+            throw new AuctionClosedException("Cannot bid because auction is not running.");
+        }
+        if (amount <= item.getCurrentHighestPrice()) {
+            throw new InvalidBidException("Bid amount must be greater than current highest price.");
+        }
 
         try {
             List<model.auction.BidTransaction> newHistory = new ArrayList<>(auction.getBidHistory());
@@ -128,10 +161,18 @@ public class UserService {
             );
             newHistory.add(newBid);
             auction.setbidHistory(newHistory);
+            auction.setLeadingBidder(bidderId);
+            item.setCurrentHighestPrice(amount);
             int updateResult = auctionDAO.Update(auction, item.getDatabaseId(), bidderId, amount);
+            int updatedRows = itemDAO.Update(item);
+            if (updateResult <= 0 || updatedRows <= 0) {
+                throw new AuctionException("Could not persist bid.");
+            }
         } catch (Exception e) {
-            e.printStackTrace();
-            return -1;
+            if (e instanceof AuctionException) {
+                throw (AuctionException) e;
+            }
+            throw new AuctionException("Could not process bid.", e);
         }
         return amount;
     }
