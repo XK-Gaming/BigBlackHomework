@@ -115,7 +115,7 @@ public class UserService {
      * leadingbider, bidHistory. Method trả về amount đã được chấp nhận.
       * NOTE: Method ném exception nghiệp vụ khi validate fail, không tìm thấy auction, hoặc update DB lỗi.
      */
-    public double processBid(String itemId, String bidderId, double amount) {
+    public synchronized double processBid(String itemId, String bidderId, double amount) {
         if (itemId == null || itemId.isBlank() || "null".equalsIgnoreCase(itemId.trim())) {
             throw new ValidationException("itemId is required.");
         }
