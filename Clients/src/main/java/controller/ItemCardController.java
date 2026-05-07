@@ -59,7 +59,12 @@ public class ItemCardController {
         // 1. Link ảnh từ Cloudinary
         if(item.getImg() != null && !item.getImg().isEmpty()){
             if (item.getImg().startsWith("http")) {
-                j_img.setImage(new Image(item.getImg(), true));
+                // Ép Cloudinary resize về 200px, nén chất lượng tự động để nhẹ RAM
+                String optimizedUrl = item.getImg().replace("/upload/", "/upload/w_200,c_limit,q_auto,f_jpg/");
+
+                // Tham số: URL, width, height, preserveRatio, smooth, backgroundLoading
+                j_img.setImage(new Image(optimizedUrl, 200, 200, true, true, true));
+
             } else {
                 // Thử load từ resource (đảm bảo ảnh được copy vào target khi build)
                 String imgPath = "/controller/img/" + item.getImg();

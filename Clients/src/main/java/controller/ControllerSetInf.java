@@ -24,6 +24,7 @@ import java.util.Map;
 public class ControllerSetInf implements ServerListener {
 
     private AuctionClient client = AuctionClient.getInstance();
+    User p1 = UserSession.getLoggedInUser();
 
     @FXML
     private AnchorPane Pane1;
@@ -73,12 +74,12 @@ public class ControllerSetInf implements ServerListener {
     }
     public void initialize() {
         client.setListener(this);
-        User p1 = UserSession.getLoggedInUser();
         if (p1 != null) {
             show_userName.setText(p1.getUsername());
-            show_Password.setText("********");
+            show_Password.setText("***********");
         }
         j_LabelName.setText(p1.getName());
+
 
     }
     @FXML
@@ -86,35 +87,11 @@ public class ControllerSetInf implements ServerListener {
         SceneHelper.changeScene((Node) j_return, "View3.fxml");
 
     }
-        @FXML
-        private AnchorPane Pane_CaiDat;
 
-        @FXML
-        private Label Pane_ChuyenKhoan;
 
-        @FXML
-        private AnchorPane Pane_ThongTinTaiKhoan;
-
-        @FXML
-        private AnchorPane Pane_ThanhToan;
-
-        @FXML
-        private AnchorPane Pane_ĐoiMatKhau;
-
-        @FXML
-        private Button j_buttonCaiDat;
 
         @FXML
         private Button j_buttonDangXuat;
-
-        @FXML
-        private Button j_buttonDoiMatKhau;
-
-        @FXML
-        private Button j_buttonThanhToan;
-
-        @FXML
-        private Button j_buttonThongTinDangNhap;
 
         @FXML
         void j_OnSetName(ActionEvent event)  {
@@ -160,39 +137,47 @@ public class ControllerSetInf implements ServerListener {
             }
         }
 
-    private void hideAllPanes() {
-        Pane_ThongTinTaiKhoan.setVisible(false);
-        Pane_ThanhToan.setVisible(false);
-        Pane_ĐoiMatKhau.setVisible(false);
-        Pane_CaiDat.setVisible(false);
-    }
 
+    // --- CÁC PANE ĐIỀU KHIỂN CHUYỂN TAB ---
+    @FXML private AnchorPane Pane_ThongTinTaiKhoan;
+    @FXML private AnchorPane Pane_ThanhToan;
+    @FXML private AnchorPane Pane_DoiMatKhau;
+    @FXML private AnchorPane Pane_CaiDat;
     // --- Xử lý sự kiện các nút bấm bên menu trái ---
 
     @FXML
     void j_OnbuttonThongTinDangNhap(ActionEvent event) {
-        hideAllPanes();
-        Pane_ThongTinTaiKhoan.setVisible(true);
+        switchTab(Pane_ThongTinTaiKhoan);
+        // Có thể thêm code load dữ liệu user từ DB tại đây
     }
 
     @FXML
     void j_OnbuttonThanhToan(ActionEvent event) {
-        hideAllPanes();
-        Pane_ThanhToan.setVisible(true);
+        switchTab(Pane_ThanhToan);
+        // Có thể thêm code load lịch sử giao dịch tại đây
     }
 
     @FXML
     void j_OnbuttonDoiMatKhau(ActionEvent event) {
-        hideAllPanes();
-        Pane_ĐoiMatKhau.setVisible(true);
+        switchTab(Pane_DoiMatKhau);
     }
 
     @FXML
     void j_OnbuttonCaiDat(ActionEvent event) {
-        hideAllPanes();
-        Pane_CaiDat.setVisible(true);
+        switchTab(Pane_CaiDat);
     }
+    // --- HÀM CỐT LÕI ĐỂ ĐIỀU KHIỂN GIAO DIỆN ---
+    private void switchTab(AnchorPane selectedPane) {
+        // Ẩn tất cả
+        Pane_ThongTinTaiKhoan.setVisible(false);
+        Pane_ThanhToan.setVisible(false);
+        Pane_DoiMatKhau.setVisible(false);
+        Pane_CaiDat.setVisible(false);
 
+        // Hiện cái cần dùng
+        selectedPane.setVisible(true);
+        selectedPane.toFront();
+    }
     @FXML
     void j_OnbuttonDangXuat(ActionEvent event) throws IOException {
         client.sendCommand("LOGOUT", UserSession.getLoggedInUser().getUsername());
@@ -274,5 +259,14 @@ public class ControllerSetInf implements ServerListener {
                 }
             });
         }
+    }
+
+    public void on_SaveInfo(ActionEvent actionEvent) {
+    }
+
+    @FXML
+    private TextField j_setMoney;
+    public void j_OnPayMent(ActionEvent actionEvent) throws IOException {
+        client.sendCommand("BIDDER_PAYMENT_ACCOUNT", Map.of("username", p1.getUsername(),"money",String.valueOf(j_setMoney.getText()) ));
     }
 }

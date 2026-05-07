@@ -1,78 +1,85 @@
 package database;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.io.InputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-/* Tạo kết nối với database bằng JDBC */
 /**
- * Utility tạo kết nối JDBC cho module server.
- *
- * Trách nhiệm class: load server.properties từ classpath và tạo Connection MySQL mới
- * cho các DAO sử dụng.
+ * Utility tạo kết nối JDBC sử dụng HikariCP Connection Pool.
+ * Giúp tối ưu hóa tốc độ kết nối và quản lý tài nguyên hiệu quả trên Azure.
  */
 public class JDBCUtil {
 
-    /** Cấu hình database đã load từ server.properties. */
     private static final Properties props = new Properties();
+    private static HikariDataSource dataSource;
 
     static {
+        // 1. Load cấu hình từ server.properties
         try (InputStream input = JDBCUtil.class.getClassLoader().getResourceAsStream("server.properties")) {
             if (input == null) {
                 System.err.println("Không tìm thấy file server.properties");
             } else {
                 props.load(input);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
-    /**
-     * Precondition: Không có.
-     * Postcondition: Ngăn code bên ngoài khởi tạo utility class này.
-     */
-    private JDBCUtil(){}; // Private constructor
-
-    // 2. Phương thức lấy kết nối (Trả về kết nối MỚI mỗi lần gọi)
-    /**
-     * Precondition: server.properties có sẵn hoặc default value chấp nhận được; MySQL driver,
-     * network và thông tin đăng nhập DB hợp lệ.
-     * Postcondition: Method trả về Connection mới nếu thành công, hoặc null nếu tạo connection lỗi.
-     * NOTE: Mỗi lần gọi tạo một connection mới; hiện chưa có connection pool.
-     */
-    public static Connection getConnection() {
-        Connection con = null;
-        try {
-            DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
+            // 2. Cấu hình HikariCP Connection Pool
+            HikariConfig config = new HikariConfig();
 
             String host = props.getProperty("db.host", "localhost");
             String database = props.getProperty("db.name", "quan_ly_dau_gia");
             String user = props.getProperty("db.user", "root");
             String pass = props.getProperty("db.pass", "");
 
-            // Chuỗi URL với cấu hình Azure
+            // Chuỗi URL tối ưu cho Azure MySQL
             String url = "jdbc:mysql://" + host + ":3306/" + database +
-                    "?useSSL=true&requireSSL=false&serverTimezone=UTC";
+                    "?useSSL=true&requireSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
 
-            // 3. TẠO VÀ TRẢ VỀ KẾT NỐI MỚI HOÀN TOÀN
-            con = DriverManager.getConnection(url, user, pass);
+            config.setJdbcUrl(url);
+            config.setUsername(user);
+            config.setPassword(pass);
+            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
 
-        } catch (SQLException e) {
-            System.err.println("Lỗi tạo kết nối DB: " + e.getMessage());
+            // --- TỐI ƯU HÓA HIỆU NĂNG ---
+            config.setMaximumPoolSize(10); // Giữ sẵn 10 kết nối luôn mở
+            config.setMinimumIdle(2);      // Luôn duy trì ít nhất 2 kết nối rảnh
+            config.setConnectionTimeout(20000); // Chờ tối đa 20s để lấy kết nối
+            config.setIdleTimeout(300000);      // 5 phút không dùng thì đóng bớt kết nối rảnh
+
+            // Cache các câu lệnh SQL để chạy nhanh hơn ở những lần sau
+            config.addDataSourceProperty("cachePrepStmts", "true");
+            config.addDataSourceProperty("prepStmtCacheSize", "250");
+            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            config.addDataSourceProperty("useServerPrepStmts", "true");
+
+            dataSource = new HikariDataSource(config);
+            System.out.println("[DB] Hikari Connection Pool đã khởi tạo thành công!");
+
+        } catch (Exception e) {
+            System.err.println("[DB] Lỗi khởi tạo Connection Pool: " + e.getMessage());
             e.printStackTrace();
         }
-        return con;
     }
 
-    // 4. Giữ lại hàm này đề phòng bạn còn dùng ở các file DAO cũ chưa kịp sửa sang try-with-resources
+    private JDBCUtil() {} // Ngăn khởi tạo class
+
     /**
-     * Precondition: c là null hoặc là JDBC Connection do ứng dụng này tạo.
-     * Postcondition: c được đóng nếu khác null và đang mở.
-     * Method không trả về giá trị.
-     * NOTE: Exception được catch và in ra log.
+     * Lấy một kết nối từ Pool (Tốc độ cực nhanh vì đã kết nối sẵn tới Azure).
+     * @return Connection từ pool hoặc ném ra SQLException nếu lỗi.
+     */
+    public static Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            throw new SQLException("DataSource chưa được khởi tạo!");
+        }
+        return dataSource.getConnection();
+    }
+
+    /**
+     * Không cần thiết phải đóng kết nối thủ công như cũ nếu dùng try-with-resources.
+     * Tuy nhiên giữ lại hàm này để tương thích với code cũ của bạn.
+     * Trong Connection Pool, close() nghĩa là TRẢ kết nối về pool, không phải ngắt kết nối.
      */
     public static void closeConnection(Connection c) {
         try {

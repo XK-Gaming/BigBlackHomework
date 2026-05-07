@@ -60,7 +60,6 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 if (latestAuction != null) {
                     bidUpdate.put("auction", latestAuction);
                 }
-                System.out.println(bidUpdate);
                 AuctionServer.broadcastToSpecificAuction(itemId, "BID_UPDATE", bidUpdate);
             } else {
                 response.put("success", false);

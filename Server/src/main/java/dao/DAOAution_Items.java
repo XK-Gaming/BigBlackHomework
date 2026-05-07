@@ -1,7 +1,5 @@
 package dao;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.google.gson.Gson;
 import database.JDBCUtil;
 import model.Items.Item;
@@ -26,9 +24,7 @@ import java.util.List;
  * Trách nhiệm class: tạo dòng auction, cập nhật bid/trạng thái, serialize và deserialize
  * status cùng bid history.
  */
-public class DAOAution_Items {
-    /** Jackson mapper còn giữ từ implementation cũ; bid history hiện dùng Gson. */
-    public  static ObjectMapper mapper = new ObjectMapper();
+public class DAOAution_Items{
     /**
      * Precondition: Không có.
      * Postcondition: Method trả về một instance DAOAution_Items mới.
@@ -56,11 +52,8 @@ public class DAOAution_Items {
                 // Khởi tạo mặc định là OPEN thay vì để NULL
                 pstmt.setString(3, gson.toJson(AuctionStatus.OPEN));
 
-                // ✅ FIX: Lưu username trực tiếp (ko qua gson) để consistent với hàm Update()
                 String leadingUsername = auction.getLeadingBidder();
                 pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson
-
-                // Khởi tạo lịch sử trống [] thay vì NULL
                 pstmt.setString(5, gson.toJson(new ArrayList<BidTransaction>()));
 
                 pstmt.setDouble(6, item1.getCurrentHighestPrice());
@@ -80,11 +73,7 @@ public class DAOAution_Items {
          * NOTE: leading bidder rỗng sẽ bị từ chối trước khi chạy SQL.
          */
         public int Update(Auction auction, int itemId, String UsernameLeadingBiddder, Double CurrentPrice) {
-            // ✅ Cập nhật currentPrice, leading bidder username, và bid history vào auction_items table
-
-            // ✅ Defensive check
             if (UsernameLeadingBiddder == null || UsernameLeadingBiddder.trim().isEmpty()) {
-                System.err.println("❌ Update: UsernameLeadingBiddder bị null hoặc rỗng!");
                 return 0;
             }
 
@@ -101,16 +90,9 @@ public class DAOAution_Items {
                 pstmt.setLong(4, itemId);
 
                 int rowsAffected = pstmt.executeUpdate();
-
-                if (rowsAffected > 0) {
-                    System.out.println("✅ UPDATE auction_items: item=" + itemId + ", leadingbider=" + UsernameLeadingBiddder + ", bidHistorySize=" + auction.getBidHistory().size());
-                } else {
-                    System.err.println("❌ UPDATE: Không tìm thấy item ID " + itemId + " trong auction_items");
-                }
                 return rowsAffected;
 
             } catch (SQLException e) {
-                System.err.println("❌ Lỗi UPDATE auction_items: " + e.getMessage());
                 e.printStackTrace();
                 return 0;
             }
@@ -133,44 +115,24 @@ public class DAOAution_Items {
                 if (rs.next()) {
                     Auction result = new Auction();
                     result.setItemId(rs.getLong("id_item"));
-
-                    // ✅ FIX: Set item vào Auction để tránh NullPointerException
                     result.setItem(item);
-
-                    // Update giá trực tiếp vào item truyền vào
                     item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
-
-                    // ✅ FIX: Lấy dữ liệu từ DB TRƯỚC khi sử dụng
                     String leadingUsername = rs.getString("leadingbider");
                     String historyJson = rs.getString("bidHistory");
-
-                    // ✅ DEBUG: Log dữ liệu từ DB
-                    System.out.println("DEBUG selectByItemId: Raw leadingbider from DB = '" + leadingUsername + "'");
-                    System.out.println("DEBUG selectByItemId: Raw bidHistory JSON = " + historyJson);
-
-                    // ✅ FIX: Load Bidder từ username (chỉ lấy username string)
                     if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
-                        result.setLeadingBidder(leadingUsername);
-                        System.out.println("✅ selectByItemId: Set leadingBidder = " + leadingUsername);
-                    } else {
-                        System.out.println("INFO: selectByItemId - Chưa có người dẫn đầu cho item ID " + item.getDatabaseId() + " (leadingbider='" + leadingUsername + "')");
-                    }
-
+                        result.setLeadingBidder(leadingUsername);}
                     // Đọc Status
                     String statusJson = rs.getString("status");
                     if (statusJson != null) {
-                        result.setStatus(gson.fromJson(statusJson, model.auction.AuctionStatus.class));
-                    }
-
+                        result.setStatus(gson.fromJson(statusJson, model.auction.AuctionStatus.class));}
                     // Đọc Bid History (Quan trọng: Phải gán lại cho Auction)
                     if (historyJson != null && !historyJson.isEmpty()) {
                         try {
-                            // ✅ Dùng TypeToken để deserialize đúng kiểu List<BidTransaction>
+                            // Dùng TypeToken để deserialize đúng kiểu List<BidTransaction>
                             java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
                             List<BidTransaction> history = gson.fromJson(historyJson, listType);
                             result.setbidHistory(history);
                         } catch (Exception e) {
-                            System.err.println("⚠️ Lỗi deserialize bidHistory: " + e.getMessage());
                             result.setbidHistory(new ArrayList<>()); // Gán danh sách rỗng nếu có lỗi
                         }
                     }
@@ -195,25 +157,16 @@ public class DAOAution_Items {
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            // ✅ Dùng gson.toJson() để serialized status thành JSON
+            // Dùng gson.toJson() để serialized status thành JSON
             pstmt.setString(1, gson.toJson(status));
             pstmt.setLong(2, item1.getDatabaseId());
 
             // Thực thi
             int rowsAffected = pstmt.executeUpdate();
 
-            // Cập nhật object in-memory
-            if (rowsAffected > 0 && auction != null) {
-                auction.setStatus(status);
-                System.out.println("✅ Cập nhật status item ID " + item1.getDatabaseId() + " thành " + status);
-            } else if (rowsAffected == 0) {
-                System.err.println("❌ Không tìm thấy auction_items record cho item ID " + item1.getDatabaseId());
-            }
-
             return rowsAffected;
 
         } catch (SQLException e) {
-            System.err.println("❌ Lỗi khi cập nhật status item ID " + item1.getDatabaseId() + ": " + e.getMessage());
             e.printStackTrace();
             return 0;
         }

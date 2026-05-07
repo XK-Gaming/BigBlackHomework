@@ -74,9 +74,6 @@ public class ControllerAuction implements ServerListener {
         this_Auction = auction;
         Platform.runLater(() -> {
             if (this_Auction == null) {
-                System.out.println("⚠ Cảnh báo: Không tìm thấy phiên đấu giá cho sản phẩm này!");
-
-                // Vẫn hiển thị thông tin cơ bản của sản phẩm
                 j_LabelName.setText(p1.getName());
                 j_name.setText(item1.getName());
                 renderImage();
@@ -89,9 +86,8 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setVisible(true);
 
                 updatePriceAndLeader(); // Cập nhật giá gốc
-                return; // DỪNG LẠI NGAY, KHÔNG GỌI setupUI() NỮA ĐỂ TRÁNH LỖI
+                return;
             }
-
             try {
                 setupUI();
             } catch (SQLException e) {
@@ -121,17 +117,10 @@ public class ControllerAuction implements ServerListener {
             j_leadingBidder.setText("—");
             return;
         }
-
-        // ✅ ƯU TIÊN lấy tất cả dữ liệu từ this_Auction vì nó vừa được load từ DB
         DecimalFormat df = new DecimalFormat("#,###");
-
-        // Cập nhật lại giá cho item1 để đồng bộ các hàm khác
-
         j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
-
         // Lấy tên người dẫn đầu
         String leader = this_Auction.getLeadingBidder();
-
         if (leader == null || leader.trim().isEmpty() || leader.equalsIgnoreCase("null")) {
             j_leadingBidder.setText("Chưa có");
         } else {
@@ -337,7 +326,6 @@ public class ControllerAuction implements ServerListener {
                 if (auctionObj instanceof Auction) {
                     this_Auction = (Auction) auctionObj;
                 }
-                // ✅ FIX: Đảm bảo leadingBidder được set từ bidderId trong BID_UPDATE
                 String bidderId = String.valueOf(update.get("bidderId"));
                 if (this_Auction != null && bidderId != null && !bidderId.isEmpty()) {
                     this_Auction.setLeadingBidder(bidderId);

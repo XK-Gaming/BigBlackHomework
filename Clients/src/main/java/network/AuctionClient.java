@@ -41,16 +41,12 @@ public class AuctionClient {
             // QUAN TRỌNG: Khởi tạo Output trước Input
             out = new ObjectOutputStream(socket.getOutputStream());
             out.flush(); // Đẩy header đi để tránh treo luồng 2 đầu
-
             in = new ObjectInputStream(socket.getInputStream());
-
             System.out.println("Đã kết nối thành công tới Server!");
-
             // Bắt buộc: Mở một luồng chạy ngầm để liên tục nghe Server
             Thread listenerThread = new Thread(this::listenForMessages, "auction-client-listener");
             listenerThread.setDaemon(true); // Tự tắt luồng khi tắt app
             listenerThread.start();
-
         } catch (Exception e) {
             System.err.println("Không thể kết nối tới Server: " + e.getMessage());
         }
@@ -63,6 +59,7 @@ public class AuctionClient {
                 DataPacket packet = new DataPacket(command, payload);
                 out.writeObject(packet);
                 out.flush();
+                out.reset();
             }
         }
     }
@@ -79,10 +76,7 @@ public class AuctionClient {
                 handleServerResponse(response);
             }
         } catch (EOFException e) {
-            // Lỗi này văng ra khi Server chủ động ngắt kết nối
-            System.out.println("Đã ngắt kết nối khỏi Server (EOF).");
         } catch (Exception e) {
-            System.out.println("Lỗi luồng lắng nghe hoặc mất kết nối: " + e.getMessage());
         }
     }
 

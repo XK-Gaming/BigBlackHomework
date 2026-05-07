@@ -106,6 +106,7 @@ public class ClientHandler implements Runnable {
         handlers.put("UPDATE_USER", new UpdateUserHandler(this.userService));
         handlers.put("CHANGE_PASSWORD", new ChangePasswordHandler(this.userService));
         handlers.put("LOGOUT", new LogoutHandler(this.userService));
+        handlers.put("BIDDER_PAYMENT_ACCOUNT", new BidderPaymentAccountHandler(this.userService));
     }
 
     @Override
@@ -162,6 +163,7 @@ public class ClientHandler implements Runnable {
             synchronized (out) { // Đảm bảo không bị xung đột khi nhiều luồng cùng gửi
                 out.writeObject(packet);
                 out.flush();
+                out.reset();
             }
         } catch (IOException e) {
             System.err.println("Lỗi gửi gói tin tới " + (user != null ? user.getUsername() : "Unknown") + ": " + e.getMessage());

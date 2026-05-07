@@ -1,4 +1,5 @@
 package controller;
+import com.cloudinary.Transformation;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -250,8 +251,14 @@ public class ControllerSeller implements ServerListener {
         ));
 
         try {
-            Map uploadResult = cloudinary.uploader().upload(localFile, ObjectUtils.emptyMap());
-            // Trả về link ảnh dạng https://res.cloudinary.com/...
+            Map params = ObjectUtils.asMap(
+                    "folder", "auction_items",      // Lưu vào thư mục cho gọn
+                    "quality", "auto:low",          // Tự động nén chất lượng ở mức thấp (tiết kiệm dung lượng)
+                    "fetch_format", "auto",         // Tự động chuyển về định dạng nhẹ nhất (như WebP)
+                    "transformation", new Transformation().width(500).height(500).crop("limit") // Giới hạn kích thước tối đa 500x500
+            );
+
+            Map uploadResult = cloudinary.uploader().upload(localFile, params);
             return (String) uploadResult.get("secure_url");
         } catch (IOException e) {
             e.printStackTrace();

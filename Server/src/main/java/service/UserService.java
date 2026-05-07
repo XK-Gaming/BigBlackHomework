@@ -79,7 +79,7 @@ public class UserService {
      * Postcondition: Method trả về toàn bộ item từ DAOItems.selectedAll(), hoặc null nếu DAO lỗi.
      */
     public ArrayList<Item> select_items() {
-        return DAOItems.selectedAll();
+        return itemDAO.selectAll();
     }
 
     /**
@@ -112,38 +112,10 @@ public class UserService {
      */
     public double processBid(String itemId, String bidderId, double amount) {
         Item item = itemDAO.selectById(itemId);
-        if (item == null) {
-            System.err.println("❌ processBid: Item không tồn tại ID=" + itemId);
-            return -1;
-        }
-
-        if (amount <= item.getCurrentHighestPrice()) {
-            System.err.println("❌ processBid: Giá " + amount + " không cao hơn giá hiện tại " + item.getCurrentHighestPrice());
-            return -1;
-        }
-        
-        // ✅ Cập nhật giá trên object
-        item.setCurrentHighestPrice(amount);
-        
-        // ✅ Cập nhật giá trong bảng items
-        int updatedRows = itemDAO.Update(item, amount);
-        if (updatedRows <= 0) {
-            System.err.println("❌ processBid: Lỗi cập nhật giá item trong DB");
-            return -1;
-        }
-        
-        System.out.println("✅ processBid: Cập nhật giá item " + itemId + " thành " + amount);
-
-        // ✅ Cập nhật leading bidder trong bảng auction_items
+        int updatedRows = itemDAO.Update(item);
         Auction auction = auctionDAO.selectByItemId(item);
 
-        if (auction == null) {
-            System.err.println("❌ processBid: Không tìm thấy auction cho item ID=" + itemId);
-            return -1;
-        }
-
         try {
-            // ✅ FIX: Copy bidHistory vào ArrayList mới (vì getBidHistory() trả về unmodifiable list)
             List<model.auction.BidTransaction> newHistory = new ArrayList<>(auction.getBidHistory());
 
             // Tạo transaction ID mới
@@ -156,18 +128,8 @@ public class UserService {
             );
             newHistory.add(newBid);
             auction.setbidHistory(newHistory);
-
-            // ✅ Cập nhật vào DB
-            System.out.println("DEBUG processBid: Updating with leadingBidder=" + bidderId + ", historySize=" + newHistory.size() + ", amount=" + amount);
             int updateResult = auctionDAO.Update(auction, item.getDatabaseId(), bidderId, amount);
-            if (updateResult > 0) {
-                System.out.println("✅ processBid: Thêm BidTransaction: " + bidderId + " -> " + amount + " VNĐ");
-            } else {
-                System.err.println("❌ processBid: Lỗi cập nhật auction_items trong DB (rows affected: " + updateResult + ")");
-                return -1;
-            }
         } catch (Exception e) {
-            System.err.println("❌ processBid: Lỗi khi addding BidTransaction: " + e.getMessage());
             e.printStackTrace();
             return -1;
         }
@@ -254,4 +216,6 @@ public class UserService {
      */
     public void logout(String username) {
     }
-}
+public void PaymentAccount(String username, Double money) {
+        userDAO.UpdateBalance(username, money);
+}}

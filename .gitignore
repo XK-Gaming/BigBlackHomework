@@ -49,5 +49,9 @@ Thumbs.db
 .swo
 
 # Project specific
-Clients/target/
-du_an_lon/target/
+**/target/
+**/dependency-reduced-pom.xml
+**/*.iml
+du_an_lon/
+1q/
+untitled/

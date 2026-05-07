@@ -76,7 +76,7 @@ public class AuctionService {
 
             // Lưu vào DB
             auctionDAO.Update(auction, item.getDatabaseId(), user.getUsername(),amount);
-            itemDAO.Update(item, amount);
+            itemDAO.Update(item);
 
             return "SUCCESS";
         } catch (NumberFormatException e) {

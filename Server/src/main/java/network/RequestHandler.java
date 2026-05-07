@@ -15,5 +15,4 @@ public interface RequestHandler {
      * NOTE: Implement có thể phát sinh RuntimeException nếu cast payload, xử lý service,
      * hoặc ghi stream bị lỗi.
      */
-    void handle(Object payload, ObjectOutputStream out);
-}
+    void handle(Object payload, ObjectOutputStream out);}

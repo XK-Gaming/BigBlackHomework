@@ -58,12 +58,27 @@ public class AuctionServer {
             // Vòng lặp vô tận để đón khách
             while (true) {
                 // accept() sẽ block luồng (chờ đợi) cho đến khi có Client kết nối
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("[+] Client mới kết nối từ IP: " + clientSocket.getInetAddress().getHostAddress());
+                Socket clientSocket = null;
+                try {
+                    clientSocket = serverSocket.accept();
+                    clientSocket.setKeepAlive(true); // Giữ cho kết nối không bị Azure tự động ngắt
+                    clientSocket.setSoTimeout(0);    // Không bao giờ hết hạn chờ dữ liệu
+                    System.out.println("[+] Client mới từ: " + clientSocket.getInetAddress().getHostAddress());
 
-                // Khởi tạo ClientHandler và ném vào ThreadPool xử lý
-                ClientHandler clientHandler = new ClientHandler(clientSocket);
-                threadPool.execute(clientHandler); // Ném công việc chạy cho threadpool -- giống start thread.
+                    // Bọc riêng phần khởi tạo Handler
+                    ClientHandler clientHandler = new ClientHandler(clientSocket);
+                    threadPool.execute(clientHandler);
+
+                } catch (Exception e) {
+                    // Nếu là lỗi 'invalid stream header', nó sẽ rơi vào đây
+                    System.err.println("[-] Bỏ qua một kết nối lỗi: " + e.getMessage());
+
+                    // Đảm bảo đóng socket lỗi để không bị rò rỉ tài nguyên
+                    if (clientSocket != null && !clientSocket.isClosed()) {
+                        try { clientSocket.close(); } catch (IOException ex) {}
+                    }
+                    // Vòng lặp vẫn tiếp tục, Server không dừng!
+                }// Ném công việc chạy cho threadpool -- giống start thread.
             }
         } catch (IOException e) {
             System.err.println("[-] Lỗi khởi động Server: " + e.getMessage());

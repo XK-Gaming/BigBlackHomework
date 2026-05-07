@@ -22,19 +22,6 @@ interface DaoInterface <T> {
      */
     int Insert(T t);
 
-    //Logic thêm sản phẩm__ dùng PrepareStatement
-    /**
-     * Precondition: auction và item1 mô tả dòng auction cần tạo.
-     * Postcondition: Dữ liệu auction được insert nếu method được implement.
-     */
-    int Insert(Auction auction, Item item1);
-
-    /**
-     * Precondition: item có đầy đủ dữ liệu cần lưu.
-     * Postcondition: Dữ liệu item được insert nếu method được implement.
-     */
-    int Insert(Item item);
-
     /**
      * Precondition: t xác định một dòng đã tồn tại và chứa dữ liệu mới.
      * Postcondition: Dòng tương ứng được update nếu method được implement.
@@ -54,14 +41,8 @@ interface DaoInterface <T> {
     public ArrayList<T> selectAll() throws SQLException;
 
     /**
-     * Precondition: t chứa username hoặc dữ liệu định danh.
-     * Postcondition: Method trả về entity khớp nếu được implement.
-     */
-    public  T selectByUsername(T t);
-
-    /**
      * Precondition: condition là điều kiện query mà implementation hỗ trợ.
      * Postcondition: Method trả về các dòng khớp nếu được implement.
      */
-    public ArrayList<T> selectByCondition (String condition);
+    public ArrayList<T> moreSelectByCondition (String condition);
 }
