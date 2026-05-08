@@ -1,4 +1,5 @@
 package controller;
+
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -18,12 +19,12 @@ import model.Items.ItemSession;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.Auction;
-import model.auction.AuctionEngine;
 import model.auction.AuctionStatus;
 import network.AuctionClient;
-import network.DataPacket;
+import network.Command;
 import network.ServerListener;
-
+import network.DataPacket;
+import network.AuctionEngine;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -41,8 +42,8 @@ public class ControllerAuction implements ServerListener {
     public void initialize() throws IOException {
         client.setListener(this);
         showSessionProductAndLoadingAuctionState();
-        client.sendCommand("GET_AUCTION", item1 != null ? item1.getDatabaseId() : null);
-        client.sendCommand("SET_AUCTION", Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
+        client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
+        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
     }
 
     /**
@@ -178,7 +179,7 @@ public class ControllerAuction implements ServerListener {
             return;
         }else{
 
-        client.sendCommand("BID", Map.of(
+        client.sendCommand(Command.BID, Map.of(
                 "itemId", item1.getDatabaseId(),
                 "bidderId", p1.getUsername(),
                 "amount", priceText
@@ -222,7 +223,7 @@ public class ControllerAuction implements ServerListener {
         cleanup();
         SceneHelper.changeScene(j_return, "View3.fxml");
         ItemSession.cleanItemSession();
-        client.sendCommand("SET_AUCTION", Map.of("userId", p1.getUsername(), "itemId", ""));
+        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
 
     }
 
@@ -315,7 +316,7 @@ public class ControllerAuction implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
         if ("GET_AUCTION_RESULT".equals(command)) {
             this_Auction = (Auction) response.getPayload();

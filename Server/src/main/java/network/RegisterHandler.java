@@ -2,6 +2,8 @@ package network;
 
 import service.UserService;
 import model.User.User;
+import network.Command;
+import network.DataPacket;
 
 import java.io.ObjectOutputStream;
 import java.util.Map;
@@ -15,8 +17,8 @@ public class RegisterHandler extends BaseHandler implements RequestHandler {
     }
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        User user = gson.fromJson(gson.toJson(payload), User.class);
+        User user = (User) payload;
         Map<String,Object> result = userService.register(user);
-        sendResponse(out, "REGISTER_RESULT", result);
+        sendResponse(out, Command.REGISTER_RESULT, result);
     }
 }

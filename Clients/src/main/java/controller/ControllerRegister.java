@@ -9,6 +9,7 @@ import javafx.scene.paint.Color;
 import model.User.User;
 import model.User.UserRole;
 import network.AuctionClient;
+import network.Command;
 import network.DataPacket;
 import network.ServerListener;
 
@@ -80,25 +81,24 @@ public class ControllerRegister implements ServerListener {
         }
 
         User user = new User(username_DK.getText(), password_DK1.getText(), name.getText(), address.getText(), UserRole.fromString(jComboBox_Role.getValue()));
-        client.sendCommand("REGISTER", user);
+        client.sendCommand(Command.REGISTER, user);
     }
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
-        if ("REGISTER_RESULT".equals(command)) {
+        if (Command.REGISTER_RESULT == command) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
-            String message = (String) result.get("message");
-            boolean isSuccess = (boolean) result.get("success");
+            String isSuccess = (String) result.get("success");
 
             Platform.runLater(() -> {
-                if (isSuccess) {
+                if (isSuccess.equals("TRUE")) {
                     errorLabel1.setTextFill(Color.BLUE);
-                    errorLabel1.setText(message);
+                    errorLabel1.setText("Đăng ký thành công");
                     errorLabel1.setVisible(true);
-                } else {
+                } else if(isSuccess.equals("EXSITED")) {
                     errorLabel1.setTextFill(Color.RED);
-                    errorLabel1.setText(message);
+                    errorLabel1.setText("Tài khoản đã tồn tại");
                     errorLabel1.setVisible(true);
                     password_DK2.setStyle("-fx-border-color: red;");
                 }
@@ -120,7 +120,6 @@ public class ControllerRegister implements ServerListener {
 
     public void initialize() {
         jComboBox_Role.getItems().setAll(list);
-
         // Nếu muốn khi mở app lên nó chọn sẵn một cái (không bị trống)
         jComboBox_Role.setValue(list[0]);
         // Đăng ký controller này làm người nghe tin nhắn từ Server

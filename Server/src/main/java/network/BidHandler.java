@@ -44,8 +44,8 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 if (latestAuction != null) {
                     bidUpdate.put("auction", latestAuction);
                 }
-                System.out.println(bidUpdate);
-                AuctionServer.broadcastToSpecificAuction(itemId, "BID_UPDATE", bidUpdate);
+                // Để cập nhật teeen toàn bộ các clients đang trong phiên đấu giá
+                AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
             } else {
                 response.put("success", false);
                 response.put("message", "Giá đặt phải cao hơn giá hiện tại");
@@ -55,6 +55,6 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             response.put("message", "Lỗi: " + e.getMessage());
         }
 
-        sendResponse(out, "BID_RESULT", response);
+        sendResponse(out, Command.BID_RESULT, response);
     }
 }

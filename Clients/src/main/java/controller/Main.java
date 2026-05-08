@@ -35,7 +35,7 @@ public class Main extends Application {
             System.err.println("Không thể kết nối server: " + e.getMessage());
         }
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/controller/View1.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("View1.fxml"));
         Parent root = loader.load();
         
         stage.setTitle("Hệ thống đấu giá trực tuyến");

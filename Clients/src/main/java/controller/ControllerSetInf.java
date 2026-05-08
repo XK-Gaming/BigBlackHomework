@@ -15,6 +15,7 @@ import javafx.scene.paint.Color;
 import model.User.User;
 import model.User.UserSession;
 import network.AuctionClient;
+import network.Command;
 import network.DataPacket;
 import network.ServerListener;
 import java.io.IOException;
@@ -129,7 +130,7 @@ public class ControllerSetInf implements ServerListener {
             }
 
             try {
-                client.sendCommand("UPDATE_USER", Map.of(
+                client.sendCommand(Command.UPDATE_USER, Map.of(
                         "username", p1.getUsername(),
                         "field", "name",
                         "value", newName
@@ -147,7 +148,7 @@ public class ControllerSetInf implements ServerListener {
             String newTel = j_inputNewTel.getText();
 
             try {
-                client.sendCommand("UPDATE_USER", Map.of(
+                client.sendCommand(Command.UPDATE_USER, Map.of(
                         "username", p1.getUsername(),
                         "field", "phone",
                         "value", newTel
@@ -195,7 +196,7 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_OnbuttonDangXuat(ActionEvent event) throws IOException {
-        client.sendCommand("LOGOUT", UserSession.getLoggedInUser().getUsername());
+        client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         UserSession.cleanUserSession();
         SceneHelper.changeScene((Node) j_buttonDangXuat, "View1.fxml");
     }
@@ -223,7 +224,7 @@ public class ControllerSetInf implements ServerListener {
             return;
         }
         try {
-            client.sendCommand("CHANGE_PASSWORD", Map.of(
+            client.sendCommand(Command.CHANGE_PASSWORD, Map.of(
                     "username", p1.getUsername(),
                     "oldPassword", oldPassword,
                     "newPassword", newPassword
@@ -239,9 +240,9 @@ public class ControllerSetInf implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
-        if ("UPDATE_USER_RESULT".equals(command)) {
+        if (Command.UPDATE_USER_RESULT.equals(command)) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");

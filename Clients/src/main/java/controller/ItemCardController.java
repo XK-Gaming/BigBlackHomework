@@ -8,24 +8,22 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import model.Items.*;
-import model.auction.AuctionEngine;
-
+import network.AuctionEngine;
+import model.auction.AuctionStatus;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+
 public class ItemCardController {
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     private String watchToken;
-
     @FXML
     private Label j_EndTime;
-
     @FXML
     private Label j_StartPrice;
-
     @FXML
     private Label j_StartTime;
 

@@ -15,9 +15,8 @@ public class GetAuctionHandler extends BaseHandler implements RequestHandler {
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         int itemId = (Integer) payload;
-        String itemId_Str = String.valueOf(itemId);
 
-        Auction auction = userService.getAuctionByItemId(itemId_Str);
-        sendResponse(out, "GET_AUCTION_RESULT", auction);
+        Auction auction = userService.getAuctionByItemId(String.valueOf(itemId));
+        sendResponse(out, Command.GET_AUCTION_RESULT, auction);
     }
 }

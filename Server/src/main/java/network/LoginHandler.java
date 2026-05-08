@@ -2,6 +2,8 @@ package network;
 
 import service.UserService;
 import model.User.User;
+import network.Command;
+import network.DataPacket;
 // import server.AuctionServer; // Import lớp quản lý Server của bạn
 
 import java.io.ObjectOutputStream;
@@ -21,10 +23,8 @@ public class LoginHandler extends BaseHandler implements RequestHandler {
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, String> loginInfo = (Map<String, String>) payload;
-
         Map<String, Object> response = new HashMap<>();
         User user = userService.loginAndGetUser(loginInfo.get("username"), loginInfo.get("password"));
-
         if (user != null) {
             // 1. Gắn đối tượng User vào Handler hiện tại
             clientHandler.setUser(user);
@@ -35,13 +35,9 @@ public class LoginHandler extends BaseHandler implements RequestHandler {
 
             response.put("success", true);
             response.put("user", user);
-            response.put("message", "Đăng nhập thành công");
-
         } else {
-            response.put("success", false);
-            response.put("message", "Tên đăng nhập hoặc mật khẩu không đúng");
-        }
+            response.put("success", false);}
 
-        sendResponse(out, "LOGIN_RESULT", response);
+        sendResponse(out, Command.LOGIN_RESULT, response);
     }
 }

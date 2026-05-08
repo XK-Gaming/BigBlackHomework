@@ -14,10 +14,7 @@ import javafx.stage.Stage;
 import model.User.User;
 import model.User.UserRole;
 import model.User.UserSession;
-import network.AuctionClient;
-import network.ClientNetworkExecutor;
-import network.DataPacket;
-import network.ServerListener;
+import network.*;
 
 import java.util.Map;
 
@@ -26,18 +23,12 @@ public class ControllerLogin implements ServerListener {
     private AuctionClient client = AuctionClient.getInstance();
     public User p1 = null;
 
-    @FXML
-    private AnchorPane Pane1;
-    @FXML
-    private Button jbutton_DangKy;
-    @FXML
-    private Button jbutton_DangNhap;
-    @FXML
-    private PasswordField password;
-    @FXML
-    private Label errorLabel;
-    @FXML
-    private TextField username;
+    @FXML private AnchorPane Pane1;
+    @FXML private Button jbutton_DangKy;
+    @FXML private Button jbutton_DangNhap;
+    @FXML private PasswordField password;
+    @FXML private Label errorLabel;
+    @FXML private TextField username;
 
     public void initialize() {
         // Đăng ký controller này làm người nghe tin nhắn từ Server
@@ -52,12 +43,7 @@ public class ControllerLogin implements ServerListener {
             Parent root = loader.load();
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
             window.setScene(new Scene(root));
-        } catch (Exception e) {
-            System.err.println("Lỗi nạp file FXML View2: " + e.getMessage());
-            e.printStackTrace();
-            errorLabel.setText("Không thể mở màn hình đăng ký.");
-            errorLabel.setVisible(true);
-        }
+        } catch (Exception e) {e.printStackTrace();}
     }
 
     // Xử lý nút Đăng nhập
@@ -66,22 +52,16 @@ public class ControllerLogin implements ServerListener {
         if (username.getText().isEmpty() || password.getText().isEmpty()) {
             errorLabel.setText("Điền thông tin bắt buộc!");
             errorLabel.setVisible(true);
-
-            if (username.getText().isEmpty()) {
-                username.setStyle("-fx-border-color: red;");
-            }
-            if (password.getText().isEmpty()) {
-                password.setStyle("-fx-border-color: red;");
-            }
+            if (username.getText().isEmpty()) {username.setStyle("-fx-border-color: red;");}
+            if (password.getText().isEmpty()) {password.setStyle("-fx-border-color: red;");}
             return;
         }
 
         String this_username = username.getText();
         String this_password = password.getText();
-
         ClientNetworkExecutor.execute(() -> {
             try {
-                client.sendCommand("LOGIN", Map.of(
+                client.sendCommand(Command.LOGIN, Map.of(
                         "username", this_username,
                         "password", this_password
                 ));
@@ -106,39 +86,25 @@ public class ControllerLogin implements ServerListener {
     // Nhận phản hồi từ Server qua ObjectStream
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
-        if ("LOGIN_RESULT".equals(command)) {
+        if (Command.LOGIN_RESULT.equals(command)) {
             // Ép kiểu trực tiếp từ Payload
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = result.containsKey("success") && (boolean) result.get("success");
 
             Platform.runLater(() -> {
                 if (!isSuccess) {
-                    String msg = result.get("message") != null ? (String) result.get("message") : "Đăng nhập không thành công";
-                    errorLabel.setText(msg);
+                    errorLabel.setText("Đăng nhậ không thành công");
                     errorLabel.setVisible(true);
                 } else {
                     try {
-                        // VÌ DÙNG OBJECT STREAM, TA ÉP KIỂU TRỰC TIẾP LUÔN (KHÔNG CẦN GSON)
                         p1 = (User) result.get("user");
-
                         UserSession.setLoggedInUser(p1);
-
-                        if (p1 != null && p1.getRole() != null) {
-                            if (p1.getRole() == UserRole.BIDDER) {
-                                SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");
-                            } else if (p1.getRole() == UserRole.SELLER) {
-                                SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");
-                            }
-                        } else {
-                            errorLabel.setText("Lỗi phân quyền tài khoản!");
-                            errorLabel.setVisible(true);
-                        }
+                        if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");}
+                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");}
                     } catch (ClassCastException e) {
                         e.printStackTrace();
-                        errorLabel.setText("Lỗi định dạng dữ liệu User từ Server.");
-                        errorLabel.setVisible(true);
                     }
                 }
             });

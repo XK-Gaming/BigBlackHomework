@@ -13,10 +13,7 @@ import model.Items.Item;
 import model.Items.ItemFactory;
 import model.User.User;
 import model.User.UserSession;
-import network.AuctionClient;
-import network.ClientNetworkExecutor;
-import network.DataPacket;
-import network.ServerListener;
+import network.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -152,7 +149,7 @@ public class ControllerSeller implements ServerListener {
                             extraFields,
                             fileName
                     );
-                    client.sendCommand("CREATE_ITEM", item);
+                    client.sendCommand(Command.CREATE_ITEM, item);
                 } catch (IllegalArgumentException e) {
                     e.printStackTrace();
                     Platform.runLater(() -> {
@@ -262,9 +259,9 @@ public class ControllerSeller implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
-        if ("CREATE_ITEM_RESULT".equals(command)) {
+        if (Command.CREATE_ITEM_RESULT.equals(command)) {
             boolean isSuccess = (boolean) response.getPayload();
 
             Platform.runLater(() -> {

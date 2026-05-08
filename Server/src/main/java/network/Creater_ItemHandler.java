@@ -20,11 +20,10 @@ public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
             Item item = (Item) payload; // Ép kiểu về lớp cha
             // Thực hiện lưu trữ thông qua service
             boolean isSuccess = userService.creater_item(item);
-            sendResponse(out, "CREATE_ITEM_RESULT", isSuccess);
+            sendResponse(out, Command.CREATE_ITEM_RESULT, isSuccess);
 
         } else {
-            System.err.println("Dữ liệu gửi lên không phải là Item!");
-            sendResponse(out, "CREATE_ITEM_RESULT", false);
+            sendResponse(out, Command.CREATE_ITEM_RESULT, false);
         }
     }
 }

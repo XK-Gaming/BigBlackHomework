@@ -24,11 +24,10 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
 
         // ✅ FIX: Validate itemId không rỗng
         if (itemId_Str == null || itemId_Str.isEmpty() || "null".equals(itemId_Str)) {
-            System.err.println("❌ SetAuction: itemId rỗng hoặc null");
             Map<String, Object> errorResp = new HashMap<>();
             errorResp.put("success", false);
             errorResp.put("message", "itemId rỗng");
-            sendResponse(out, "SET_AUCTION_RESULT", errorResp);
+            sendResponse(out, Command.SET_AUCTION_RESULT, errorResp);
             return;
         }
 
@@ -46,21 +45,18 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
                 response.put("auction", auction);
                 response.put("itemId", itemId_Str);
                 response.put("status", auction.getStatus());
-                System.out.println("✅ SetAuction: Fetch auction thành công cho item " + itemId_Str);
             } else {
                 response.put("success", false);
                 response.put("message", "Không tìm thấy auction cho item này");
-                System.err.println("❌ SetAuction: Không tìm được auction cho item " + itemId_Str);
             }
 
-            sendResponse(out, "SET_AUCTION_RESULT", response);
+            sendResponse(out, Command.SET_AUCTION_RESULT, response);
         } catch (Exception e) {
-            System.err.println("❌ Lỗi SetAuctionHandler: " + e.getMessage());
             e.printStackTrace();
             Map<String, Object> errorResp = new HashMap<>();
             errorResp.put("success", false);
             errorResp.put("message", "Lỗi: " + e.getMessage());
-            sendResponse(out, "SET_AUCTION_RESULT", errorResp);
+            sendResponse(out, Command.SET_AUCTION_RESULT, errorResp);
         }
     }
 }

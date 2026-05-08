@@ -16,6 +16,6 @@ public class GetAllAuctionsHandler extends BaseHandler implements RequestHandler
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         List<Auction> auctions = userService.getAllAuctions();
-        sendResponse(out, "GET_ALL_AUCTIONS_RESULT", auctions);
+        sendResponse(out, Command.GET_ALL_AUCTIONS_RESULT, auctions);
     }
 }

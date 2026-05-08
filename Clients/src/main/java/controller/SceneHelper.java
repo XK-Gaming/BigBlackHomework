@@ -8,8 +8,6 @@ import javafx.stage.Stage;
 import java.io.IOException;
 
 public class SceneHelper {
-    private static final String FXML_PATH = "Clients/src/main/resources/du_an_lon/";
-
     public static void changeScene(Node node, String fxmlFile) {
         try {
             FXMLLoader loader = new FXMLLoader(SceneHelper.class.getResource("/controller/" + fxmlFile));

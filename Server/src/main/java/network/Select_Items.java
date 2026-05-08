@@ -16,7 +16,7 @@ public class Select_Items extends BaseHandler implements RequestHandler{
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         ArrayList<Item> result = userService.select_items();
-        sendResponse(out, "SELECT_ITEMS_RESULT", result);
+        sendResponse(out, Command.SELECT_ITEMS_RESULT, result);
     }
 }
 

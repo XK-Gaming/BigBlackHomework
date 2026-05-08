@@ -47,14 +47,14 @@
             <VBox spacing="5.0">
                <children>
                   <Label text="Tên đăng nhập" textFill="#7f8c8d" />
-                  <TextField fx:id="username" onAction="#resetStyle" onKeyTyped="#resetStyle" prefHeight="40.0" promptText="Nhập username..." style="-fx-background-radius: 5;" />
+                  <TextField fx:id="username"  prefHeight="40.0" promptText="Nhập username..." style="-fx-background-radius: 5;" />
                </children>
             </VBox>
 
             <VBox spacing="5.0">
                <children>
                   <Label text="Mật khẩu" textFill="#7f8c8d" />
-                  <PasswordField fx:id="password" onAction="#resetStyle" onKeyTyped="#resetStyle" prefHeight="40.0" promptText="Nhập mật khẩu..." style="-fx-background-radius: 5;" />
+                  <PasswordField fx:id="password" prefHeight="40.0" promptText="Nhập mật khẩu..." style="-fx-background-radius: 5;" />
                </children>
             </VBox>
 

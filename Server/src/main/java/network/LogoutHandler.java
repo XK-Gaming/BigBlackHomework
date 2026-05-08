@@ -16,7 +16,6 @@ public class LogoutHandler extends BaseHandler implements RequestHandler {
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         String payloadJson = gson.toJson(payload);
-        String username = gson.fromJson(payloadJson, String.class);
 
         userService.logout(username);
 

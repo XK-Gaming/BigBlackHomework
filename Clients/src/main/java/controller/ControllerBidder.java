@@ -17,9 +17,9 @@ import model.Items.ItemSession;
 import model.User.User;
 import model.User.UserSession;
 import network.AuctionClient;
+import network.Command;
 import network.DataPacket;
 import network.ServerListener;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -70,7 +70,7 @@ public class ControllerBidder implements ServerListener {
             return pane;
         });
 
-        client.sendCommand("SELECT_ITEMS", "");
+        client.sendCommand(Command.SELECT_ITEMS, "");
     }
 
     private void setupPagination() {
@@ -122,9 +122,9 @@ public class ControllerBidder implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        String command = response.getCommand();
+        Command command = response.getCommand();
 
-        if ("SELECT_ITEMS_RESULT".equals(command)) {
+        if (Command.SELECT_ITEMS_RESULT.equals(command)) {
             System.out.println(response.getPayload());
             allAssets = (ArrayList<Item>) response.getPayload();
             dataLoaded = true;
