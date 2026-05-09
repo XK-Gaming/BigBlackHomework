@@ -15,6 +15,7 @@ public class ClientHandler implements Runnable {
     private Socket socket;
     private User user;
 
+    // Khởi tạo user, ViewingItemid cho từng Clienthandler
     private volatile String viewingItemId;
     public void setUser(User user) {
         this.user = user;

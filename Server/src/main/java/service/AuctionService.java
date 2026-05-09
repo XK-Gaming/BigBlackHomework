@@ -62,12 +62,12 @@ public class AuctionService {
             return "Vui lòng nhập số tiền hợp lệ.";
         }
     }
-   public static void updateStatusByTime(Auction auction) {
+   public static Object updateStatusByTime(Auction auction) {
         Instant now = Instant.now();
 
         // 1. Nếu đấu giá đã bị hủy hoặc đã thanh toán thì không tự động đổi nữa
         if (auction.getStatus() == AuctionStatus.CANCELED || auction.getStatus() == AuctionStatus.PAID) {
-            return;
+            return null;
         }
 
         // 2. Kiểm tra mốc kết thúc (Ưu tiên kiểm tra kết thúc trước)
@@ -90,7 +90,7 @@ public class AuctionService {
         else {
             auction.setStatus(AuctionStatus.OPEN);
         }
-    }
+    return null;}
 
     public String formatPrice(double price) {
         return new DecimalFormat("#,###").format(price) + " VNĐ";

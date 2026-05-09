@@ -133,6 +133,16 @@ public class ControllerBidder implements ServerListener {
                 setupPagination();
             });
         }
+        if (Command.ITEMS_UPDATE.equals(command)) {
+            Item updatedItem = (Item) response.getPayload();
+            Platform.runLater(() -> {
+                int index = allAssets.indexOf(updatedItem);
+                if (index != -1) {
+                    allAssets.set(index, updatedItem);
+                    setupPagination();
+                }
+            });
+        }
     }
 }
 

@@ -61,5 +61,14 @@ nb-configuration.xml
 node_modules/
 npm-debug.log*
 
-# === Project-specific ra ===
-1q
+# === VS Code ===
+.vscode/
+
+# === JVM ===
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# === Environment ===
+.env
+.env.*

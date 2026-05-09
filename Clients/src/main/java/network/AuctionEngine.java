@@ -21,10 +21,13 @@ public class AuctionEngine {
     public interface AuctionStatusListener {
         void onStatus(AuctionStatus status, long secondsToNextChange);
     }
-
-    private static final AuctionEngine INSTANCE = new AuctionEngine();
     private final Map<String, WatchRegistration> registrations = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
+
+    // Có trển khai Singleton đảm bảo chỉ có một instance của
+    // AuctionEngine chạy trong toàn bộ ứng dụng client
+    private static final AuctionEngine INSTANCE = new AuctionEngine();
+
 
     private AuctionEngine() {
         ThreadFactory factory = r -> {
@@ -32,14 +35,18 @@ public class AuctionEngine {
             t.setDaemon(true);
             return t;
         };
+        // Tạo một luồng chạy ngầm (Daemon Thread)
         scheduler = Executors.newSingleThreadScheduledExecutor(factory);
+        // Cứ mỗi 1 giây (TimeUnit.SECONDS), hàm tick() sẽ được gọi một lần
         scheduler.scheduleAtFixedRate(this::tick, 0, 1, TimeUnit.SECONDS);
     }
 
     public static AuctionEngine getInstance() {
         return INSTANCE;
     }
-
+    // Đăng ký theo dõi
+    // Nó tạo ra một token (mã định danh duy nhất).
+    //Nó lưu item và một cái listener (hành động sẽ thực hiện khi trạng thái thay đổi).
     public String watchItem(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
             return null;
@@ -50,6 +57,7 @@ public class AuctionEngine {
         return token;
     }
 
+    //Khi bạn đóng cửa sổ hoặc chuyển trang, gọi cái này để giải phóng bộ nhớ
     public void unwatch(String token) {
         if (token != null) {
             registrations.remove(token);
@@ -62,6 +70,7 @@ public class AuctionEngine {
         }
     }
 
+    // Phương thức quyết định trạng thái của sản phẩm
     private void notifySingle(Item item, AuctionStatusListener listener) {
         Instant now = Instant.now();
         AuctionStatus status;

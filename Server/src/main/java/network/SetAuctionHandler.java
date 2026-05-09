@@ -1,6 +1,6 @@
 package network;
 
-import service.UserService;
+import service.AuctionService;import service.UserService;
 import model.auction.Auction;
 
 import java.io.ObjectOutputStream;
@@ -22,7 +22,6 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
         String itemId_Str = String.valueOf(Lst.get("itemId"));
         String userId = (String) Lst.get("userId");
 
-        // ✅ FIX: Validate itemId không rỗng
         if (itemId_Str == null || itemId_Str.isEmpty() || "null".equals(itemId_Str)) {
             Map<String, Object> errorResp = new HashMap<>();
             errorResp.put("success", false);
@@ -44,7 +43,7 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
                 response.put("success", true);
                 response.put("auction", auction);
                 response.put("itemId", itemId_Str);
-                response.put("status", auction.getStatus());
+                response.put("status", AuctionService.updateStatusByTime(auction));
             } else {
                 response.put("success", false);
                 response.put("message", "Không tìm thấy auction cho item này");

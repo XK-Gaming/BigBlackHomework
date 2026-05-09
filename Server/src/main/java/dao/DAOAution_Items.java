@@ -6,7 +6,6 @@ import model.Items.Item;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
 import model.auction.BidTransaction;
-import utils.GsonUtils;
 
 import java.sql.*;
 import java.util.ArrayList;

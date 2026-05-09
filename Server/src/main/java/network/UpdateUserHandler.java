@@ -15,8 +15,7 @@ public class UpdateUserHandler extends BaseHandler implements RequestHandler {
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        String payloadJson = gson.toJson(payload);
-        Map<String, String> data = gson.fromJson(payloadJson, Map.class);
+        Map<String, String> data = (Map<String, String>) payload;
 
         String username = data.get("username");
         String field = data.get("field");
@@ -34,6 +33,6 @@ public class UpdateUserHandler extends BaseHandler implements RequestHandler {
             response.put("message", "Cập nhật thất bại");
         }
 
-        sendResponse(out, "UPDATE_USER_RESULT", response);
+        sendResponse(out, Command.UPDATE_USER_RESULT, response);
     }
 }

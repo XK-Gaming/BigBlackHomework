@@ -15,8 +15,7 @@ public class ChangePasswordHandler extends BaseHandler implements RequestHandler
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        String payloadJson = gson.toJson(payload);
-        Map<String, String> data = gson.fromJson(payloadJson, Map.class);
+        Map<String, String> data = (Map<String, String>) payload;
 
         String username = data.get("username");
         String oldPassword = data.get("oldPassword");
@@ -34,6 +33,6 @@ public class ChangePasswordHandler extends BaseHandler implements RequestHandler
             response.put("message", "Mật khẩu cũ không đúng");
         }
 
-        sendResponse(out, "CHANGE_PASSWORD_RESULT", response);
+        sendResponse(out, Command.CHANGE_PASSWORD_RESULT, response);
     }
 }

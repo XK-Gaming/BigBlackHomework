@@ -18,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 
 
 public class ItemCardController {
-    private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     private String watchToken;
     @FXML
     private Label j_EndTime;
@@ -30,6 +29,7 @@ public class ItemCardController {
     @FXML
     private ImageView j_img;
 
+    @FXML    private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     @FXML
     private Label j_name;
 

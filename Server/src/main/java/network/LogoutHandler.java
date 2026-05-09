@@ -15,7 +15,8 @@ public class LogoutHandler extends BaseHandler implements RequestHandler {
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        String payloadJson = gson.toJson(payload);
+        Map<String, String> data = (Map<String, String>) payload;
+        String username = data.get("username");
 
         userService.logout(username);
 
@@ -23,6 +24,6 @@ public class LogoutHandler extends BaseHandler implements RequestHandler {
         response.put("success", true);
         response.put("message", "Đăng xuất thành công");
 
-        sendResponse(out, "LOGOUT_RESULT", response);
+        sendResponse(out, Command.LOGOUT_RESULT, response);
     }
 }

@@ -2,6 +2,9 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.Cursor?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
@@ -53,32 +56,56 @@
 
       <HBox layoutY="70.0" spacing="25.0" AnchorPane.bottomAnchor="20.0" AnchorPane.leftAnchor="20.0" AnchorPane.rightAnchor="20.0" AnchorPane.topAnchor="90.0">
          <children>
+
             <VBox spacing="15.0" HBox.hgrow="ALWAYS">
                <children>
-                  <VBox style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 0);">
-                     <children>
-                        <Label fx:id="j_name" text="Tên sản phẩm" textFill="#34495e" wrapText="true">
-                           <font><Font name="System Bold" size="24.0" /></font>
-                           <padding><Insets bottom="10.0" left="15.0" right="15.0" top="15.0" /></padding>
-                        </Label>
-                        <Separator />
-                        <HBox alignment="CENTER" style="-fx-padding: 20;">
-                           <children>
-                              <ImageView fx:id="j_img" fitHeight="380.0" fitWidth="500.0" pickOnBounds="true" preserveRatio="true" style="-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 0);" />
-                           </children>
-                        </HBox>
-                     </children>
-                  </VBox>
-                  <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background-insets: 0;" VBox.vgrow="ALWAYS">
+                  <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background-insets: 0; -fx-background-radius: 10;" VBox.vgrow="ALWAYS">
                      <content>
-                        <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;">
+                        <VBox spacing="0.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 0);">
                            <children>
-                              <Label text="MÔ TẢ SẢN PHẨM" textFill="#7f8c8d">
-                                 <font><Font name="System Bold" size="14.0" /></font>
+                              <Label fx:id="j_name" text="Tên sản phẩm" textFill="#34495e" wrapText="true">
+                                 <font><Font name="System Bold" size="24.0" /></font>
+                                 <padding><Insets bottom="15.0" left="20.0" right="20.0" top="20.0" /></padding>
                               </Label>
-                              <Label fx:id="j_description" text="Nội dung mô tả chi tiết..." textFill="#2c3e50" wrapText="true">
-                                 <font><Font size="15.0" /></font>
-                              </Label>
+
+                              <Separator />
+
+                              <HBox alignment="CENTER" style="-fx-padding: 30;">
+                                 <children>
+                                    <ImageView fx:id="j_img" fitHeight="400.0" fitWidth="550.0" pickOnBounds="true" preserveRatio="true" style="-fx-effect: dropshadow(two-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);" />
+                                 </children>
+                              </HBox>
+
+                              <Separator />
+
+                              <VBox spacing="15.0" style="-fx-padding: 25;">
+                                 <children>
+                                    <Label text="MÔ TẢ SẢN PHẨM" textFill="#7f8c8d">
+                                       <font><Font name="System Bold" size="14.0" /></font>
+                                    </Label>
+                                    <Label fx:id="j_description" text="Nội dung mô tả chi tiết..." textFill="#2c3e50" wrapText="true">
+                                       <font><Font size="16.0" /></font>
+                                    </Label>
+                                 </children>
+                              </VBox>
+
+                              <Separator />
+
+                              <VBox spacing="10.0" style="-fx-padding: 20;">
+                                 <children>
+                                    <Label text="DIỄN BIẾN GIÁ ĐẤU" textFill="#7f8c8d">
+                                       <font><Font name="System Bold" size="14.0" /></font>
+                                    </Label>
+                                    <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendSide="BOTTOM" prefHeight="350.0">
+                                       <xAxis>
+                                          <CategoryAxis animated="false" side="BOTTOM" tickLabelRotation="90.0" fx:id="xAxis" />
+                                       </xAxis>
+                                       <yAxis>
+                                          <NumberAxis label="Giá (VNĐ)" side="LEFT" />
+                                       </yAxis>
+                                    </LineChart>
+                                 </children>
+                              </VBox>
                            </children>
                         </VBox>
                      </content>

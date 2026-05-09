@@ -95,7 +95,7 @@ public class ControllerLogin implements ServerListener {
 
             Platform.runLater(() -> {
                 if (!isSuccess) {
-                    errorLabel.setText("Đăng nhậ không thành công");
+                    errorLabel.setText("Đăng nhập không thành công");
                     errorLabel.setVisible(true);
                 } else {
                     try {
@@ -103,6 +103,7 @@ public class ControllerLogin implements ServerListener {
                         UserSession.setLoggedInUser(p1);
                         if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");}
                         else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");}
+                        else{SceneHelper.changeScene(jbutton_DangNhap, "ViewAdmin.fxml");};
                     } catch (ClassCastException e) {
                         e.printStackTrace();
                     }

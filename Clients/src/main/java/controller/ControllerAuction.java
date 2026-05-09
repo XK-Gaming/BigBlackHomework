@@ -4,14 +4,24 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.BlurType;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.Items.Item;
@@ -20,6 +30,7 @@ import model.User.User;
 import model.User.UserSession;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.auction.BidTransaction;
 import network.AuctionClient;
 import network.Command;
 import network.ServerListener;
@@ -28,6 +39,10 @@ import network.AuctionEngine;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 public class ControllerAuction implements ServerListener {
@@ -314,22 +329,126 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    // 1. Đảm bảo khai báo đúng loại Axis
+    @FXML
+    private LineChart<String, Number> bidLineChart;
+    @FXML
+    private CategoryAxis xAxis;
+    @FXML
+    private NumberAxis yAxis;
+    private void updateBidChart(List<BidTransaction> historyList) {
+        Platform.runLater(() -> {
+            bidLineChart.getData().clear();
+
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            series.setName("Giá đấu (VNĐ)");
+
+            if (historyList == null || historyList.isEmpty()) {
+                bidLineChart.setTitle("Chưa có lượt đấu giá nào");
+                return;
+            }
+
+            bidLineChart.setTitle("DIỄN BIẾN ĐẤU GIÁ SẢN PHẨM");
+
+            for (BidTransaction bid : historyList) {
+                String timeStr = formatTime(bid.getBidTime());
+                XYChart.Data<String, Number> data = new XYChart.Data<>(timeStr, bid.getAmount());
+
+                data.nodeProperty().addListener((ov, oldNode, newNode) -> {
+                    if (newNode != null) {
+                        // --- ĐỊNH DẠNG NÚT BÉ XUỐNG VỪA ĐỦ ---
+                        // Chúng ta thiết lập style ban đầu cho nút
+                        String defaultNodeStyle = "-fx-background-color: #2980b9, white; -fx-background-insets: 0, 1.5; -fx-padding: 3.5px; -fx-background-radius: 50%;";
+                        newNode.setStyle(defaultNodeStyle);
+
+                        // --- Ô THÔNG TIN TỰ CO GIÃN THEO SỐ TIỀN ---
+                        String infoText = bid.getBidder() + ": " + String.format("%,.0f", bid.getAmount()) + " VNĐ";
+                        Label infoLabel = new Label(infoText);
+
+                        infoLabel.setStyle(
+                                "-fx-background-color: #2c3e50; " +
+                                        "-fx-text-fill: white; " +
+                                        "-fx-padding: 4 10; " +
+                                        "-fx-background-radius: 4; " +
+                                        "-fx-font-size: 10px; " +
+                                        "-fx-font-weight: bold;"
+                        );
+
+                        // Quan trọng: Giữ ô thông tin trên 1 dòng duy nhất
+                        infoLabel.setMinWidth(Region.USE_PREF_SIZE);
+                        infoLabel.setTranslateY(-28);
+                        infoLabel.setVisible(false);
+                        infoLabel.setMouseTransparent(true);
+
+                        StackPane nodeStack = (StackPane) newNode;
+                        nodeStack.getChildren().add(infoLabel);
+
+                        // --- SỰ KIỆN CLICK ---
+                        newNode.setOnMouseClicked(e -> {
+                            // Đảo ngược trạng thái hiển thị
+                            boolean isShowing = !infoLabel.isVisible();
+                            infoLabel.setVisible(isShowing);
+
+                            if (isShowing) {
+                                // Khi chọn: Nút nổi bật hơn (viền cam)
+                                newNode.setStyle("-fx-background-color: #e67e22, white; -fx-background-insets: 0, 1.5; -fx-padding: 5px; -fx-background-radius: 50%;");
+                            } else {
+                                // KHI BỎ CHỌN: QUAY VỀ NHƯ BAN ĐẦU (Nút bé xanh trắng)
+                                newNode.setStyle(defaultNodeStyle);
+                            }
+                        });
+
+                        newNode.setCursor(Cursor.HAND);
+                    }
+                });
+
+                series.getData().add(data);
+            }
+
+            bidLineChart.getData().add(series);
+
+            // Làm đường Line mảnh lại (tùy chỉnh thêm để biểu đồ đẹp hơn)
+            Platform.runLater(() -> {
+                Node line = series.getNode().lookup(".chart-series-line");
+                if (line != null) {
+                    line.setStyle("-fx-stroke-width: 1.5px;");
+                }
+            });
+        });
+    }
+    // 3. Hàm phụ trợ format thời gian (Ví dụ)
+    private String formatTime(Instant instant) {
+        // Thêm ngày/tháng vào trước giờ:phút:giây
+        return DateTimeFormatter.ofPattern("dd/MM HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(instant);
+    }
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.getCommand();
 
-        if ("GET_AUCTION_RESULT".equals(command)) {
+        if (Command.GET_AUCTION_RESULT.equals(command)) {
             this_Auction = (Auction) response.getPayload();
             onAuctionDataLoaded(this_Auction);
+            Platform.runLater(() -> {
+                if (this_Auction != null) {
+                    updateBidChart(this_Auction.getBidHistory());
+                }
+            });
         }
-        else if ("BID_UPDATE".equals(command)) {
+        if (Command.BID_UPDATE.equals(command)) {
             Map<String, Object> update = (Map<String, Object>) response.getPayload();
             String itemId = String.valueOf(update.get("itemId"));
             if (item1 == null || !String.valueOf(item1.getDatabaseId()).equals(itemId)) {
                 return;
             }
+            this_Auction =(Auction) update.get("auction");
+
 
             Platform.runLater(() -> {
+                if (this_Auction != null) {
+                    updateBidChart(this_Auction.getBidHistory());
+                }
                 Object newPriceObj = update.get("newPrice");
                 if (newPriceObj instanceof Number) {
                     item1.setCurrentHighestPrice(((Number) newPriceObj).doubleValue());
@@ -348,11 +467,10 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setVisible(true);
             });
         }
-        else if ("BID_RESULT".equals(command)) {
+        if (Command.BID_RESULT.equals(command)) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
-
             Platform.runLater(() -> {
                 if (isSuccess) {
                     j_notified.setText("Đấu giá thành công");
@@ -362,5 +480,15 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setVisible(true);
             });
         }
+        if (Command.SET_AUCTION_RESULT.equals(command)) {
+            Map<String, Object> responsePayload = (Map) response.getPayload();
+            this_Auction =(Auction) responsePayload.get("auction");
+            // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
+            // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client
+            Platform.runLater(() -> {
+                if (this_Auction != null) {
+                    updateBidChart(this_Auction.getBidHistory());
+                }
+            });}
     }
 }

@@ -1,7 +1,10 @@
 package model.Items;
 
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import model.Entity.Entity;
+import model.auction.AuctionStatus;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -136,12 +139,31 @@ public class Item  implements Serializable {
                 return "Mỹ thuật";
             }
             if (itemType.equals(ItemType.ELECTRONICS)){
-                return "Đện tử";
+                return "Điện tử";
             }
             if (itemType.equals(ItemType.VEHICLE)){
                 return "Phương tiện giao thông";
             }
             return "";
     }
+
+    // 1. Khai báo Property
+    private transient StringProperty displayStatus = new SimpleStringProperty("");
+    public StringProperty displayStatusProperty() {
+        if (displayStatus == null) {
+            displayStatus = new SimpleStringProperty("");
+        }
+        return displayStatus;
+    }
+    // 2. Getter cho TableView (Dùng cho PropertyValueFactory)
+    public String getDisplayStatus() {
+        return displayStatus.get();
+    }
+
+    // 4. Setter để cập nhật giá trị
+    public void setDisplayStatus(String status) {
+        this.displayStatus.set(status);
+    }
+
 
 }

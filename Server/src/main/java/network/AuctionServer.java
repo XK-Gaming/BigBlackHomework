@@ -1,6 +1,7 @@
 package network;
 import dao.DAOUser;
 import model.User.User;
+import service.AuctionService;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class AuctionServer {
     private static int PORT = 8080;
+    // Biến online sử dụng ConcurrentHashMap để đảm bảo thread-safe
+    // khi nhiều ClientHandler cùng truy cập và sửa đổi.
     private static final Map<String, ClientHandler> onlineClients = new ConcurrentHashMap<>();
     static {
         Properties props = new Properties();
@@ -48,8 +51,12 @@ public class AuctionServer {
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
         if (itemId == null || itemId.isBlank() || command == null) {
+            DataPacket packet = new DataPacket(command, payload);
+            for (ClientHandler handler : onlineClients.values()) {
+                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().equals("")) {
+                handler.sendPacket(packet);
             return;
-        }
+        } } }
         String target = itemId.trim();
         DataPacket packet = new DataPacket(command, payload);
         for (ClientHandler handler : onlineClients.values()) {
@@ -58,6 +65,8 @@ public class AuctionServer {
             }
         }
     }
+    // Mỗi client khi tạo kết nối sẽ tạo một ClientHandler riêng,
+    // và ClientHandler đó sẽ quản lý luồng giao tiếp với client đó.
     // Gọi hàm này khi một Client đăng nhập thành công
     public static void addOnlineClient(User user, ClientHandler handler) {
         onlineClients.put(user.getUsername(), handler);
@@ -104,6 +113,6 @@ public class AuctionServer {
     // Hàm main bây giờ cực kỳ gọn gàng
     public static void main(String[] args) {
         AuctionServer server = new AuctionServer();
-        server.launch(); // Gọi hàm launch tại đây
+        server.launch();// Gọi hàm launch tại đây
     }
 }

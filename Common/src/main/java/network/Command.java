@@ -48,6 +48,10 @@ public enum Command {
 
     // Đăng cập nhật giá mới nhất trên toàn
     // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)
-    BID_UPDATE;
+    BID_UPDATE,
+    SELECT_ITEMS_ADMIN,
+    SELECT_ITEMS_ADMIN_RESULT,
+    BROADCAST_ITEM_UPDATE,
+    ITEMS_UPDATE;
 
 }
