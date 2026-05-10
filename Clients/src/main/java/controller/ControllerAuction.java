@@ -356,9 +356,12 @@ public class ControllerAuction implements ServerListener {
 
                 data.nodeProperty().addListener((ov, oldNode, newNode) -> {
                     if (newNode != null) {
-                        // --- ĐỊNH DẠNG NÚT BÉ XUỐNG VỪA ĐỦ ---
-                        // Chúng ta thiết lập style ban đầu cho nút
-                        String defaultNodeStyle = "-fx-background-color: #2980b9, white; -fx-background-insets: 0, 1.5; -fx-padding: 3.5px; -fx-background-radius: 50%;";
+                        String defaultNodeStyle =
+                                "-fx-background-color: #f39c12, white; " + // Đổi màu cam cho giống ảnh của bạn
+                                        "-fx-background-insets: 0, 1; " +         // Độ dày viền trắng
+                                        "-fx-padding: 0,1px; " +                    // THU NHỎ Ở ĐÂY (giảm từ 3.5 xuống 3)
+                                        "-fx-background-radius: 50%;";            // Đảm bảo luôn tròn tuyệt đối
+
                         newNode.setStyle(defaultNodeStyle);
 
                         // --- Ô THÔNG TIN TỰ CO GIÃN THEO SỐ TIỀN ---
