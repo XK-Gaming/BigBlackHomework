@@ -33,27 +33,60 @@ public class DAOUser implements DaoInterface<User> {
      */
     @Override
     public int Insert(User user) {
-        try (Connection con = JDBCUtil.getConnection();) {
-            Statement st = null;
-            try {
-                st = con.createStatement();
+        // Chuyển sang PreparedStatement để chống SQL Injection
+        String sql = "INSERT INTO khach (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
-                String sql = "INSERT INTO khach (username, password, name, email, role) " +
-                        " VALUES('" + user.getUsername() + "', '" + user.getPassword() + "', '" +
-                        user.getName() + "', '" + user.getAddress() + "', '" + user.getRole_toString() + "')";
-                int ketQua = st.executeUpdate(sql);
-                JDBCUtil.closeConnection(con);
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            return 0;
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            pstmt.setString(1, user.getUsername());
+            pstmt.setString(2, user.getPassword());
+            pstmt.setString(3, user.getName());
+            pstmt.setString(4, user.getAddress());
+            pstmt.setString(5, user.getRole_toString());
+
+            return pstmt.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+            return 0;
         }
-
-    }@Override
+    }
+    // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
     public int Update(User user) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return Update(con, user);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    @Override
+    public int Delete(User user) {
         return 0;
+    }
+
+    @Override
+    public ArrayList<User> selectAll() throws SQLException {
+        return null;
+    }
+
+    @Override
+    public ArrayList<User> moreSelectByCondition(String condition) {
+        return null;
+    }
+
+@Override
+    public int Update(Connection con, User user) throws SQLException {
+        String sql = "UPDATE khach SET password = ?, name = ?, email = ? WHERE username = ?";
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, user.getPassword());
+            pstmt.setString(2, user.getName());
+            pstmt.setString(3, user.getAddress());
+            pstmt.setString(4, user.getUsername());
+
+            return pstmt.executeUpdate();
+        }
     }
 
 
@@ -62,51 +95,22 @@ public class DAOUser implements DaoInterface<User> {
      * Postcondition: Method trả về khach.status của username, hoặc null nếu không tìm thấy/lỗi.
      */
     public String Get_Status(String username) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            String sql = "SELECT status FROM khach WHERE username = ?";
-            try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-                pstmt.setString(1, username);
-                ResultSet rs = pstmt.executeQuery();
+        String sql = "SELECT status FROM khach WHERE username = ?";
+        // Bỏ JDBCUtil.closeConnection(con) vì try-with-resources đã làm rồi
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            pstmt.setString(1, username);
+            try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    // Trả về giá trị của cột "status" kiểu int
                     return rs.getString("status");
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                JDBCUtil.closeConnection(con);
             }
-            return null;
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
-    }
-
-    /**
-     * Precondition: Không được implement cho DAOUser.
-     * Postcondition: Không thay đổi state. Method trả 0.
-     */
-    @Override
-    public int Delete(User user) {
-        return 0;
-    }
-
-    /**
-     * Precondition: Không được implement cho DAOUser.
-     * Postcondition: Method trả null.
-     */
-    @Override
-    public ArrayList selectAll() {
-        return null;
-    }@Override
-    public ArrayList<User> moreSelectByCondition(String condition) {
         return null;
     }
-
-    /**
-     * Precondition: Không được implement cho DAOUser.
-     * Postcondition: Method trả null.
-     */
 
     /**
      * Precondition: username là tên đăng nhập cần kiểm tra.
