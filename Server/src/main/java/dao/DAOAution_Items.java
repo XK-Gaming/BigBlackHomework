@@ -69,29 +69,14 @@ public class DAOAution_Items{
      * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu validate/database lỗi.
      * NOTE: leading bidder rỗng sẽ bị từ chối trước khi chạy SQL.
      */
-    public int Update(Auction auction, int itemId, String UsernameLeadingBiddder, Double CurrentPrice) {
-        if (UsernameLeadingBiddder == null || UsernameLeadingBiddder.trim().isEmpty()) {
-            return 0;
-        }
-
+    public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) throws SQLException {
         String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ? WHERE id_item = ?";
-
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-
-            pstmt.setDouble(1, CurrentPrice);
-            pstmt.setString(2, UsernameLeadingBiddder);
-
-            String bidHistoryJson = gson.toJson(auction.getBidHistory());
-            pstmt.setString(3, bidHistoryJson);
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setDouble(1, price);
+            pstmt.setString(2, bidderId);
+            pstmt.setString(3, gson.toJson(auction.getBidHistory()));
             pstmt.setLong(4, itemId);
-
-            int rowsAffected = pstmt.executeUpdate();
-            return rowsAffected;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return 0;
+            return pstmt.executeUpdate();
         }
     }
 

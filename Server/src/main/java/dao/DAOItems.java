@@ -101,26 +101,14 @@ public class DAOItems implements DaoInterface<Item> {
      * Precondition: item.databaseId xác định một dòng items tồn tại, Pricecurrent là giá cao nhất
      * vừa được chấp nhận.
      * Postcondition: Cập nhật items.currentHighestBid cho dòng đó.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
+     * Connection được truyền từ Service và không bị đóng tại đây.
      */
-    public int Update(Item item) {
+    public int Update(Connection con, Item item) throws SQLException {
         String sql = "UPDATE items SET currentHighestBid = ? WHERE my_row_id = ?";
-
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-
-            // 1. Set giá tiền mới (người vừa trả cao nhất)
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, item.getCurrentHighestPrice());
-            // 4. Xác định cập nhật cho món hàng nào dựa trên ID (BIGINT)
             pstmt.setLong(2, item.getDatabaseId());
-
-            // Thực thi lệnh và trả về số dòng bị ảnh hưởng (thường là 1 nếu thành công)
-            int result = pstmt.executeUpdate();
-            return result;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return 0; // Trả về 0 nếu có lỗi xảy ra
+            return pstmt.executeUpdate();
         }
     }
 

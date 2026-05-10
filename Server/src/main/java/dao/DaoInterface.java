@@ -1,15 +1,11 @@
 package dao;
 
-import model.Items.Item;
-import model.User.Bidder;
-import model.auction.Auction;
-
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
 /**
  * Hợp đồng DAO dùng chung cho các class truy cập database trong module này.
- *
  * NOTE: Interface đang trộn CRUD generic với overload riêng cho Auction/Item, vì vậy nhiều
  * implementation có method không liên quan và đang để stub.
  */
@@ -26,23 +22,23 @@ interface DaoInterface <T> {
      * Precondition: t xác định một dòng đã tồn tại và chứa dữ liệu mới.
      * Postcondition: Dòng tương ứng được update nếu method được implement.
      */
-    public int Update(T t);
+     int Update(Connection conn ,T t) throws SQLException;
 
     /**
      * Precondition: t xác định một dòng đã tồn tại.
      * Postcondition: Dòng tương ứng được xóa nếu method được implement.
      */
-    public int Delete(T t);
+     int Delete(T t);
 
     /**
      * Precondition: Có thể tạo kết nối database.
      * Postcondition: Method trả về toàn bộ dòng của entity type nếu được implement.
      */
-    public ArrayList<T> selectAll() throws SQLException;
+     ArrayList<T> selectAll() throws SQLException;
 
     /**
      * Precondition: condition là điều kiện query mà implementation hỗ trợ.
      * Postcondition: Method trả về các dòng khớp nếu được implement.
      */
-    public ArrayList<T> moreSelectByCondition (String condition);
+     ArrayList<T> moreSelectByCondition (String condition);
 }

@@ -13,6 +13,8 @@ import model.exception.NotFoundException;
 import model.exception.PersistenceException;
 import model.exception.UnauthorizedException;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -113,13 +115,16 @@ public class UserService {
         auction.setItem(item);
 
         // Đồng bộ OPEN/RUNNING/FINISHED theo đồng hồ (và DB khi đổi trạng thái)
-        AuctionStatus liveStatus = auction.getStatus();
-        if (liveStatus != AuctionStatus.RUNNING) {
+        if ( auction.getStatus() != AuctionStatus.RUNNING) {
             throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
                     "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
         }
-
+//Thực thi Transaction để đảm bảo tính nguyên tử (Atomic)
+        Connection con = null;
         try {
+            con = database.JDBCUtil.getConnection();
+            con.setAutoCommit(false); // Bắt đầu giao dịch
+
             List<model.auction.BidTransaction> newHistory = new ArrayList<>(auction.getBidHistory());
             String transactionId = "BID-" + System.nanoTime() + "-" + bidderId;
             model.auction.BidTransaction newBid = new model.auction.BidTransaction(
@@ -131,27 +136,51 @@ public class UserService {
             newHistory.add(newBid);
             auction.setbidHistory(newHistory);
 
-            int updateResult = auctionDAO.Update(auction, item.getDatabaseId(), bidderId, amount);
-            if (updateResult <= 0) {
-                throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
-                        "Lỗi lưu dữ liệu. Vui lòng thử lại.");
+            // BƯỚC A: Cập nhật bảng Auction (Lịch sử + Người dẫn đầu)
+            // Lưu ý: Gọi hàm Update có truyền Connection 'con'
+            int auctionResult = auctionDAO.Update(con, auction, item.getDatabaseId(), bidderId, amount);
+            if (auctionResult <= 0) {
+                throw new SQLException("Không thể cập nhật bảng auction_items.");
             }
 
+            // BƯỚC B: Cập nhật bảng Items (Giá cao nhất hiển thị)
             item.setCurrentHighestPrice(amount);
-            int updatedRows = itemDAO.Update(item);
-            if (updatedRows <= 0) {
-                throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
-                        "Lỗi lưu dữ liệu. Vui lòng thử lại.");
+            int itemResult = itemDAO.Update(con, item);
+            if (itemResult <= 0) {
+                throw new SQLException("Không thể cập nhật bảng items.");
             }
+
+            // XÁC NHẬN: Nếu cả 2 lệnh trên thành công, lưu vĩnh viễn vào DB
+            con.commit();
+            return amount;
         } catch (BidRejectedException | NotFoundException e) {
+            // Lỗi nghiệp vụ: Không cần rollback vì chưa ghi gì hoặc rollback tự động nếu cần
             throw e;
         } catch (Exception e) {
+            // LỖI HỆ THỐNG: Thực hiện Rollback ngay lập tức
             System.err.println("❌ processBid: Lỗi khi addding BidTransaction: " + e.getMessage());
-            e.printStackTrace();
+            if (con != null) {
+                try {
+                    con.rollback();
+                    System.err.println("🔄 Đã Rollback dữ liệu thành công.");
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
             throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
                     "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
+        }finally {
+            // LUÔN LUÔN giải phóng kết nối
+            if (con != null) {
+                try {
+                    con.setAutoCommit(true); // Trả lại trạng thái mặc định
+                    con.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        return amount;}
+        }
     }
 
     public void updateAuctionStatus(String auctionId, String itemId, String status) {
