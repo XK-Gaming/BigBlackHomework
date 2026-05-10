@@ -1,18 +1,11 @@
 package dao;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import database.JDBCUtil;
-import model.Items.Art;
 import model.Items.Item;
 import model.Items.ItemType;
-import model.Items.Vehicle;
-import model.User.Bidder;
 import model.User.User;
 import model.User.UserSession;
-import model.auction.Auction;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -225,7 +218,7 @@ public class DAOItems implements DaoInterface<Item> {
      * NOTE: Method tạo base Item, không tạo subtype như Art hay Vehicle.
      */
     private Item mapResultSetToItem(ResultSet rs) throws SQLException {
-        String itemType = rs.getString("itemType");
+        String itemTypeStr = rs.getString("itemType");
         String name = rs.getString("name");
         String description = rs.getString("description");
         double startingPrice = rs.getDouble("startingPrice");
@@ -234,8 +227,17 @@ public class DAOItems implements DaoInterface<Item> {
         Timestamp endTime = rs.getTimestamp("auctionEndTime");
         String imgData = rs.getString("imgdata");
         double currentHighestPrice = rs.getDouble("currentHighestBid");
-        Item item = new Item(name, description, startingPrice, sellerId, imgData, itemType);
+        Item item = new Item();
         item.setDatabaseId(rs.getInt("my_row_id"));
+        item.setName(name);
+        item.setDescription(description);
+        item.setStartingPrice(startingPrice);
+        item.setSellerId(sellerId);
+        item.setImg(imgData);
+        ItemType mappedType = ItemType.fromString(itemTypeStr);
+        if (mappedType != null) {
+            item.setItemType(mappedType);
+        }
         if (startTime != null) {
             item.setAuctionStartTime(startTime.toInstant());
         }

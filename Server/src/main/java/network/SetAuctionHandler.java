@@ -1,6 +1,7 @@
 package network;
 
-import service.AuctionService;import service.UserService;
+import service.AuctionService;
+import service.UserService;
 import model.auction.Auction;
 
 import java.io.ObjectOutputStream;
@@ -43,7 +44,7 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
                 response.put("success", true);
                 response.put("auction", auction);
                 response.put("itemId", itemId_Str);
-                response.put("status", AuctionService.updateStatusByTime(auction));
+                response.put("status", AuctionService.syncAuctionStatus(auction));
             } else {
                 response.put("success", false);
                 response.put("message", "Không tìm thấy auction cho item này");

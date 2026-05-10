@@ -2,8 +2,7 @@ package network;
 
 import service.UserService;
 import model.User.User;
-import network.Command;
-import network.DataPacket;
+import model.exception.UnauthorizedException;
 // import server.AuctionServer; // Import lớp quản lý Server của bạn
 
 import java.io.ObjectOutputStream;
@@ -24,19 +23,16 @@ public class LoginHandler extends BaseHandler implements RequestHandler {
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, String> loginInfo = (Map<String, String>) payload;
         Map<String, Object> response = new HashMap<>();
-        User user = userService.loginAndGetUser(loginInfo.get("username"), loginInfo.get("password"));
-        if (user != null) {
-            // 1. Gắn đối tượng User vào Handler hiện tại
+        try {
+            User user = userService.loginAndGetUser(loginInfo.get("username"), loginInfo.get("password"));
             clientHandler.setUser(user);
-
-            // 2. Đăng ký Handler này vào danh sách Online tập trung của Server
-            // Giả sử bạn có lớp AuctionServer quản lý Map<Integer, ClientHandler>
             AuctionServer.addOnlineClient(user, clientHandler);
 
             response.put("success", true);
             response.put("user", user);
-        } else {
-            response.put("success", false);}
+        } catch (UnauthorizedException e) {
+            fillErrorResponse(response, e);
+        }
 
         sendResponse(out, Command.LOGIN_RESULT, response);
     }

@@ -7,6 +7,11 @@ import model.Items.Item;
 import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.exception.BidRejectedException;
+import model.exception.ConflictException;
+import model.exception.NotFoundException;
+import model.exception.PersistenceException;
+import model.exception.UnauthorizedException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,32 +28,43 @@ public class UserService {
     private DAOAution_Items auctionDAO = DAOAution_Items.getInstance();
 
 
+    /**
+     * @throws UnauthorizedException khi sai thông tin đăng nhập
+     */
     public User loginAndGetUser(String username, String password) {
         User user = userDAO.selectByUsername(username, password);
         if (user != null && user.getPassword().equals(password)) {
             return user;
         }
-        return null;
+        throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu.");
     }
-        public Map<String, Object> register(User user) {
-            Map<String, Object> response = new HashMap<>();
-            // Check Exception: Mật khẩu, tên đăng nhập không hợp lệ -- FALSE
-            if (DAOUser.selectByUsername(user.getUsername())) {
-                response.put("success", "EXSITED");
-                return response;
-            }
 
-            DAOUser.getInstance().Insert(user);
-            response.put("success", "TRUE");
-            return response;
+    /**
+     * @throws ConflictException khi username đã tồn tại
+     */
+    public Map<String, Object> register(User user) {
+        if (DAOUser.selectByUsername(user.getUsername())) {
+            throw new ConflictException("Tên đăng nhập đã được sử dụng.");
         }
+        DAOUser.getInstance().Insert(user);
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", "TRUE");
+        return response;
+    }
 
-
-    public boolean creater_item(Item item) {
-        itemDAO.Insert(item);
+    /**
+     * @throws PersistenceException khi không ghi được sản phẩm hoặc phiên đấu giá
+     */
+    public void creater_item(Item item) {
+        int itemRows = itemDAO.Insert(item);
+        if (itemRows <= 0) {
+            throw new PersistenceException("Không thể lưu sản phẩm.");
+        }
         Auction auction = new Auction("1", item, item.getSellerId(), item.getAuctionStartTime());
-        auctionDAO.Insert(auction, item);
-        return true;
+        int auctionRows = auctionDAO.Insert(auction, item);
+        if (auctionRows <= 0) {
+            throw new PersistenceException("Không thể tạo phiên đấu giá.");
+        }
     }
 
     public ArrayList<Item> select_items() {
@@ -66,6 +82,10 @@ public class UserService {
         // Dữ liệu auction sẽ được fetch lên khi client request GET_AUCTION
     }
 
+    /**
+     * @return Giá chấp nhận sau khi đặt thành công ({@code amount}).
+     * @throws BidRejectedException khi từ chối đặt giá hoặc lỗi lưu trữ
+     */
     public double processBid(String itemId, String bidderId, double amount) {
         Object lock = itemLocks.computeIfAbsent(itemId, k -> new Object());
         // Là khóa the id của item để đảm bảo chỉ một thread được
@@ -74,21 +94,34 @@ public class UserService {
         // thì sẽ trả về khóa đó, nếu chưa có thì sẽ tạo mới và trả về.
         synchronized (lock) {
         Item item = itemDAO.selectById(itemId);
-        if (item == null) {return -1;}
-        if (amount <= item.getCurrentHighestPrice()) {return -1;}
-        item.setCurrentHighestPrice(amount);
+        if (item == null) {
+            throw new NotFoundException("item", "Không tìm thấy sản phẩm.");
+        }
+        if (bidderId != null && item.getSellerId() != null && bidderId.equals(item.getSellerId())) {
+            throw new BidRejectedException(BidRejectedException.Reason.SELLER_BID,
+                    "Người bán không thể đặt giá cho sản phẩm của mình.");
+        }
+        if (amount <= item.getCurrentHighestPrice()) {
+            throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                    "Giá đặt phải cao hơn giá hiện tại.");
+        }
 
-        int updatedRows = itemDAO.Update(item);
-        if (updatedRows <= 0) {return -1;}
-
-        // Cập nhật leading bidder trong bảng auction_items
         Auction auction = auctionDAO.selectByItemId(item);
+        if (auction == null) {
+            throw new NotFoundException("auction", "Không tìm thấy phiên đấu giá.");
+        }
+        auction.setItem(item);
 
-        if (auction == null) {return -1;}
+        // Đồng bộ OPEN/RUNNING/FINISHED theo đồng hồ (và DB khi đổi trạng thái)
+        AuctionStatus liveStatus = auction.getStatus();
+        if (liveStatus != AuctionStatus.RUNNING) {
+            throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
+                    "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
+        }
 
         try {
             List<model.auction.BidTransaction> newHistory = new ArrayList<>(auction.getBidHistory());
-            String transactionId = "BID-" + System.currentTimeMillis() + "-" + bidderId;
+            String transactionId = "BID-" + System.nanoTime() + "-" + bidderId;
             model.auction.BidTransaction newBid = new model.auction.BidTransaction(
                 transactionId,
                 bidderId,
@@ -99,11 +132,24 @@ public class UserService {
             auction.setbidHistory(newHistory);
 
             int updateResult = auctionDAO.Update(auction, item.getDatabaseId(), bidderId, amount);
-            if (updateResult > 0) {} else {return -1;}
+            if (updateResult <= 0) {
+                throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
+                        "Lỗi lưu dữ liệu. Vui lòng thử lại.");
+            }
+
+            item.setCurrentHighestPrice(amount);
+            int updatedRows = itemDAO.Update(item);
+            if (updatedRows <= 0) {
+                throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
+                        "Lỗi lưu dữ liệu. Vui lòng thử lại.");
+            }
+        } catch (BidRejectedException | NotFoundException e) {
+            throw e;
         } catch (Exception e) {
             System.err.println("❌ processBid: Lỗi khi addding BidTransaction: " + e.getMessage());
             e.printStackTrace();
-            return -1;
+            throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
+                    "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
         }
         return amount;}
     }

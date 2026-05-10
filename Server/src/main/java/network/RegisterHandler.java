@@ -2,10 +2,10 @@ package network;
 
 import service.UserService;
 import model.User.User;
-import network.Command;
-import network.DataPacket;
+import model.exception.ConflictException;
 
 import java.io.ObjectOutputStream;
+import java.util.HashMap;
 import java.util.Map;
 
 public class RegisterHandler extends BaseHandler implements RequestHandler {
@@ -18,7 +18,15 @@ public class RegisterHandler extends BaseHandler implements RequestHandler {
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         User user = (User) payload;
-        Map<String,Object> result = userService.register(user);
-        sendResponse(out, Command.REGISTER_RESULT, result);
+        try {
+            Map<String, Object> result = userService.register(user);
+            sendResponse(out, Command.REGISTER_RESULT, result);
+        } catch (ConflictException e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", "EXSITED");
+            result.put("message", e.getMessage());
+            result.put("errorType", e.getClass().getSimpleName());
+            sendResponse(out, Command.REGISTER_RESULT, result);
+        }
     }
 }
