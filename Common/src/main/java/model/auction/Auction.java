@@ -86,7 +86,7 @@ public class Auction extends Entity implements Serializable {
         this.item = item;
     }
 
-    public void setbidHistory(List<BidTransaction> history) {
+    public void setBidHistory(List<BidTransaction> history) {
         this.bidHistory = history;
     }
 }
