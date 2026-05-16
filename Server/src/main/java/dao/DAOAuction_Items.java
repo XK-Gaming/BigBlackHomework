@@ -12,7 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DAOAuction_Items{
-    public static DAOAuction_Items getInstance() {return new DAOAuction_Items();}
+    private static final DAOAuction_Items INSTANCE = new DAOAuction_Items();
+
+    public static DAOAuction_Items getInstance() {
+        return INSTANCE;
+    }
+
     private final Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
     /**
      * Precondition: auction và item1 mô tả item đấu giá mới; item1.databaseId đã được
@@ -21,14 +26,14 @@ public class DAOAuction_Items{
      * seller id, leading bidder và current price.
      * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu lỗi.
      */
-    public int Insert(Auction auction, Item item1) {
+    public int Insert(Auction auction, Item item) {
         String sql = "INSERT INTO auction_items (id_item, sellerID, status, leadingbider, bidHistory, currentPrice) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            pstmt.setInt(1, item1.getDatabaseId());
-            pstmt.setString(2, item1.getSellerId());
+            pstmt.setLong(1, item.getDatabaseId());
+            pstmt.setString(2, item.getSellerId());
 
             // Khởi tạo mặc định là OPEN thay vì để NULL
             pstmt.setString(3, gson.toJson(AuctionStatus.OPEN));
@@ -37,7 +42,7 @@ public class DAOAuction_Items{
             pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson
             pstmt.setString(5, gson.toJson(new ArrayList<BidTransaction>()));
 
-            pstmt.setDouble(6, item1.getCurrentHighestPrice());
+            pstmt.setDouble(6, item.getCurrentHighestPrice());
 
             return pstmt.executeUpdate();
         } catch (Exception e) {
@@ -76,34 +81,42 @@ public class DAOAuction_Items{
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
             pstmt.setLong(1, item.getDatabaseId());
-            ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) {
-                Auction result = new Auction();
-                result.setItemId(rs.getLong("id_item"));
-                result.setItem(item);
-                item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
-                String leadingUsername = rs.getString("leadingbider");
-                String historyJson = rs.getString("bidHistory");
-                if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
-                    result.setLeadingBidder(leadingUsername);}
-                // Đọc Status
-                String statusJson = rs.getString("status");
-                if (statusJson != null) {
-                    result.setStatus(gson.fromJson(statusJson, model.auction.AuctionStatus.class));}
-                // Đọc Bid History (Quan trọng: Phải gán lại cho Auction)
-                if (historyJson != null && !historyJson.isEmpty()) {
-                    try {
-                        // Dùng TypeToken để deserialize đúng kiểu List<BidTransaction>
-                        java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
-                        List<BidTransaction> history = gson.fromJson(historyJson, listType);
-                        result.setBidHistory(history);
-                    } catch (Exception e) {
-                        result.setBidHistory(new ArrayList<>()); // Gán danh sách rỗng nếu có lỗi
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    Auction result = new Auction();
+                    result.setItemId(rs.getLong("id_item"));
+                    result.setItem(item);
+                    item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
+
+                    String leadingUsername = rs.getString("leadingbider");
+                    if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
+                        result.setLeadingBidder(leadingUsername);
                     }
-                }
 
-                return result;
+                    String statusJson = rs.getString("status");
+                    if (statusJson != null) {
+                        try {
+                            result.setStatus(gson.fromJson(statusJson, AuctionStatus.class));
+                        } catch (Exception e) {
+                            result.setStatus(AuctionStatus.valueOf(statusJson.replace("\"", "")));
+                        }
+                    }
+
+                    String historyJson = rs.getString("bidHistory");
+                    if (historyJson != null && !historyJson.isEmpty()) {
+                        try {
+                            java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
+                            List<BidTransaction> history = gson.fromJson(historyJson, listType);
+                            result.setBidHistory(history);
+                        } catch (Exception e) {
+                            result.setBidHistory(new ArrayList<>());
+                        }
+                    }
+
+                    return result;
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -116,7 +129,7 @@ public class DAOAuction_Items{
      * nếu dòng database tồn tại.
      * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
      */
-    public int Update_Status(Auction auction, Item item1, AuctionStatus status) {
+    public void Update_Status(Auction auction, Item item1, AuctionStatus status) {
         // 1. SQL: Cập nhật status trong auction_items table
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
 
@@ -129,12 +142,10 @@ public class DAOAuction_Items{
 
             // Thực thi
             int rowsAffected = pstmt.executeUpdate();
-
-            return rowsAffected;
+            if (rowsAffected > 0) { auction.setStatus(status); }
 
         } catch (SQLException e) {
             e.printStackTrace();
-            return 0;
         }
     }
     /**
@@ -143,7 +154,7 @@ public class DAOAuction_Items{
      * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
      * NOTE: Overload Insert(Auction, Item) là luồng đầy đủ hơn mà UserService.creater_item() dùng.
      */
-    public int Insert(Item item1) {
+    public int Insert(Item item) {
         String sql = "INSERT INTO auction_items (id_item, sellerID, currentPrice) VALUES (?, ?, ?)";
 
         // KHAI BÁO CẢ HAI TRONG TRY: con sẽ tự đóng, pstmt sẽ tự đóng.
@@ -151,11 +162,9 @@ public class DAOAuction_Items{
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            if (con == null) return 0;
-
-            pstmt.setInt(1, item1.getDatabaseId());
-            pstmt.setString(2, item1.getSellerId());
-            pstmt.setDouble(3, item1.getCurrentHighestPrice());
+            pstmt.setLong(1, item.getDatabaseId());
+            pstmt.setString(2, item.getSellerId());
+            pstmt.setDouble(3, item.getCurrentHighestPrice());
 
             return pstmt.executeUpdate();
 
