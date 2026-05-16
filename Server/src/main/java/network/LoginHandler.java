@@ -10,8 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LoginHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
-    private ClientHandler clientHandler; // Thêm biến này để biết Handler nào đang xử lý
+    private final UserService userService;
+    private final ClientHandler clientHandler; // Thêm biến này để biết Handler nào đang xử lý
 
     // Cập nhật Constructor để nhận ClientHandler
     public LoginHandler(UserService userService, ClientHandler clientHandler) {

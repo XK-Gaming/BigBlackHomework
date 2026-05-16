@@ -13,8 +13,6 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.effect.BlurType;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
@@ -46,7 +44,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ControllerAuction implements ServerListener {
-    private AuctionClient client = AuctionClient.getInstance();
+    private final AuctionClient client = AuctionClient.getInstance();
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     User p1 = UserSession.getLoggedInUser();
     Item item1 = ItemSession.getLoggedInItem();
@@ -428,10 +426,10 @@ public class ControllerAuction implements ServerListener {
     }
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.GET_AUCTION_RESULT.equals(command)) {
-            this_Auction = (Auction) response.getPayload();
+            this_Auction = (Auction) response.payload();
             onAuctionDataLoaded(this_Auction);
             Platform.runLater(() -> {
                 if (this_Auction != null) {
@@ -440,7 +438,7 @@ public class ControllerAuction implements ServerListener {
             });
         }
         if (Command.BID_UPDATE.equals(command)) {
-            Map<String, Object> update = (Map<String, Object>) response.getPayload();
+            Map<String, Object> update = (Map<String, Object>) response.payload();
             String itemId = String.valueOf(update.get("itemId"));
             if (item1 == null || !String.valueOf(item1.getDatabaseId()).equals(itemId)) {
                 return;
@@ -471,7 +469,7 @@ public class ControllerAuction implements ServerListener {
             });
         }
         if (Command.BID_RESULT.equals(command)) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
             Platform.runLater(() -> {
@@ -484,7 +482,7 @@ public class ControllerAuction implements ServerListener {
             });
         }
         if (Command.SET_AUCTION_RESULT.equals(command)) {
-            Map<String, Object> responsePayload = (Map) response.getPayload();
+            Map<String, Object> responsePayload = (Map) response.payload();
             this_Auction =(Auction) responsePayload.get("auction");
             // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
             // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client

@@ -122,11 +122,11 @@ public class ControllerBidder implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.SELECT_ITEMS_RESULT.equals(command)) {
-            System.out.println(response.getPayload());
-            allAssets = (ArrayList<Item>) response.getPayload();
+            System.out.println(response.payload());
+            allAssets = (ArrayList<Item>) response.payload();
             dataLoaded = true;
 
             Platform.runLater(() -> {
@@ -134,7 +134,7 @@ public class ControllerBidder implements ServerListener {
             });
         }
         if (Command.ITEMS_UPDATE.equals(command)) {
-            Item updatedItem = (Item) response.getPayload();
+            Item updatedItem = (Item) response.payload();
             Platform.runLater(() -> {
                 int index = allAssets.indexOf(updatedItem);
                 if (index != -1) {

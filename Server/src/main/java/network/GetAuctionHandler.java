@@ -6,7 +6,7 @@ import model.auction.Auction;
 import java.io.ObjectOutputStream;
 
 public class GetAuctionHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public GetAuctionHandler(UserService userService) {
         this.userService = userService;

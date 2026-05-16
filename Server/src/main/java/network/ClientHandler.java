@@ -5,14 +5,14 @@ import model.User.User;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.EnumMap;import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 public class ClientHandler implements Runnable {
-    private UserService userService = new UserService();
-    private ObjectOutputStream out;
-    private ObjectInputStream in;
-    private Socket socket;
+    private final UserService userService = new UserService();
+    private final ObjectOutputStream out;
+    private final ObjectInputStream in;
+    private final Socket socket;
     private User user;
 
     // Khởi tạo user, ViewingItemid cho từng Clienthandler
@@ -70,14 +70,13 @@ public class ClientHandler implements Runnable {
             while (true) {
                 // Đọc đối tượng từ luồng
                 Object obj = in.readObject();
-                if (!(obj instanceof DataPacket)) continue;
+                if (!(obj instanceof DataPacket request)) continue;
 
-                DataPacket request = (DataPacket) obj;
-                Command command = request.getCommand(); // Giả sử trả về Enum Command
+                Command command = request.command(); // Giả sử trả về Enum Command
 
                 // Tìm bộ xử lý trực tiếp bằng Enum Key
                 RequestHandler handler = handlers.get(command);
-                handler.handle(request.getPayload(), out);
+                handler.handle(request.payload(), out);
 
             }
         }

@@ -86,11 +86,11 @@ public class ControllerLogin implements ServerListener {
     // Nhận phản hồi từ Server qua ObjectStream
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.LOGIN_RESULT.equals(command)) {
             // Ép kiểu trực tiếp từ Payload
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = result.containsKey("success") && (boolean) result.get("success");
 
             Platform.runLater(() -> {

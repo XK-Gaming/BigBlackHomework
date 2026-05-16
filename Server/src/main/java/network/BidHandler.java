@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BidHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public BidHandler(UserService userService) {
         this.userService = userService;

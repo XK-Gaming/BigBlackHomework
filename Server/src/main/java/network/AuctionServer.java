@@ -1,7 +1,6 @@
 package network;
 import dao.DAOUser;
 import model.User.User;
-import service.AuctionService;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,16 +43,13 @@ public class AuctionServer {
         finally {threadPool.shutdown();}
     }
 
-    public static void broadcastToSpecificAuction(long auctionId, Command command, Object payload) {
-        broadcastToSpecificAuction(Long.toString(auctionId), command, payload);
-    }
 
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
         if (itemId == null || itemId.isBlank() || command == null) {
             DataPacket packet = new DataPacket(command, payload);
             for (ClientHandler handler : onlineClients.values()) {
-                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().equals("")) {
+                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().isEmpty()) {
                 handler.sendPacket(packet);
             return;
         } } }
@@ -111,7 +107,7 @@ public class AuctionServer {
     }
 
     // Hàm main bây giờ cực kỳ gọn gàng
-    public static void main(String[] args) {
+     static void main(String[] args) {
         AuctionServer server = new AuctionServer();
         server.launch();// Gọi hàm launch tại đây
     }

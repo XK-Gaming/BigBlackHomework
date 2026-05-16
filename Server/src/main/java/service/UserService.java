@@ -89,7 +89,7 @@ public class UserService {
      * @throws BidRejectedException khi từ chối đặt giá hoặc lỗi lưu trữ
      */
     public double processBid(String itemId, String bidderId, double amount) {
-        Object lock = itemLocks.computeIfAbsent(itemId, k -> new Object());
+        Object lock = itemLocks.computeIfAbsent(itemId,k -> new Object());
         // Là khóa the id của item để đảm bảo chỉ một thread được
         // phép xử lý bid cho item đó tại một thời điểm.
         // Cơ chế computeIfAbsent đảm bảo rằng nếu đã có khóa cho itemId

@@ -7,7 +7,7 @@ import model.exception.PersistenceException;
 import java.io.ObjectOutputStream;
 
 public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public Creater_ItemHandler(UserService userService) {
         this.userService = userService;
@@ -17,8 +17,7 @@ public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
     public void handle(Object payload, ObjectOutputStream out) {
 
         // Kiểm tra và ép kiểu trực tiếp từ payload
-        if (payload instanceof Item) {
-            Item item = (Item) payload;
+        if (payload instanceof Item item) {
             try {
                 userService.creater_item(item);
                 sendResponse(out, Command.CREATE_ITEM_RESULT, true);

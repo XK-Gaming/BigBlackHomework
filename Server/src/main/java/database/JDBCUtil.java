@@ -23,7 +23,7 @@ public class JDBCUtil {
         }
     }
 
-    private JDBCUtil(){}; // Private constructor
+    private JDBCUtil(){} // Private constructor
 
     // 2. Phương thức lấy kết nối (Trả về kết nối MỚI mỗi lần gọi)
     public static Connection getConnection() {

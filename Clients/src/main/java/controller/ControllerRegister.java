@@ -85,10 +85,10 @@ public class ControllerRegister implements ServerListener {
     }
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.REGISTER_RESULT == command) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             String isSuccess = (String) result.get("success");
 
             Platform.runLater(() -> {

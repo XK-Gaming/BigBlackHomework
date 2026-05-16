@@ -1,29 +1,16 @@
 package dao;
 
 import database.JDBCUtil;
-import model.Items.Item;
 import model.User.*;
-import model.auction.Auction;
 
 import java.sql.*;
 import java.util.ArrayList;
 
-/**
- * DAO thao tác bảng khach.
- * <p>
- * Trách nhiệm class: tạo user, xác thực user, map role trong database sang subclass User,
- * và đọc/ghi status item user đang xem.
- */
 public class DAOUser implements DaoInterface<User> {
 
-    /**
-     * Precondition: Không có.
-     * Postcondition: Method trả về một instance DAOUser mới.
-     */
     public static DAOUser getInstance() {
         return new DAOUser();
     }
-    // lấy dữ liệu bằng CreateStatement...
 
     /**
      * Precondition: user có username, password, name, address/email và role.
@@ -52,12 +39,11 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
     // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
-    public int Update(User user) {
+    public void Update(User user) {
         try (Connection con = JDBCUtil.getConnection()) {
-            return Update(con, user);
+             Update(con, user);
         } catch (SQLException e) {
             e.printStackTrace();
-            return 0;
         }
     }
 
@@ -67,7 +53,7 @@ public class DAOUser implements DaoInterface<User> {
     }
 
     @Override
-    public ArrayList<User> selectAll() throws SQLException {
+    public ArrayList<User> selectAll()  {
         return null;
     }
 
@@ -209,14 +195,7 @@ public class DAOUser implements DaoInterface<User> {
                 }
             }
         } catch (SQLException e) { e.printStackTrace();}
-        return null; // Không tìm thấy
+        return null;
     }
 
-    /**
-     * Precondition: Không được implement cho DAOUser.
-     * Postcondition: Method trả null.
-     */
-    public void UpdateBalance(String username, Double money) {
-
-    }
 }

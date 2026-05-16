@@ -4,7 +4,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
@@ -18,7 +17,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.StackPane;
 import model.Items.Item;
 import model.Items.ItemSession;
 import model.User.User;
@@ -31,7 +29,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -69,12 +66,12 @@ public class ControllerManagerItem implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         // TH1: Nhận danh sách tất cả sản phẩm (Lần đầu load)
         if (Command.SELECT_ITEMS_RESULT.equals(command)) {
             // Giả sử server gửi về một List<Item> trong DataPacket
-            List<Item> itemsFromServer = (List<Item>) response.getPayload();
+            List<Item> itemsFromServer = (List<Item>) response.payload();
             Platform.runLater(() -> {
                 allAssets.setAll(itemsFromServer);
                 // BẮT ĐẦU THEO DÕI THỜI GIAN THỰC TẠI ĐÂY
@@ -107,11 +104,11 @@ public class ControllerManagerItem implements ServerListener {
 
         // TH2: Nhận tin nhắn cập nhật trạng thái từ Server (Broadcast cho 1 item)
         else if (Command.ITEMS_UPDATE.equals(command)) { // Thay thế bằng Command broadcast thật của bạn
-            Item newItem = (Item) response.getPayload();
+            Item newItem = (Item) response.payload();
             allAssets.add(newItem);
         }
         if (Command.GET_AUCTION_RESULT.equals(command)) {
-            auction = (Auction) response.getPayload();
+            auction = (Auction) response.payload();
             // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
             // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client
             Platform.runLater(() -> {
@@ -121,7 +118,7 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
         if (Command.SET_AUCTION_RESULT.equals(command)) {
-            Map<String, Object> responsePayload = (Map) response.getPayload();
+            Map<String, Object> responsePayload = (Map) response.payload();
             auction =(Auction) responsePayload.get("auction");
             // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
             // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client

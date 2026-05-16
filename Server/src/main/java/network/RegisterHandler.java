@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class RegisterHandler extends BaseHandler implements RequestHandler {
-    private UserService userService; // Biến để giữ tham chiếu
+    private final UserService userService; // Biến để giữ tham chiếu
 
     // Nhận userService từ HandlerClient truyền sang
     public RegisterHandler(UserService userService) {

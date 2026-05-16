@@ -240,10 +240,10 @@ public class ControllerSetInf implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.UPDATE_USER_RESULT.equals(command)) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
 
@@ -259,7 +259,7 @@ public class ControllerSetInf implements ServerListener {
             });
         }
         else if ("CHANGE_PASSWORD_RESULT".equals(command)) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
 

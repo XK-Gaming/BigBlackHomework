@@ -259,10 +259,10 @@ public class ControllerSeller implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.CREATE_ITEM_RESULT.equals(command)) {
-            boolean isSuccess = (boolean) response.getPayload();
+            boolean isSuccess = (boolean) response.payload();
 
             Platform.runLater(() -> {
                 if (isSuccess) {

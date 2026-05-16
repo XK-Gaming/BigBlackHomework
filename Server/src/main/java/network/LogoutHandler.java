@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LogoutHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public LogoutHandler(UserService userService) {
         this.userService = userService;
