@@ -11,34 +11,13 @@ import java.util.ArrayList;
  */
 interface DaoInterface <T> {
 
-    /**
-     * Precondition: t là entity đầy đủ dữ liệu và được DAO implementation hỗ trợ.
-     * Postcondition: Entity được insert vào bảng tương ứng nếu method được implement.
-     * Method trả về số dòng bị ảnh hưởng, hoặc giá trị tùy implementation.
-     */
     int Insert(T t);
 
-    /**
-     * Precondition: t xác định một dòng đã tồn tại và chứa dữ liệu mới.
-     * Postcondition: Dòng tương ứng được update nếu method được implement.
-     */
      int Update(Connection conn ,T t) throws SQLException;
 
-    /**
-     * Precondition: t xác định một dòng đã tồn tại.
-     * Postcondition: Dòng tương ứng được xóa nếu method được implement.
-     */
      int Delete(T t);
 
-    /**
-     * Precondition: Có thể tạo kết nối database.
-     * Postcondition: Method trả về toàn bộ dòng của entity type nếu được implement.
-     */
      ArrayList<T> selectAll() throws SQLException;
 
-    /**
-     * Precondition: condition là điều kiện query mà implementation hỗ trợ.
-     * Postcondition: Method trả về các dòng khớp nếu được implement.
-     */
      ArrayList<T> moreSelectByCondition (String condition);
 }

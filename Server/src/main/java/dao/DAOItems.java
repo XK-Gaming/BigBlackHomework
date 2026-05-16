@@ -3,19 +3,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import database.JDBCUtil;
 import model.Items.Item;
 import model.Items.ItemType;
-import model.User.User;
-import model.User.UserSession;
 
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
 
-/** Tạo Data Access Object (Đối tượng Truy cập Dữ liệu).
- *Lây dữ liệu tương tác với database
+/* Tạo Data Access Object (Đối tượng Truy cập Dữ liệu).
+ Lây dữ liệu tương tác với database
  */
 /**
  * DAO thao tác bảng items.
- *
  * Trách nhiệm class: insert item đấu giá, cập nhật giá cao nhất hiện tại, và map dữ liệu
  * từ bảng items về Item object.
  */
@@ -29,35 +26,21 @@ public class DAOItems implements DaoInterface<Item> {
     public static DAOItems getInstance() {
         return new DAOItems();
     }
-    /** Snapshot user đăng nhập ở nhánh JavaFX UI; không dùng trong luồng socket server. */
-    User p1 = UserSession.getLoggedInUser();
 
     @Override
-    //Logic thêm sản phẩm__ dùng PrepareStatement
-    /**
-     * Precondition: item có các field cơ bản, seller id, khoảng thời gian, dữ liệu ảnh và loại item.
-     * Postcondition: Insert một dòng vào bảng items và copy primary key sinh ra về item.databaseId.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu insert lỗi.
-     */
     public int Insert(Item item)  {
-        try (Connection con = JDBCUtil.getConnection();) {
+        try (Connection con = JDBCUtil.getConnection()) {
             String sql = "INSERT INTO items (name, startingPrice, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement pstmt = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);) {
-                // 1. name (String)
+            try (PreparedStatement pstmt = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 pstmt.setString(1, item.getName());
 
-                // 2. startingPrice (Double/Float)
                 pstmt.setDouble(2, item.getStartingPrice());
 
-                // 3. sellerId (Int)
                 pstmt.setString(3, item.getSellerId());
 
-                // 4. description (String)
                 String jsonProperties = mapper.writeValueAsString(item.getProperties());
 
-                // Đẩy chuỗi JSON này vào tham số thứ 6
                 pstmt.setString(4, jsonProperties);
-                // 5. itemType (String)
                 pstmt.setString(5, item.getItemType());
 
                 // Hầu hết các Driver hiện đại hỗ trợ trực tiếp setObject cho Instant
@@ -97,11 +80,11 @@ public class DAOItems implements DaoInterface<Item> {
 
 
     @Override
-    /**
-     * Precondition: item.databaseId xác định một dòng items tồn tại, Pricecurrent là giá cao nhất
-     * vừa được chấp nhận.
-     * Postcondition: Cập nhật items.currentHighestBid cho dòng đó.
-     * Connection được truyền từ Service và không bị đóng tại đây.
+    /*
+      Precondition: item.databaseId xác định một dòng items tồn tại, Pricecurrent là giá cao nhất
+      vừa được chấp nhận.
+      Postcondition: Cập nhật items.currentHighestBid cho dòng đó.
+      Connection được truyền từ Service và không bị đóng tại đây.
      */
     public int Update(Connection con, Item item) throws SQLException {
         String sql = "UPDATE items SET currentHighestBid = ? WHERE my_row_id = ?";
@@ -115,9 +98,9 @@ public class DAOItems implements DaoInterface<Item> {
 
 
     @Override
-    /**
-     * Precondition: Không được implement cho DAOItems.
-     * Postcondition: Không thay đổi state. Method trả 0.
+    /*
+      Precondition: Không được implement cho DAOItems.
+      Postcondition: Không thay đổi state. Method trả 0.
      */
     public int Delete(Item item) {
         return 0;
@@ -130,8 +113,8 @@ public class DAOItems implements DaoInterface<Item> {
     public ArrayList<Item> selectAll(){
         ArrayList<Item> list = new ArrayList<>();
         String sql = "SELECT * FROM items";
-        try (Connection con = JDBCUtil.getConnection();) {
-            PreparedStatement pstmt = null;
+        try (Connection con = JDBCUtil.getConnection()) {
+            PreparedStatement pstmt ;
             try {
                 pstmt = con.prepareStatement(sql);
 
@@ -180,18 +163,15 @@ public class DAOItems implements DaoInterface<Item> {
 
     public Item selectById(String itemId) {
 
-        try (Connection con = JDBCUtil.getConnection();) {
+        try (Connection con = JDBCUtil.getConnection()) {
             String sql = "SELECT * FROM items WHERE my_row_id = ?";
             try (PreparedStatement pstmt = con.prepareStatement(sql)) {
                 pstmt.setInt(1, Integer.parseInt(itemId));
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
-                    Item item = mapResultSetToItem(rs);
-                    return item;
+                    return mapResultSetToItem(rs);
                 }
             } catch (NumberFormatException e) {
-                e.printStackTrace();
-            } catch (SQLException e) {
                 e.printStackTrace();
             }
             return null;
