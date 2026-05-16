@@ -7,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 public class Select_Items extends BaseHandler implements RequestHandler{
-    private UserService userService;
+    private final UserService userService;
 
     public Select_Items(UserService userService) {
         this.userService = userService;
