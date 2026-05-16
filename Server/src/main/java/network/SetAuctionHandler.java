@@ -9,8 +9,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SetAuctionHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
-    private ClientHandler clientHandler;
+    private final UserService userService;
+    private final ClientHandler clientHandler;
 
     public SetAuctionHandler(UserService userService, ClientHandler clientHandler) {
         this.userService = userService;
@@ -19,9 +19,11 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        Map<String, Object> Lst = (Map) payload;
-        String itemId_Str = String.valueOf(Lst.get("itemId"));
-        String userId = (String) Lst.get("userId");
+        // Suppress the warning right where the cast happens
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payloadMap = (Map<String,Object>) payload;
+        String itemId_Str = String.valueOf(payloadMap.get("itemId"));
+        String userId = (String) payloadMap.get("userId");
 
         if (itemId_Str == null || itemId_Str.isEmpty() || "null".equals(itemId_Str)) {
             Map<String, Object> errorResp = new HashMap<>();

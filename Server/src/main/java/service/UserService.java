@@ -25,9 +25,9 @@ public class UserService {
     // Dù có nhiều ClientHandler chạy nhiều đối tượng UserService
     // thì vẫn đều chạy một hashmap chung
     private static final Map<String, Object> itemLocks = new java.util.concurrent.ConcurrentHashMap<>();
-    private DAOUser userDAO = DAOUser.getInstance();
-    private DAOItems itemDAO = DAOItems.getInstance();
-    private DAOAution_Items auctionDAO = DAOAution_Items.getInstance();
+    private final DAOUser userDAO = DAOUser.getInstance();
+    private final DAOItems itemDAO = DAOItems.getInstance();
+    private final DAOAution_Items auctionDAO = DAOAution_Items.getInstance();
 
 
     /**
@@ -45,7 +45,7 @@ public class UserService {
      * @throws ConflictException khi username đã tồn tại
      */
     public Map<String, Object> register(User user) {
-        if (DAOUser.selectByUsername(user.getUsername())) {
+        if (userDAO.selectByUsername(user.getUsername())) {
             throw new ConflictException("Tên đăng nhập đã được sử dụng.");
         }
         DAOUser.getInstance().Insert(user);
@@ -134,7 +134,7 @@ public class UserService {
                 java.time.Instant.now()
             );
             newHistory.add(newBid);
-            auction.setbidHistory(newHistory);
+            auction.setBidHistory(newHistory);
 
             // BƯỚC A: Cập nhật bảng Auction (Lịch sử + Người dẫn đầu)
             // Lưu ý: Gọi hàm Update có truyền Connection 'con'
@@ -182,19 +182,6 @@ public class UserService {
         }
         }
     }
-
-    public void updateAuctionStatus(String auctionId, String itemId, String status) {
-        Item item = itemDAO.selectById(itemId);
-        if (item != null) {
-            AuctionStatus auctionStatus = AuctionStatus.valueOf(status);
-            Auction auction = auctionDAO.selectByItemId(item);
-            if (auction != null) {
-                auction.setStatus(auctionStatus);
-                auctionDAO.Update_Status(auction, item, auctionStatus);
-            }
-        }
-    }
-
     public List<Auction> getAllAuctions() {
         return auctionDAO.selectAll();
     }
@@ -208,6 +195,7 @@ public class UserService {
                 user.setName(value);
                 break;
             case "phone":
+                //them cai nay
                 break;
             case "address":
                 user.setAddress(value);

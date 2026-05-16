@@ -113,9 +113,9 @@ public class DAOAution_Items{
                         // Dùng TypeToken để deserialize đúng kiểu List<BidTransaction>
                         java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
                         List<BidTransaction> history = gson.fromJson(historyJson, listType);
-                        result.setbidHistory(history);
+                        result.setBidHistory(history);
                     } catch (Exception e) {
-                        result.setbidHistory(new ArrayList<>()); // Gán danh sách rỗng nếu có lỗi
+                        result.setBidHistory(new ArrayList<>()); // Gán danh sách rỗng nếu có lỗi
                     }
                 }
 
@@ -231,10 +231,10 @@ public class DAOAution_Items{
                         // ✅ Dùng custom Gson với TypeAdapter cho BidTransaction
                         java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
                         List<BidTransaction> history = gson.fromJson(historyJson, listType);
-                        auction.setbidHistory(history);
+                        auction.setBidHistory(history);
                     } catch (Exception e) {
                         System.err.println("⚠️ Lỗi deserialize bidHistory trong selectAll: " + e.getMessage());
-                        auction.setbidHistory(new ArrayList<>());
+                        auction.setBidHistory(new ArrayList<>());
                     }
                 }
 
