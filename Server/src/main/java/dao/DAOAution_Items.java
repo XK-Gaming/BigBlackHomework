@@ -11,25 +11,9 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Tạo Data Access Object (Đối tượng Truy cập Dữ liệu).
- *Lây dữ liệu tương tác với database
- */
-
-/**
- * DAO thao tác bảng auction_items.
- *
- * Trách nhiệm class: tạo dòng auction, cập nhật bid/trạng thái, serialize và deserialize
- * status cùng bid history.
- */
 public class DAOAution_Items{
-    /**
-     * Precondition: Không có.
-     * Postcondition: Method trả về một instance DAOAution_Items mới.
-     */
     public static DAOAution_Items getInstance() {return new DAOAution_Items();}
-    /** Gson đã cấu hình TypeAdapter cho Instant và BidTransaction trong cột JSON. */
-    private Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
-    // Hàm Insert này đảm bảo không bao giờ bị NULL status khi tạo mới
+    private final Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
     /**
      * Precondition: auction và item1 mô tả item đấu giá mới; item1.databaseId đã được
      * DAOItems.Insert() gán sau khi insert items.

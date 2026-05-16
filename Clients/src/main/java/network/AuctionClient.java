@@ -1,11 +1,10 @@
 package network;
 
-import javafx.application.Platform;
 import java.io.*;
 import java.net.Socket;
 
 public class AuctionClient {
-    private Socket socket; // Tạ đối tượng socket
+    private Socket socket;
     private final Object writeLock = new Object();
     private ObjectOutputStream out;
     private ObjectInputStream in;

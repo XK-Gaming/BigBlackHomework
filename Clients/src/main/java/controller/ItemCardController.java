@@ -9,7 +9,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import model.Items.*;
 import network.AuctionEngine;
-import model.auction.AuctionStatus;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.text.DecimalFormat;
@@ -18,21 +17,19 @@ import java.time.format.DateTimeFormatter;
 
 
 public class ItemCardController {
+    private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     private String watchToken;
+
     @FXML
     private Label j_EndTime;
     @FXML
     private Label j_StartPrice;
     @FXML
     private Label j_StartTime;
-
     @FXML
     private ImageView j_img;
-
-    @FXML    private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     @FXML
     private Label j_name;
-
     @FXML
     private Label j_status;
 
@@ -78,7 +75,7 @@ public class ItemCardController {
             }
         }));
 
-        j_name.sceneProperty().addListener((obs, oldScene, newScene) -> {
+        j_name.sceneProperty().addListener((newScene) -> {
             if (newScene == null && watchToken != null) {
                 auctionEngine.unwatch(watchToken);
                 watchToken = null;
