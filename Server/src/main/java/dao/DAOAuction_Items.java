@@ -11,8 +11,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DAOAution_Items{
-    public static DAOAution_Items getInstance() {return new DAOAution_Items();}
+public class DAOAuction_Items{
+    public static DAOAuction_Items getInstance() {return new DAOAuction_Items();}
     private final Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
     /**
      * Precondition: auction và item1 mô tả item đấu giá mới; item1.databaseId đã được

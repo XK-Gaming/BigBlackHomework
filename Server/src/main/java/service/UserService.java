@@ -1,6 +1,6 @@
 package service;
 
-import dao.DAOAution_Items;
+import dao.DAOAuction_Items;
 import dao.DAOItems;
 import dao.DAOUser;
 import model.Items.Item;
@@ -27,7 +27,7 @@ public class UserService {
     private static final Map<String, Object> itemLocks = new java.util.concurrent.ConcurrentHashMap<>();
     private final DAOUser userDAO = DAOUser.getInstance();
     private final DAOItems itemDAO = DAOItems.getInstance();
-    private final DAOAution_Items auctionDAO = DAOAution_Items.getInstance();
+    private final DAOAuction_Items auctionDAO = DAOAuction_Items.getInstance();
 
 
     /**

@@ -1,6 +1,6 @@
 package service;
 //xem xét xóa
-import dao.DAOAution_Items;
+import dao.DAOAuction_Items;
 import model.Items.Item;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class AuctionService {
-    private final DAOAution_Items auctionDAO = DAOAution_Items.getInstance();
+    private final DAOAuction_Items auctionDAO = DAOAuction_Items.getInstance();
 
     // Lấy thông tin đấu giá và tự động kích hoạt nếu đến giờ
     public Auction getAuction(Item item) {
