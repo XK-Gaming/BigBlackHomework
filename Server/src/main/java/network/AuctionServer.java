@@ -46,16 +46,26 @@ public class AuctionServer {
 
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
-        if (itemId == null || itemId.isBlank() || command == null) {
-            DataPacket packet = new DataPacket(command, payload);
-            for (ClientHandler handler : onlineClients.values()) {
-                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().isEmpty()) {
-                handler.sendPacket(packet);
-            return;
-        } } }
-        String target = itemId.trim();
+        if (command == null) return; // Nếu lệnh null thì không làm gì cả
+
         DataPacket packet = new DataPacket(command, payload);
+
+        // TRƯỜNG HỢP 1: Gửi cho những người KHÔNG xem item nào (itemId truyền vào trống/null)
+        if (itemId == null || itemId.isBlank()) {
+            for (ClientHandler handler : onlineClients.values()) {
+                String clientViewingId = handler.getViewingItemId();
+                // Dùng == null hoặc isEmpty() để kiểm tra an toàn
+                if (clientViewingId == null || clientViewingId.isEmpty()) {
+                    handler.sendPacket(packet);
+                }
+            }
+            return; // Sau khi chạy hết vòng lặp gửi cho mọi người mới return
+        }
+
+        // TRƯỜNG HỢP 2: Gửi đích danh cho những người ĐANG XEM item được chỉ định
+        String target = itemId.trim();
         for (ClientHandler handler : onlineClients.values()) {
+            // Sử dụng Objects.equals hoặc so sánh chuỗi an toàn bằng cách đẩy biến chắc chắn khác null lên trước
             if (target.equals(handler.getViewingItemId())) {
                 handler.sendPacket(packet);
             }

@@ -234,7 +234,7 @@ public class ControllerAuction implements ServerListener {
     @FXML
     void On_Return(ActionEvent event) throws IOException {
         cleanup();
-        SceneHelper.changeScene(j_return, "View3.fxml");
+        SceneHelper.changeScene(j_return, "/fxml/View3.fxml");
         ItemSession.cleanItemSession();
         client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
 
