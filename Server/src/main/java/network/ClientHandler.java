@@ -76,8 +76,14 @@ public class ClientHandler implements Runnable {
 
                 // Tìm bộ xử lý trực tiếp bằng Enum Key
                 RequestHandler handler = handlers.get(command);
-                handler.handle(request.payload(), out);
-
+                if (handler != null) {
+                    try {
+                        handler.handle(request.payload(), out);
+                    } catch (Exception e) {
+                        System.err.println("Lỗi logic xử lý lệnh " + command + ": " + e.getMessage());
+                        e.printStackTrace();
+                        // Bạn có thể gửi một gói tin lỗi về Client tại đây nếu cần thiết
+                    }}
             }
         }
         catch (EOFException e) {System.out.println("Một Client đã ngắt kết nối (EOF).");}
@@ -98,6 +104,7 @@ public class ClientHandler implements Runnable {
             synchronized (out) { // Đảm bảo không bị xung đột khi nhiều luồng cùng gửi
                 out.writeObject(packet);
                 out.flush();
+                out.reset();
             }
         } catch (IOException e) {e.printStackTrace();}
     }

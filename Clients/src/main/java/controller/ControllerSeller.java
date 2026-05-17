@@ -31,14 +31,14 @@ public class ControllerSeller implements ServerListener {
     private AuctionClient client = AuctionClient.getInstance();
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "View5.fxml");
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/View5.fxml");
         // Mục đích (Node) event.getSource() là để lấy Node hiện tại đó
     }
 
     @FXML
     void On_LogOut(ActionEvent event) {
         UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) LogOut, "LoginView.fxml");
+        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
 
     @FXML

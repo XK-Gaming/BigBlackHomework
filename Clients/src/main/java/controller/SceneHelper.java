@@ -10,7 +10,7 @@ import java.io.IOException;
 public class SceneHelper {
     public static void changeScene(Node node, String fxmlFile) {
         try {
-            FXMLLoader loader = new FXMLLoader(SceneHelper.class.getResource("/controller/" + fxmlFile));
+            FXMLLoader loader = new FXMLLoader(SceneHelper.class.getResource( fxmlFile));
             Parent root = loader.load();
 
             Stage stage = (Stage) node.getScene().getWindow();

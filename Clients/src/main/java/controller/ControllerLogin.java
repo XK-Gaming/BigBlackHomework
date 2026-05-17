@@ -39,7 +39,7 @@ public class ControllerLogin implements ServerListener {
     @FXML
     public void setJbutton_DangKy() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("SignUpView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SignUpView.fxml"));
             Parent root = loader.load();
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
             window.setScene(new Scene(root));
@@ -101,9 +101,9 @@ public class ControllerLogin implements ServerListener {
                     try {
                         p1 = (User) result.get("user");
                         UserSession.setLoggedInUser(p1);
-                        if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");}
-                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");}
-                        else{SceneHelper.changeScene(jbutton_DangNhap, "ViewAdmin.fxml");};
+                        if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/View3.fxml");}
+                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/View3.1.fxml");}
+                        else{SceneHelper.changeScene(jbutton_DangNhap, "/fxml/ViewAdmin.fxml");};
                     } catch (ClassCastException e) {
                         e.printStackTrace();
                     }

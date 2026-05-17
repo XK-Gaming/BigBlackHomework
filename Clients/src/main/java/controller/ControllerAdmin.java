@@ -19,12 +19,12 @@ public class ControllerAdmin{
     @FXML private Label lblRevenue;
     @FXML private LineChart<?, ?> lineChart;
     @FXML void On_ItemManager(ActionEvent event) {
-        SceneHelper.changeScene(j_ItemManager, "ViewManagerItem.fxml");
+        SceneHelper.changeScene(j_ItemManager, "/fxml/ViewManagerItem.fxml");
 
     }
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "LoginView.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/LoginView.fxml");
 
     }
 
@@ -34,12 +34,12 @@ public class ControllerAdmin{
 
     @FXML
     void On_PaymentManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "View3.1.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/View3.1.fxml");
     }
 
     @FXML
     void On_UserManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "ViewManagerUser.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/ViewManagerUser.fxml");
     }
 
 

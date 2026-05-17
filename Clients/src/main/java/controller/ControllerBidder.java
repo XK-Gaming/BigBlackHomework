@@ -30,12 +30,12 @@ public class ControllerBidder implements ServerListener {
     private boolean dataLoaded = false;
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "View5.fxml");
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/View5.fxml");
     }
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "LoginView.fxml");
+        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
 
     @FXML
@@ -99,14 +99,14 @@ public class ControllerBidder implements ServerListener {
 
         for (int i = start; i < end; i++) {
             try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/controller/AssetCard.fxml"));
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AssetCard.fxml"));
                 Node card = loader.load();
                 Item data = allAssets.get(i);
                 ItemCardController controller = loader.getController();
                 controller.setData(data);
                 card.setOnMouseClicked(event -> {
                     ItemSession.setLoggedInItem(data);
-                    SceneHelper.changeScene((Node) event.getSource(), "View4.fxml");
+                    SceneHelper.changeScene((Node) event.getSource(), "/fxml/View4.fxml");
                 });
                 flowPane.getChildren().add(card);
             } catch (IOException e) {
