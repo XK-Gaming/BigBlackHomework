@@ -241,4 +241,54 @@ public class DAOAuction_Items{
 
         return list;
     }
+    // ✅ SELECT bình thường
+    public Auction selectByItemId(Connection con, Item item) throws SQLException {
+        String sql = "SELECT * FROM auction_items WHERE id_item = ?";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setInt(1, item.getDatabaseId());
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return mapResultSetToAuction(rs);
+        }
+        return null;
+    }
+    private Auction mapResultSetToAuction(ResultSet rs) throws SQLException {
+        Auction auction = new Auction();
+
+        // 1. Lấy thông tin cơ bản (id_item mapped sang itemId)
+        // Lưu ý: Kiểm tra xem cột trong DB của bạn là "id_item" hay "item_id" để đồng nhất nhé
+        auction.setItemId(rs.getLong("id_item"));
+
+        // 2. Giải mã Status (Enum)
+        String statusJson = rs.getString("status");
+        if (statusJson != null) {
+            try {
+                auction.setStatus(gson.fromJson(statusJson, AuctionStatus.class));
+            } catch (Exception e) {
+                auction.setStatus(AuctionStatus.valueOf(statusJson.replace("\"", "")));
+            }
+        }
+
+        // 3. Giải mã Leading Bidder (Username string)
+        String leadingUsername = rs.getString("leadingbider");
+        if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
+            auction.setLeadingBidder(leadingUsername);
+        }
+
+        // 4. Giải mã Bid History (List)
+        String historyJson = rs.getString("bidHistory");
+        if (historyJson != null && !historyJson.isEmpty()) {
+            try {
+                java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
+                List<BidTransaction> history = gson.fromJson(historyJson, listType);
+                auction.setBidHistory(history);
+            } catch (Exception e) {
+                System.err.println("⚠️ Lỗi deserialize bidHistory: " + e.getMessage());
+                auction.setBidHistory(new ArrayList<>());
+            }
+        }
+
+        return auction;
+    }
 }

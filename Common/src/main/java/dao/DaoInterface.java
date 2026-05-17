@@ -11,13 +11,13 @@ import java.util.ArrayList;
  */
 interface DaoInterface <T> {
 
-    int Insert(T t);
+    int Insert(T t) throws SQLException;
 
-     int Update(Connection conn ,T t) throws SQLException;
+    int Update(Connection conn ,T t) throws SQLException;
 
-     int Delete(T t);
+    int Delete(T t);
 
-     ArrayList<T> selectAll() throws SQLException;
+    ArrayList<T> selectAll() throws SQLException;
 
-     ArrayList<T> moreSelectByCondition (String condition);
+    ArrayList<T> moreSelectByCondition (String condition);
 }

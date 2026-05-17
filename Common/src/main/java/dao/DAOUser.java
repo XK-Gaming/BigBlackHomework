@@ -19,7 +19,7 @@ public class DAOUser implements DaoInterface<User> {
      * NOTE: Method đang nối chuỗi SQL trực tiếp nên có rủi ro SQL injection.
      */
     @Override
-    public int Insert(User user) {
+    public int Insert(User user) throws SQLException {
         // Chuyển sang PreparedStatement để chống SQL Injection
         String sql = "INSERT INTO khach (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
@@ -41,7 +41,7 @@ public class DAOUser implements DaoInterface<User> {
     // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
     public void Update(User user) {
         try (Connection con = JDBCUtil.getConnection()) {
-             Update(con, user);
+            Update(con, user);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -62,7 +62,7 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
-@Override
+    @Override
     public int Update(Connection con, User user) throws SQLException {
         String sql = "UPDATE khach SET password = ?, name = ?, email = ? WHERE username = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
@@ -197,5 +197,6 @@ public class DAOUser implements DaoInterface<User> {
         } catch (SQLException e) { e.printStackTrace();}
         return null;
     }
+
 
 }

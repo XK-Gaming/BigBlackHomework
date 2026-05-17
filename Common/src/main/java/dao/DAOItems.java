@@ -215,6 +215,18 @@ public class DAOItems implements DaoInterface<Item> {
         item.setCurrentHighestPrice(currentHighestPrice);
         return item;
     }
+    // ✅ SELECT bình thường, không cần FOR UPDATE
+    public Item selectById(Connection con, String itemId) throws SQLException {
+        String sql = "SELECT * FROM items WHERE my_row_id = ?";
+        PreparedStatement ps = con.prepareStatement(sql);
+        ps.setString(1, itemId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return mapResultSetToItem(rs);
+        }
+        return null;
+    }
 
 
 
