@@ -24,5 +24,16 @@
             <version>21.0.6</version>
             <scope>compile</scope>
         </dependency>
+        <!-- ## JUnit: them dependency test cho cac unit test model, exception va protocol chung. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
