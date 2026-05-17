@@ -21,7 +21,11 @@ public enum Command {
     GET_AUCTION_RESULT,
 
 
-    // Thay đổi phiên đấu giá -- > Dùng để cập nhật thông tin phiên đấu giá trên client
+    // Chức năng chính là khi có 1 client vào trang đấu giá thì sản phẩm
+    // thì sẽ tự động câp nhật thông tin trang thái của phien đấu giá đó trên client
+    // Ví dụ nếu không ấn vào thì phiên đấu giá sẽ ở trạng thái open
+    // Trức khi mỗi lần một người và phiên đấu giá thì ngời ấy sẽ tự động yêu cầu cập nhật status
+    // phiên đấu giá đó trên db với thời gian thực... từ đó mới xuất hiện trạng thái cua phiên.
     SET_AUCTION,
     SET_AUCTION_RESULT,
 
@@ -49,9 +53,11 @@ public enum Command {
     // Đăng cập nhật giá mới nhất trên toàn
     // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)
     BID_UPDATE,
-    SELECT_ITEMS_ADMIN,
-    SELECT_ITEMS_ADMIN_RESULT,
-    BROADCAST_ITEM_UPDATE,
-    ITEMS_UPDATE;
+
+    ITEMS_UPDATE,
+    SET_ALLOW,
+    SET_ALLOW_RESULT,
+
+    DELETE_ITEM, DELETE_ITEM_RESULT;
 
 }

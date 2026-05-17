@@ -21,7 +21,14 @@ public class BidHandler extends BaseHandler implements RequestHandler {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            String itemId = String.valueOf(bidInfo.get("itemId"));
+            Object rawItemId = bidInfo.get("itemId");
+            if (rawItemId == null) {
+                response.put("success", false);
+                response.put("message", "itemId không được để trống");
+                sendResponse(out, Command.BID_RESULT, response);
+                return;
+            }
+            String itemId = String.valueOf(rawItemId);
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
 

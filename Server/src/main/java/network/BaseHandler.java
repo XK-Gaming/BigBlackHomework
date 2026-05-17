@@ -9,13 +9,14 @@ public abstract class BaseHandler{
     protected void sendResponse(ObjectOutputStream out, Command command, Object payload) {
         DataPacket responsePacket = new DataPacket(command, payload);
 
-        // Ghi trực tiếp đối tượng
         try {
-            out.writeObject(responsePacket);
-            out.flush();
+            synchronized (out) {
+                out.reset();
+                out.writeObject(responsePacket);
+                out.flush();
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 }

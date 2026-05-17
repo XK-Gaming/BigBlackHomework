@@ -5,6 +5,7 @@ import dao.DAOItems;
 import dao.DAOUser;
 import model.Items.Item;
 import model.User.User;
+import model.User.UserRole;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
 
@@ -51,8 +52,13 @@ public class UserService {
         return true;
     }
 
-    public ArrayList<Item> select_items() {
-        return itemDAO.selectAll();
+    public ArrayList<Item> select_items(UserRole role) {
+        ArrayList<Item> list = itemDAO.selectAll();
+        if(role == UserRole.ADMIN){
+            return list;
+        }
+        list.removeIf(item -> item.getAuctionStatus() == null);
+        return list;
     }
 
     public Auction getAuctionByItemId(String itemId) {
@@ -60,11 +66,7 @@ public class UserService {
         if (item == null) return null;
         return auctionDAO.selectByItemId(item);
     }
-    public void SetAuctionByItemId(String itemId, String userid) {
-        // Không cần cập nhật user status nữa
-        // Hàm này chỉ là để tracking/logging lần view của user
-        // Dữ liệu auction sẽ được fetch lên khi client request GET_AUCTION
-    }
+
 
     public double processBid(String itemId, String bidderId, double amount) {
         Object lock = itemLocks.computeIfAbsent(itemId, k -> new Object());
@@ -115,13 +117,15 @@ public class UserService {
             Auction auction = auctionDAO.selectByItemId(item);
             if (auction != null) {
                 auction.setStatus(auctionStatus);
-                auctionDAO.Update_Status(auction, item, auctionStatus);
+                auctionDAO.Update_Status(item, auctionStatus);
             }
         }
     }
 
     public List<Auction> getAllAuctions() {
-        return auctionDAO.selectAll();
+        List<Auction> list = auctionDAO.selectAll();
+        list.removeIf(auction -> auction.getStatus() == null);
+        return list;
     }
 
     public boolean updateUser(String username, String field, String value) {
@@ -159,5 +163,29 @@ public class UserService {
     }
 
     public void logout(String username) {
+    }
+
+    public Auction setAllow(String iditem, String choose) {
+        Item item = itemDAO.selectById(iditem);
+        if (item == null) {
+            return null;
+        }
+
+        AuctionStatus nextStatus = Boolean.parseBoolean(choose) ? AuctionStatus.OPEN : null;
+        auctionDAO.Update_Status(item, nextStatus);
+
+        Auction auction = auctionDAO.selectByItemId(item);
+        if (auction != null && auction.getItem() != null) {
+            auction.getItem().setAuctionStatus(auction.getStatus());
+        }
+        return auction;
+    }
+
+    public int DeleteItem(int id_item) {
+        Item item = itemDAO.selectById(String.valueOf(id_item));
+        if (item != null) {
+            return itemDAO.Delete(item);
+        }
+        return  0;
     }
 }

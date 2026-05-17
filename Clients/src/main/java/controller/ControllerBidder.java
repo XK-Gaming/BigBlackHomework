@@ -70,7 +70,7 @@ public class ControllerBidder implements ServerListener {
             return pane;
         });
 
-        client.sendCommand(Command.SELECT_ITEMS, "");
+        client.sendCommand(Command.SELECT_ITEMS, p1.getRole());
     }
 
     private void setupPagination() {
@@ -131,16 +131,6 @@ public class ControllerBidder implements ServerListener {
 
             Platform.runLater(() -> {
                 setupPagination();
-            });
-        }
-        if (Command.ITEMS_UPDATE.equals(command)) {
-            Item updatedItem = (Item) response.getPayload();
-            Platform.runLater(() -> {
-                int index = allAssets.indexOf(updatedItem);
-                if (index != -1) {
-                    allAssets.set(index, updatedItem);
-                    setupPagination();
-                }
             });
         }
     }

@@ -21,8 +21,6 @@ public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
             // Thực hiện lưu trữ thông qua service
             boolean isSuccess = userService.creater_item(item);
             sendResponse(out, Command.CREATE_ITEM_RESULT, isSuccess);
-            AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE , item);
-            // Broadcast cập nhật danh sách item mới cho tất cả client
 
         } else {
             sendResponse(out, Command.CREATE_ITEM_RESULT, false);

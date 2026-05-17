@@ -1,5 +1,6 @@
 package network;
 
+import model.User.UserRole;
 import service.UserService;
 import model.Items.Item;
 
@@ -15,7 +16,8 @@ public class Select_Items extends BaseHandler implements RequestHandler{
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        ArrayList<Item> result = userService.select_items();
+        UserRole role = (UserRole) payload;
+        ArrayList<Item> result = userService.select_items(role);
         sendResponse(out, Command.SELECT_ITEMS_RESULT, result);
     }
 }

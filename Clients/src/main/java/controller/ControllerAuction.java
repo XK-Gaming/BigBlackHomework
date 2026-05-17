@@ -4,6 +4,7 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.chart.CategoryAxis;
@@ -13,6 +14,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.effect.BlurType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
@@ -339,16 +341,13 @@ public class ControllerAuction implements ServerListener {
     private void updateBidChart(List<BidTransaction> historyList) {
         Platform.runLater(() -> {
             bidLineChart.getData().clear();
-
-            XYChart.Series<String, Number> series = new XYChart.Series<>();
-            series.setName("Giá đấu (VNĐ)");
-
             if (historyList == null || historyList.isEmpty()) {
                 bidLineChart.setTitle("Chưa có lượt đấu giá nào");
                 return;
             }
 
-            bidLineChart.setTitle("DIỄN BIẾN ĐẤU GIÁ SẢN PHẨM");
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            series.setName("Giá đấu (VNĐ)");
 
             for (BidTransaction bid : historyList) {
                 String timeStr = formatTime(bid.getBidTime());
@@ -356,52 +355,38 @@ public class ControllerAuction implements ServerListener {
 
                 data.nodeProperty().addListener((ov, oldNode, newNode) -> {
                     if (newNode != null) {
-                        String defaultNodeStyle =
-                                "-fx-background-color: #f39c12, white; " + // Đổi màu cam cho giống ảnh của bạn
-                                        "-fx-background-insets: 0, 1; " +         // Độ dày viền trắng
-                                        "-fx-padding: 0,1px; " +                    // THU NHỎ Ở ĐÂY (giảm từ 3.5 xuống 3)
-                                        "-fx-background-radius: 50%;";            // Đảm bảo luôn tròn tuyệt đối
-
-                        newNode.setStyle(defaultNodeStyle);
-
-                        // --- Ô THÔNG TIN TỰ CO GIÃN THEO SỐ TIỀN ---
-                        String infoText = bid.getBidder() + ": " + String.format("%,.0f", bid.getAmount()) + " VNĐ";
-                        Label infoLabel = new Label(infoText);
-
-                        infoLabel.setStyle(
-                                "-fx-background-color: #2c3e50; " +
-                                        "-fx-text-fill: white; " +
-                                        "-fx-padding: 4 10; " +
-                                        "-fx-background-radius: 4; " +
-                                        "-fx-font-size: 10px; " +
-                                        "-fx-font-weight: bold;"
-                        );
-
-                        // Quan trọng: Giữ ô thông tin trên 1 dòng duy nhất
-                        infoLabel.setMinWidth(Region.USE_PREF_SIZE);
-                        infoLabel.setTranslateY(-28);
-                        infoLabel.setVisible(false);
-                        infoLabel.setMouseTransparent(true);
-
                         StackPane nodeStack = (StackPane) newNode;
-                        nodeStack.getChildren().add(infoLabel);
 
-                        // --- SỰ KIỆN CLICK ---
-                        newNode.setOnMouseClicked(e -> {
-                            // Đảo ngược trạng thái hiển thị
-                            boolean isShowing = !infoLabel.isVisible();
-                            infoLabel.setVisible(isShowing);
+                        // 1. STYLE NÚT CHUẨN (Nhỏ, tròn, không bao giờ bị phình)
+                        String defaultStyle = "-fx-background-color: #f39c12, white; -fx-background-insets: 0, 1; -fx-background-radius: 50%;";
+                        nodeStack.setStyle(defaultStyle);
+                        nodeStack.setPrefSize(12, 12);
+                        nodeStack.setMinSize(12, 12);
+                        nodeStack.setMaxSize(12, 12);
+                        nodeStack.setCursor(Cursor.HAND);
 
-                            if (isShowing) {
-                                // Khi chọn: Nút nổi bật hơn (viền cam)
-                                newNode.setStyle("-fx-background-color: #e67e22, white; -fx-background-insets: 0, 1.5; -fx-padding: 5px; -fx-background-radius: 50%;");
+                        // 2. SỬ DỤNG TOOLTIP THAY VÌ LABEL
+                        String infoText = bid.getBidder() + ": " + String.format("%,.0f", bid.getAmount()) + " VNĐ";
+                        Tooltip tooltip = new Tooltip(infoText);
+                        tooltip.setStyle("-fx-background-color: #2c3e50; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 5px 10px;");
+
+                        // (Tùy chọn) Nếu bạn muốn chỉ cần CẦM CHUỘT DI VÀO LÀ HIỆN, hãy mở comment dòng dưới:
+                        // Tooltip.install(nodeStack, tooltip);
+
+                        // 3. SỰ KIỆN CLICK ĐỂ HIỆN TOOLTIP
+                        nodeStack.setOnMouseClicked(e -> {
+                            if (tooltip.isShowing()) {
+                                tooltip.hide();
                             } else {
-                                // KHI BỎ CHỌN: QUAY VỀ NHƯ BAN ĐẦU (Nút bé xanh trắng)
-                                newNode.setStyle(defaultNodeStyle);
+                                // Lấy tọa độ tuyệt đối của nút trên màn hình để đặt Tooltip
+                                Bounds bounds = nodeStack.localToScreen(nodeStack.getBoundsInLocal());
+                                if (bounds != null) {
+                                    // Hiển thị tooltip hơi xê dịch lên trên một chút (-30px)
+                                    tooltip.show(nodeStack, bounds.getMinX() - 20, bounds.getMinY() - 35);
+                                }
                             }
+                            e.consume(); // Chặn sự kiện
                         });
-
-                        newNode.setCursor(Cursor.HAND);
                     }
                 });
 
@@ -410,11 +395,17 @@ public class ControllerAuction implements ServerListener {
 
             bidLineChart.getData().add(series);
 
-            // Làm đường Line mảnh lại (tùy chỉnh thêm để biểu đồ đẹp hơn)
+            // 4. LÀM MẢNH ĐƯỜNG NỐI VÀ CHỐNG CHẶN CHUỘT
             Platform.runLater(() -> {
                 Node line = series.getNode().lookup(".chart-series-line");
                 if (line != null) {
-                    line.setStyle("-fx-stroke-width: 1.5px;");
+                    line.setStyle("-fx-stroke-width: 1.5px; -fx-stroke: #f39c12;");
+                    line.setMouseTransparent(true); // Để chuột click xuyên qua đường nối trúng vào nút
+                }
+
+                // Đưa tất cả các nút lên trên cùng
+                for (Node n : bidLineChart.lookupAll(".chart-symbol")) {
+                    n.toFront();
                 }
             });
         });
@@ -436,6 +427,11 @@ public class ControllerAuction implements ServerListener {
             Platform.runLater(() -> {
                 if (this_Auction != null) {
                     updateBidChart(this_Auction.getBidHistory());
+                } else{
+                    j_notified.setText("Phiên đấu giá không tồn tại hoặc đã bị xóa.");
+                    j_notified.setVisible(true);
+                    j_status.setText("KHÔNG TỒN TẠI");
+                    j_status.setVisible(true);
                 }
             });
         }
@@ -445,7 +441,7 @@ public class ControllerAuction implements ServerListener {
             if (item1 == null || !String.valueOf(item1.getDatabaseId()).equals(itemId)) {
                 return;
             }
-            this_Auction =(Auction) update.get("auction");
+            this_Auction = (Auction) update.get("auction");
 
 
             Platform.runLater(() -> {
@@ -483,15 +479,13 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setVisible(true);
             });
         }
-        if (Command.SET_AUCTION_RESULT.equals(command)) {
-            Map<String, Object> responsePayload = (Map) response.getPayload();
-            this_Auction =(Auction) responsePayload.get("auction");
-            // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
-            // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client
-            Platform.runLater(() -> {
-                if (this_Auction != null) {
-                    updateBidChart(this_Auction.getBidHistory());
-                }
-            });}
+        if (Command.SET_ALLOW_RESULT.equals(command)) {
+            j_notified.setText("Phiên đấu đã tạm dừng");
+            j_status.setText("CHƯA PHÊ DUYỆT");
+        }
+        if (Command.DELETE_ITEM_RESULT.equals(command)) {
+            j_notified.setText("Sản phẩm đã bị xóa");
+            j_status.setText("KHÔNG TỒN TẠI");
+        }
     }
 }

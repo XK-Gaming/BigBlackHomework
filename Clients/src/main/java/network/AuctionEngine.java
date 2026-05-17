@@ -69,20 +69,28 @@ public class AuctionEngine {
             notifySingle(reg.item(), reg.listener());
         }
     }
+    public void unwatchItem(Item item) {
+        if (item != null) {
+            registrations.remove(item.getDatabaseId());
+        }
+    }
 
     // Phương thức quyết định trạng thái của sản phẩm
     private void notifySingle(Item item, AuctionStatusListener listener) {
         Instant now = Instant.now();
         AuctionStatus status;
         long secondsToNextChange;
-
-        if (now.isBefore(item.getAuctionStartTime())) {
+        if(item.getAuctionStatus() == null){
+            status = null;
+            secondsToNextChange = 0;
+        } else if (now.isBefore(item.getAuctionStartTime())) {
             status = AuctionStatus.OPEN;
             secondsToNextChange = Duration.between(now, item.getAuctionStartTime()).getSeconds();
         } else if (now.isBefore(item.getAuctionEndTime())) {
             status = AuctionStatus.RUNNING;
             secondsToNextChange = Duration.between(now, item.getAuctionEndTime()).getSeconds();
-        } else {
+        }
+        else {
             status = AuctionStatus.FINISHED;
             secondsToNextChange = 0;
         }

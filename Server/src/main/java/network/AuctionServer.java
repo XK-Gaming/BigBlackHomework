@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,20 +51,12 @@ public class AuctionServer {
 
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
-        if (itemId == null || itemId.isBlank() || command == null) {
-            DataPacket packet = new DataPacket(command, payload);
-            for (ClientHandler handler : onlineClients.values()) {
-                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().equals("")) {
-                handler.sendPacket(packet);
-            return;
-        } } }
-        String target = itemId.trim();
+        if (itemId == null) return;
         DataPacket packet = new DataPacket(command, payload);
-        for (ClientHandler handler : onlineClients.values()) {
-            if (target.equals(handler.getViewingItemId())) {
-                handler.sendPacket(packet);
-            }
-        }
+
+        onlineClients.values().stream()
+                .filter(handler -> Objects.equals(itemId, handler.getViewingItemId()))
+                .forEach(handler -> handler.sendPacket(packet));
     }
     // Mỗi client khi tạo kết nối sẽ tạo một ClientHandler riêng,
     // và ClientHandler đó sẽ quản lý luồng giao tiếp với client đó.

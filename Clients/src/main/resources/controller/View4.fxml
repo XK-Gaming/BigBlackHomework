@@ -91,14 +91,14 @@
 
                               <Separator />
 
-                              <VBox spacing="10.0" style="-fx-padding: 20;">
+                              <VBox spacing="15.0" style="-fx-padding: 25;">
                                  <children>
                                     <Label text="DIỄN BIẾN GIÁ ĐẤU" textFill="#7f8c8d">
                                        <font><Font name="System Bold" size="14.0" /></font>
                                     </Label>
-                                    <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendSide="BOTTOM" prefHeight="350.0">
+                                    <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendVisible="false" minHeight="450.0" VBox.vgrow="ALWAYS">
                                        <xAxis>
-                                          <CategoryAxis animated="false" side="BOTTOM" tickLabelRotation="90.0" fx:id="xAxis" />
+                                          <CategoryAxis fx:id="xAxis" animated="false" side="BOTTOM" />
                                        </xAxis>
                                        <yAxis>
                                           <NumberAxis label="Giá (VNĐ)" side="LEFT" />

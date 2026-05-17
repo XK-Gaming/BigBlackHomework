@@ -5,7 +5,7 @@ import model.User.User;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.EnumMap;import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 public class ClientHandler implements Runnable {
@@ -21,9 +21,7 @@ public class ClientHandler implements Runnable {
         this.user = user;
     }
     public void setViewingItemId(String itemId) {this.viewingItemId = (itemId == null || itemId.isBlank()) ? null : itemId.trim();}
-    public String getViewingItemId() {
-        return viewingItemId;
-    }
+    public String getViewingItemId() {return viewingItemId;}
     public User getUser() {
         return this.user;
     }
@@ -56,13 +54,14 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.REGISTER, new RegisterHandler(this.userService));
         handlers.put(Command.CREATE_ITEM, new Creater_ItemHandler(this.userService));
         handlers.put(Command.SELECT_ITEMS, new Select_Items(this.userService));
-        handlers.put(Command.GET_AUCTION, new GetAuctionHandler(this.userService));
+        handlers.put(Command.GET_AUCTION, new GetAuctionHandler(this.userService, this));
         handlers.put(Command.SET_AUCTION, new SetAuctionHandler(this.userService, this));
         handlers.put(Command.BID, new BidHandler(this.userService));
-        handlers.put(Command.GET_ALL_AUCTIONS, new GetAllAuctionsHandler(this.userService));
         handlers.put(Command.UPDATE_USER, new UpdateUserHandler(this.userService));
         handlers.put(Command.CHANGE_PASSWORD, new ChangePasswordHandler(this.userService));
         handlers.put(Command.LOGOUT, new LogoutHandler(this.userService));
+        handlers.put(Command.SET_ALLOW,new SetAllowHandler(this.userService));
+        handlers.put(Command.DELETE_ITEM,new DeleteItems(this.userService));
     }
     @Override
     public void run() {
@@ -88,6 +87,9 @@ public class ClientHandler implements Runnable {
 
     private void cleanup() {
         try {
+            if (user != null) {
+                AuctionServer.removeOnlineClient(user.getUsername());
+            }
             if (in != null) in.close();
             if (out != null) out.close();
             if (socket != null && !socket.isClosed()) socket.close();
@@ -97,6 +99,7 @@ public class ClientHandler implements Runnable {
     public void sendPacket(DataPacket packet) {
         try {
             synchronized (out) { // Đảm bảo không bị xung đột khi nhiều luồng cùng gửi
+                out.reset();
                 out.writeObject(packet);
                 out.flush();
             }

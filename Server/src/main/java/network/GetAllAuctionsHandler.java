@@ -1,6 +1,6 @@
 package network;
 
-import service.UserService;
+import model.User.UserRole;import service.UserService;
 import model.auction.Auction;
 
 import java.io.ObjectOutputStream;

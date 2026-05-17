@@ -28,7 +28,7 @@ public class AuctionService {
             if (auction.getStatus() == AuctionStatus.OPEN &&
                     Instant.now().isAfter(item.getAuctionStartTime())) {
                 auction.setStatus(AuctionStatus.RUNNING);
-                auctionDAO.Update_Status(auction, item, AuctionStatus.RUNNING);
+                auctionDAO.Update_Status(item,AuctionStatus.RUNNING);
             }
         }
         return auction;
@@ -62,11 +62,12 @@ public class AuctionService {
             return "Vui lòng nhập số tiền hợp lệ.";
         }
     }
+
    public static Object updateStatusByTime(Auction auction) {
         Instant now = Instant.now();
 
-        // 1. Nếu đấu giá đã bị hủy hoặc đã thanh toán thì không tự động đổi nữa
-        if (auction.getStatus() == AuctionStatus.CANCELED || auction.getStatus() == AuctionStatus.PAID) {
+        // 1. Nếu đấu giá đã bị hủy hoặc đã thanh toán thì không tự động đổi nữa, hoa
+        if (auction.getStatus() == null ||auction.getStatus() == AuctionStatus.CANCELED || auction.getStatus() == AuctionStatus.PAID) {
             return null;
         }
 
@@ -75,7 +76,7 @@ public class AuctionService {
             if (auction.getStatus() != AuctionStatus.FINISHED) {
                  auction.setStatus(AuctionStatus.FINISHED);
                 // Gọi DAO để đồng bộ xuống Database ngay lập tức
-                DAOAution_Items.getInstance().Update_Status(auction, auction.getItem(), AuctionStatus.FINISHED);
+                DAOAution_Items.getInstance().Update_Status(auction.getItem(), AuctionStatus.FINISHED);
             }
         }
         // 3. Kiểm tra mốc bắt đầu
@@ -83,7 +84,7 @@ public class AuctionService {
             if (auction.getStatus() == AuctionStatus.OPEN) {
                 auction.setStatus(AuctionStatus.RUNNING);
                 // Đồng bộ trạng thái RUNNING xuống Database
-                DAOAution_Items.getInstance().Update_Status(auction, auction.getItem(), AuctionStatus.RUNNING);
+                DAOAution_Items.getInstance().Update_Status(auction.getItem(), AuctionStatus.RUNNING);
             }
         }
         // 4. Mặc định vẫn là OPEN nếu chưa tới giờ

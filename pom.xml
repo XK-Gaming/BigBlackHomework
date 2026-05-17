@@ -110,7 +110,7 @@
 
     <modules>
         <module>Common</module>
-        <module>Clients</module>
         <module>Server</module>
+        <module>Clients</module>
     </modules>
 </project>

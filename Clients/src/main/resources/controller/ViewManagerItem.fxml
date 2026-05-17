@@ -50,11 +50,9 @@
             <Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: #3B4555; -fx-text-fill: white; -fx-cursor: hand;" text="📦  Quản lý sản phẩm">
                <padding><Insets bottom="12.0" left="20.0" top="12.0" /></padding>
             </Button>
-            <Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" style="-fx-background-color: #E53935; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8;" text="Quay lại">
+            <Button fx:id="j_Return" maxWidth="Infinity" onAction="#On_Return" style="-fx-background-color: #E53935; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8;" text="Quay lại">
                <padding><Insets bottom="12.0" top="12.0" /></padding>
             </Button>
-
-            <Region VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
    </left>
@@ -120,7 +118,7 @@
 
                   <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefWidth="420.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #DCE1E7; -fx-border-radius: 10;">
                      <content>
-                        <VBox spacing="20.0" style="-fx-background-color: white;">
+                        <VBox fx:id="j_ShowDetail" spacing="20.0" style="-fx-background-color: white;">
                            <padding>
                               <Insets bottom="25.0" left="20.0" right="20.0" top="25.0" />
                            </padding>
@@ -152,7 +150,7 @@
                                        <Label fx:id="detailSpecs" text="- Tình trạng: Mới 100%&#10;- Kiểm định: Đã duyệt" wrapText="true" />
                                        <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendSide="BOTTOM" prefHeight="300.0" title="DIỄN BIẾN GIÁ ĐẤU">
                                        <xAxis>
-                                          <CategoryAxis fx:id="xAxis" animated="false" label="Thời gian" side="BOTTOM" tickLabelRotation="45.0" />
+                                          <CategoryAxis animated="false" label="Thời gian" side="BOTTOM" tickLabelRotation="45.0" fx:id="xAxis" />
                                        </xAxis>
                                        <yAxis>
                                           <NumberAxis fx:id="yAxis" forceZeroInRange="false" label="Giá (VNĐ)" side="LEFT" />
@@ -164,8 +162,8 @@
 
                               <HBox spacing="12.0">
                                  <children>
-                                    <Button maxWidth="Infinity" prefHeight="45.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="PHÊ DUYỆT" HBox.hgrow="ALWAYS" />
-                                    <Button maxWidth="Infinity" prefHeight="45.0" style="-fx-background-color: #F44336; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="XÓA BỎ" HBox.hgrow="ALWAYS" />
+                                    <Button fx:id="j_ButtonController" maxWidth="Infinity" onAction="#On_ButtonController" prefHeight="45.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" HBox.hgrow="ALWAYS" />
+                                    <Button fx:id="j_Delete" maxWidth="Infinity" onAction="#On_Delete" prefHeight="45.0" style="-fx-background-color: #F44336; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="XÓA BỎ" HBox.hgrow="ALWAYS" />
                                  </children>
                               </HBox>
                            </children>
@@ -174,6 +172,8 @@
                   </ScrollPane>
                </children>
             </HBox>
+
+                  <Region VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
    </center>

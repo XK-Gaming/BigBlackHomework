@@ -19,156 +19,79 @@ import network.Command;
 import network.DataPacket;
 import network.ServerListener;
 import java.io.IOException;
-
 import java.util.Map;
 
 public class ControllerSetInf implements ServerListener {
 
     private AuctionClient client = AuctionClient.getInstance();
 
-    @FXML
-    private AnchorPane Pane1;
+    // Menu Components
+    @FXML private ImageView j_image;
+    @FXML private Button j_return;
+    @FXML private Label j_LabelName;
+    @FXML private Label show_userName;
+    @FXML private Label show_Password;
 
-    @FXML
-    private Label j_LabelName;
+    // Panes
+    @FXML private AnchorPane Pane_ThongTinTaiKhoan;
+    @FXML private AnchorPane Pane_DoiMatKhau;
+    @FXML private AnchorPane Pane_ThanhToan;
+    @FXML private AnchorPane Pane_CaiDat;
 
-    @FXML
-    private ImageView j_image;
+    // Menu Buttons
+    @FXML private Button j_buttonThongTinDangNhap;
+    @FXML private Button j_buttonThanhToan;
+    @FXML private Button j_buttonDoiMatKhau;
+    @FXML private Button j_buttonCaiDat;
+    @FXML private Button j_buttonDangXuat;
 
-    @FXML
-    private Button j_return;
+    // FXML IDs: Cập nhật thông tin
+    @FXML private TextField j_inputNewName;
+    @FXML private TextField j_inputNewTel;
+    @FXML private Label j_labelMessageName;
 
-    @FXML
-    private Label j_textSoDu;
+    // FXML IDs: Đổi mật khẩu
+    @FXML private PasswordField j_inputOldPassword;
+    @FXML private PasswordField j_inputNewPassword;
+    @FXML private PasswordField j_inputConfirmPassword;
+    @FXML private Label j_labelMessagePassword;
 
-    @FXML
-    private Label show_Password;
+    // FXML IDs: Thanh toán
+    @FXML private TextField j_inputMoney;
+    @FXML private Label j_labelMessagePayment;
 
-    @FXML
-    private Label show_userName;
-
-    @FXML
-    private TextField j_inputNewName;
-
-    @FXML
-    private TextField j_inputNewTel;
-
-    @FXML
-    private PasswordField j_inputOldPassword;
-
-    @FXML
-    private PasswordField j_inputNewPassword;
-
-    @FXML
-    private PasswordField j_inputConfirmPassword;
-
-    @FXML
-    private Label j_labelMessageName;
-
-    @FXML
-    private Label j_labelMessagePassword;
-
-    @FXML
-    void On_MouseClickImg(MouseEvent event) {
-
-    }
     public void initialize() {
         client.setListener(this);
         User p1 = UserSession.getLoggedInUser();
+
         if (p1 != null) {
+            // Set thông tin hiển thị ở Menu Trái
             show_userName.setText(p1.getUsername());
             show_Password.setText("********");
+            j_LabelName.setText(p1.getName());
         }
-        j_LabelName.setText(p1.getName());
-
     }
+
+    @FXML
+    void On_MouseClickImg(MouseEvent event) {
+        // Có thể thêm tính năng upload avatar ở đây
+    }
+
     @FXML
     void j_event_return(ActionEvent event) {
         SceneHelper.changeScene((Node) j_return, "View3.fxml");
-
     }
-        @FXML
-        private AnchorPane Pane_CaiDat;
 
-        @FXML
-        private Label Pane_ChuyenKhoan;
-
-        @FXML
-        private AnchorPane Pane_ThongTinTaiKhoan;
-
-        @FXML
-        private AnchorPane Pane_ThanhToan;
-
-        @FXML
-        private AnchorPane Pane_ĐoiMatKhau;
-
-        @FXML
-        private Button j_buttonCaiDat;
-
-        @FXML
-        private Button j_buttonDangXuat;
-
-        @FXML
-        private Button j_buttonDoiMatKhau;
-
-        @FXML
-        private Button j_buttonThanhToan;
-
-        @FXML
-        private Button j_buttonThongTinDangNhap;
-
-        @FXML
-        void j_OnSetName(ActionEvent event)  {
-            User p1 = UserSession.getLoggedInUser();
-            String newName = j_inputNewName.getText();
-
-            if (newName == null || newName.trim().isEmpty()) {
-                j_labelMessageName.setTextFill(Color.RED);
-                j_labelMessageName.setText("Tên không được để trống!");
-                j_labelMessageName.setVisible(true);
-                return;
-            }
-
-            try {
-                client.sendCommand(Command.UPDATE_USER, Map.of(
-                        "username", p1.getUsername(),
-                        "field", "name",
-                        "value", newName
-                ));
-            } catch (IOException e) {
-                // Hiển thị thông báo lỗi lên giao diện hoặc console
-                System.err.println("Lỗi kết nối khi cập nhật tên: " + e.getMessage());
-                // Bạn có thể thêm một cái Alert ở đây để báo cho người dùng
-            }
-        }
-
-        @FXML
-        void j_OnSetTel(ActionEvent event) {
-            User p1 = UserSession.getLoggedInUser();
-            String newTel = j_inputNewTel.getText();
-
-            try {
-                client.sendCommand(Command.UPDATE_USER, Map.of(
-                        "username", p1.getUsername(),
-                        "field", "phone",
-                        "value", newTel
-                ));
-                System.out.println("Đã gửi yêu cầu cập nhật số điện thoại");
-            } catch (IOException e) {
-                // Hiển thị lỗi ra console hoặc thông báo cho người dùng
-                System.err.println("Lỗi kết nối Server: " + e.getMessage());
-
-            }
-        }
+    // ----------------------------------------------------
+    // ĐIỀU HƯỚNG MENU (CHUYỂN PANE)
+    // ----------------------------------------------------
 
     private void hideAllPanes() {
         Pane_ThongTinTaiKhoan.setVisible(false);
         Pane_ThanhToan.setVisible(false);
-        Pane_ĐoiMatKhau.setVisible(false);
+        Pane_DoiMatKhau.setVisible(false);
         Pane_CaiDat.setVisible(false);
     }
-
-    // --- Xử lý sự kiện các nút bấm bên menu trái ---
 
     @FXML
     void j_OnbuttonThongTinDangNhap(ActionEvent event) {
@@ -185,7 +108,7 @@ public class ControllerSetInf implements ServerListener {
     @FXML
     void j_OnbuttonDoiMatKhau(ActionEvent event) {
         hideAllPanes();
-        Pane_ĐoiMatKhau.setVisible(true);
+        Pane_DoiMatKhau.setVisible(true);
     }
 
     @FXML
@@ -195,10 +118,60 @@ public class ControllerSetInf implements ServerListener {
     }
 
     @FXML
-    void j_OnbuttonDangXuat(ActionEvent event) throws IOException {
-        client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) j_buttonDangXuat, "View1.fxml");
+    void j_OnbuttonDangXuat(ActionEvent event) {
+        try {
+            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+            UserSession.cleanUserSession();
+            SceneHelper.changeScene((Node) j_buttonDangXuat, "View1.fxml");
+        } catch (IOException e) {
+            System.err.println("Lỗi khi đăng xuất: " + e.getMessage());
+        }
+    }
+
+    // ----------------------------------------------------
+    // XỬ LÝ NGHIỆP VỤ (CẬP NHẬT TT, ĐỔI MẬT KHẨU, NẠP TIỀN)
+    // ----------------------------------------------------
+
+    @FXML
+    void j_OnUpdateInfo(ActionEvent event) {
+        User p1 = UserSession.getLoggedInUser();
+        String newName = j_inputNewName.getText();
+        String newTel = j_inputNewTel.getText();
+
+        if (newName == null || newName.trim().isEmpty()) {
+            j_labelMessageName.setTextFill(Color.RED);
+            j_labelMessageName.setText("Tên không được để trống!");
+            j_labelMessageName.setVisible(true);
+            return;
+        }
+
+        try {
+            // Gửi cập nhật Tên
+            client.sendCommand(Command.UPDATE_USER, Map.of(
+                    "username", p1.getUsername(),
+                    "field", "name",
+                    "value", newName
+            ));
+
+            // Gửi cập nhật SĐT (Nếu có nhập)
+            if (newTel != null && !newTel.trim().isEmpty()) {
+                client.sendCommand(Command.UPDATE_USER, Map.of(
+                        "username", p1.getUsername(),
+                        "field", "phone",
+                        "value", newTel
+                ));
+            }
+
+            j_labelMessageName.setTextFill(Color.BLUE);
+            j_labelMessageName.setText("Đang gửi yêu cầu cập nhật...");
+            j_labelMessageName.setVisible(true);
+
+        } catch (IOException e) {
+            j_labelMessageName.setTextFill(Color.RED);
+            j_labelMessageName.setText("Lỗi kết nối Server!");
+            j_labelMessageName.setVisible(true);
+            System.err.println("Lỗi kết nối khi cập nhật thông tin: " + e.getMessage());
+        }
     }
 
     @FXML
@@ -209,8 +182,8 @@ public class ControllerSetInf implements ServerListener {
         String confirmPassword = j_inputConfirmPassword.getText();
 
         if (oldPassword == null || oldPassword.isEmpty() ||
-            newPassword == null || newPassword.isEmpty() ||
-            confirmPassword == null || confirmPassword.isEmpty()) {
+                newPassword == null || newPassword.isEmpty() ||
+                confirmPassword == null || confirmPassword.isEmpty()) {
             j_labelMessagePassword.setTextFill(Color.RED);
             j_labelMessagePassword.setText("Vui lòng điền đầy đủ thông tin!");
             j_labelMessagePassword.setVisible(true);
@@ -223,26 +196,66 @@ public class ControllerSetInf implements ServerListener {
             j_labelMessagePassword.setVisible(true);
             return;
         }
+
         try {
             client.sendCommand(Command.CHANGE_PASSWORD, Map.of(
                     "username", p1.getUsername(),
                     "oldPassword", oldPassword,
                     "newPassword", newPassword
             ));
-            // Thông báo cho người dùng (tùy chọn)
-            System.out.println("Đã gửi yêu cầu đổi mật khẩu.");
+            j_labelMessagePassword.setTextFill(Color.BLUE);
+            j_labelMessagePassword.setText("Đang xử lý...");
+            j_labelMessagePassword.setVisible(true);
         } catch (IOException e) {
-            // Xử lý khi mất kết nối Server
+            j_labelMessagePassword.setTextFill(Color.RED);
+            j_labelMessagePassword.setText("Lỗi kết nối Server!");
+            j_labelMessagePassword.setVisible(true);
             System.err.println("Không thể gửi yêu cầu đổi mật khẩu: " + e.getMessage());
-
         }
     }
+
+    @FXML
+    void j_OnPayMent(ActionEvent event) {
+        String moneyStr = j_inputMoney.getText();
+
+        if (moneyStr == null || moneyStr.trim().isEmpty()) {
+            j_labelMessagePayment.setTextFill(Color.RED);
+            j_labelMessagePayment.setText("Vui lòng nhập số tiền!");
+            j_labelMessagePayment.setVisible(true);
+            return;
+        }
+
+        try {
+            double money = Double.parseDouble(moneyStr);
+            if (money <= 0) {
+                j_labelMessagePayment.setTextFill(Color.RED);
+                j_labelMessagePayment.setText("Số tiền phải lớn hơn 0!");
+                j_labelMessagePayment.setVisible(true);
+                return;
+            }
+
+
+            j_labelMessagePayment.setTextFill(Color.BLUE);
+            j_labelMessagePayment.setText("Đang xử lý giao dịch nạp " + money + " đ...");
+            j_labelMessagePayment.setVisible(true);
+            j_inputMoney.clear();
+
+        } catch (NumberFormatException e) {
+            j_labelMessagePayment.setTextFill(Color.RED);
+            j_labelMessagePayment.setText("Vui lòng chỉ nhập số (VD: 100000)!");
+            j_labelMessagePayment.setVisible(true);
+        }
+    }
+
+    // ----------------------------------------------------
+    // LẮNG NGHE PHẢN HỒI TỪ SERVER
+    // ----------------------------------------------------
 
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.getCommand();
 
-        if (Command.UPDATE_USER_RESULT.equals(command)) {
+        if (Command.UPDATE_USER_RESULT.equals(command) || "UPDATE_USER_RESULT".equals(command.toString())) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
@@ -255,10 +268,11 @@ public class ControllerSetInf implements ServerListener {
                 if (isSuccess) {
                     User p1 = UserSession.getLoggedInUser();
                     p1.setName(j_inputNewName.getText());
+                    j_LabelName.setText(j_inputNewName.getText());
                 }
             });
         }
-        else if ("CHANGE_PASSWORD_RESULT".equals(command)) {
+        else if (Command.CHANGE_PASSWORD_RESULT.equals(command) || "CHANGE_PASSWORD_RESULT".equals(command.toString())) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
@@ -275,5 +289,6 @@ public class ControllerSetInf implements ServerListener {
                 }
             });
         }
+        // Thêm bắt sự kiện phản hồi giao dịch tiền ở đây (VD: Command.RECHARGE_RESULT)
     }
 }

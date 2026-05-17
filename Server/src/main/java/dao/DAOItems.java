@@ -10,6 +10,7 @@ import model.User.Bidder;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.Auction;
+import model.auction.AuctionStatus;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -139,56 +140,130 @@ public class DAOItems implements DaoInterface<Item> {
      * Postcondition: Không thay đổi state. Method trả 0.
      */
     public int Delete(Item item) {
-        return 0;
+        if (item == null) return 0;
+        String sql = "DELETE FROM items WHERE my_row_id = ?";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, item.getDatabaseId());
+            return pstmt.executeUpdate(); // MySQL sẽ tự động dọn dẹp bảng auctions cho bạn
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
+
 
     /**
      * Precondition: Có thể tạo kết nối database và bảng items tồn tại.
      * Postcondition: Method trả về toàn bộ item được map từ bảng items, hoặc null nếu SQLException.
      */
-    public ArrayList<Item> selectAll(){
+    public ArrayList<Item> selectAll() {
         ArrayList<Item> list = new ArrayList<>();
-        String sql = "SELECT * FROM items";
-        try (Connection con = JDBCUtil.getConnection();) {
-            PreparedStatement pstmt = null;
-            try {
-                pstmt = con.prepareStatement(sql);
 
-                ResultSet rs = pstmt.executeQuery();
-                while (rs.next()) {
-                    Item item = new Item();
-                    // Lấy dữ liệu cơ bản
-                    item.setDatabaseId(rs.getInt("my_row_id"));
-                    item.setName(rs.getString("name"));
-                    item.setStartingPrice(rs.getDouble("startingPrice"));
-                    item.setSellerId(rs.getString("sellerId"));
-                    item.setDescription(rs.getString("description"));
-                    item.setItemType(ItemType.fromString(rs.getString("itemType")));
-                    // Chuyển đổi Timestamp (SQL) -> Instant (Java)
-                    Timestamp startTs = rs.getTimestamp("auctionStartTime");
-                    if (startTs != null) item.setAuctionStartTime(startTs.toInstant());
+        String sql = "SELECT i.my_row_id AS item_id, i.name, i.startingPrice, i.sellerId, i.description, " +
+                "i.itemType, i.auctionStartTime, i.auctionEndTime, i.imgdata, i.currentHighestBid, " +
+                "JSON_UNQUOTE(a.status) AS clean_status " +
+                "FROM items i " +
+                "LEFT JOIN auction_items a ON i.my_row_id = a.id_item";
 
-                    Timestamp endTs = rs.getTimestamp("auctionEndTime");
-                    if (endTs != null) item.setAuctionEndTime(endTs.toInstant());
-                    String img = rs.getString("imgdata");
-                    item.setImg(img);
-                    item.setCurrentHighestPrice(rs.getDouble("currentHighestBid"));
-                    list.add(item);}
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
 
+            while (rs.next()) {
+                Item item = new Item();
 
-                return list;
-            } catch (SQLException e) {
-                e.printStackTrace();
+                // ==========================================
+                // XỬ LÝ TRẠNG THÁI (STATUS) - ĐÃ SỬA LỖI LOGIC
+                // ==========================================
+                String statusStr = rs.getString("clean_status");
+                if (statusStr == null || statusStr.trim().isEmpty() || "null".equalsIgnoreCase(statusStr.trim())) {
+                    item.setAuctionStatus(null);
+                } else {
+                    String cleanedStatus = statusStr.trim().toUpperCase();
+                    try {
+                        item.setAuctionStatus(AuctionStatus.valueOf(cleanedStatus));
+                    } catch (IllegalArgumentException e) {
+                        item.setAuctionStatus(null);
+                    }
+                }
+
+                // ==========================================
+                // XỬ LÝ CÁC DỮ LIỆU CƠ BẢN CỦA ITEM
+                // ==========================================
+                item.setDatabaseId(rs.getInt("item_id"));
+                item.setName(rs.getString("name"));
+                item.setSellerId(rs.getString("sellerId"));
+                item.setDescription(rs.getString("description"));
+
+                // Ép kiểu enum cho ItemType an toàn
+                String typeStr = rs.getString("itemType");
+                if (typeStr != null) {
+                    item.setItemType(ItemType.fromString(typeStr));
+                }
+
+                // Xử lý giá tiền (Có check NULL từ DB)
+                double startingPrice = rs.getDouble("startingPrice");
+                item.setStartingPrice(rs.wasNull() ? null : startingPrice);
+
+                double currentHighestBid = rs.getDouble("currentHighestBid");
+                item.setCurrentHighestPrice(rs.wasNull() ? null : currentHighestBid);
+
+                // ==========================================
+                // XỬ LÝ THỜI GIAN (TIMESTAMP -> INSTANT)
+                // ==========================================
+                Timestamp startTs = rs.getTimestamp("auctionStartTime");
+                if (startTs != null) item.setAuctionStartTime(startTs.toInstant());
+
+                Timestamp endTs = rs.getTimestamp("auctionEndTime");
+                if (endTs != null) item.setAuctionEndTime(endTs.toInstant());
+
+                // ==========================================
+                // XỬ LÝ ẢNH (LONGBLOB LƯU URL)
+                // ==========================================
+                byte[] imgBytes = rs.getBytes("imgdata");
+                if (imgBytes != null && imgBytes.length > 0) {
+                    String imgUrl = new String(imgBytes, java.nio.charset.StandardCharsets.UTF_8);
+                    item.setImg(imgUrl);
+                } else {
+                    item.setImg(null);
+                }
+
+                // Đưa đối tượng hoàn chỉnh vào danh sách
+                list.add(item);
             }
-            return null;
+
+            return list;
+
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            System.err.println("Lỗi truy vấn SQL tại hàm selectAll: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>(); // Nên trả về list rỗng thay vì null để tránh lỗi NullPointerException ở hàm gọi nó
         }
     }
+
 
     @Override
     public ArrayList<Item> moreSelectByCondition(String condition) {
         return null;
+    }
+
+    private AuctionStatus parseAuctionStatus(String statusStr) {
+        if (statusStr == null) {
+            return null;
+        }
+
+        String cleanStatus = statusStr.replace("\"", "").trim().toUpperCase();
+        if (cleanStatus.isEmpty() || "NULL".equals(cleanStatus)) {
+            return null;
+        }
+
+        try {
+            return AuctionStatus.valueOf(cleanStatus);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Status dau gia khong hop le trong DB: " + statusStr);
+            return null;
+        }
     }
 
     /**

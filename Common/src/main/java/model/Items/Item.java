@@ -22,6 +22,7 @@ public class Item  implements Serializable {
     private String sellerId;
     private ItemType itemType;
     private String img;
+    private AuctionStatus auctionStatus;
     public Item(
             String name,
             String description,
@@ -157,13 +158,20 @@ public class Item  implements Serializable {
     }
     // 2. Getter cho TableView (Dùng cho PropertyValueFactory)
     public String getDisplayStatus() {
-        return displayStatus.get();
+        return displayStatusProperty().get();
     }
 
     // 4. Setter để cập nhật giá trị
     public void setDisplayStatus(String status) {
-        this.displayStatus.set(status);
+        displayStatusProperty().set(status);
     }
 
 
+    public AuctionStatus getAuctionStatus() {
+        return auctionStatus;
+    }
+
+    public void setAuctionStatus(AuctionStatus auctionStatus) {
+        this.auctionStatus = auctionStatus;
+    }
 }

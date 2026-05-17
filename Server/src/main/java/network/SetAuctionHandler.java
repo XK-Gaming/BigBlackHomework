@@ -31,7 +31,6 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
         }
 
         // ✅ IMPROVED: Track user viewing item
-        userService.SetAuctionByItemId(itemId_Str, userId);
         clientHandler.setViewingItemId(itemId_Str);
 
         // ✅ IMPROVED: Fetch auction data và response cho client
@@ -39,7 +38,7 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
             Auction auction = userService.getAuctionByItemId(itemId_Str);
 
             Map<String, Object> response = new HashMap<>();
-            if (auction != null) {
+            if (auction != null && auction.getStatus() != null) {
                 response.put("success", true);
                 response.put("auction", auction);
                 response.put("itemId", itemId_Str);

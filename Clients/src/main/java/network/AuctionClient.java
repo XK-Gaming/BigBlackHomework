@@ -43,6 +43,7 @@ public class AuctionClient {
         synchronized (writeLock) {
             if (out != null) {
                 DataPacket packet = new DataPacket(command, payload);
+                out.reset();
                 out.writeObject(packet);
                 out.flush();
             }
@@ -57,7 +58,8 @@ public class AuctionClient {
                 // Phân loại kết quả trả về
                 handleServerResponse(response);
             }
-        } catch (EOFException e) {e.printStackTrace();
+        } catch (EOFException e) {
+            System.err.println("Server đã đóng kết nối.");
         } catch (Exception e) {e.printStackTrace();}
     }
     // Hàm xử lý logic khi nhận được tin từ Server

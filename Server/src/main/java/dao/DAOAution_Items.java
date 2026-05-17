@@ -47,7 +47,7 @@ public class DAOAution_Items{
             pstmt.setString(2, item1.getSellerId());
 
             // Khởi tạo mặc định là OPEN thay vì để NULL
-            pstmt.setString(3, gson.toJson(AuctionStatus.OPEN));
+            pstmt.setString(3, gson.toJson(null));
 
             String leadingUsername = auction.getLeadingBidder();
             pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson
@@ -147,7 +147,7 @@ public class DAOAution_Items{
      * nếu dòng database tồn tại.
      * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
      */
-    public int Update_Status(Auction auction, Item item1, AuctionStatus status) {
+    public int Update_Status(Item item1, AuctionStatus status) {
         // 1. SQL: Cập nhật status trong auction_items table
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
 
@@ -262,5 +262,8 @@ public class DAOAution_Items{
         }
 
         return list;
+    }
+
+    public void setAllow(Long iditem) {
     }
 }

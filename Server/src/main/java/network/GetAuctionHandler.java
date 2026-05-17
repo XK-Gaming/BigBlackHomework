@@ -7,16 +7,28 @@ import java.io.ObjectOutputStream;
 
 public class GetAuctionHandler extends BaseHandler implements RequestHandler {
     private UserService userService;
+    private ClientHandler clientHandler;
 
-    public GetAuctionHandler(UserService userService) {
+    public GetAuctionHandler(UserService userService, ClientHandler clientHandler) {
         this.userService = userService;
+        this.clientHandler = clientHandler;
     }
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        int itemId = (Integer) payload;
+        if (payload == null) {
+            sendResponse(out, Command.GET_AUCTION_RESULT, null);
+            return;
+        }
 
-        Auction auction = userService.getAuctionByItemId(String.valueOf(itemId));
+        String itemId = String.valueOf(payload).trim();
+        if (itemId.isEmpty() || "null".equalsIgnoreCase(itemId)) {
+            sendResponse(out, Command.GET_AUCTION_RESULT, null);
+            return;
+        }
+
+        clientHandler.setViewingItemId(itemId);
+        Auction auction = userService.getAuctionByItemId(itemId);
         sendResponse(out, Command.GET_AUCTION_RESULT, auction);
     }
 }
