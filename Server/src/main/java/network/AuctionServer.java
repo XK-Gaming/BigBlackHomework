@@ -49,10 +49,13 @@ public class AuctionServer {
         if (itemId == null || itemId.isBlank() || command == null) {
             DataPacket packet = new DataPacket(command, payload);
             for (ClientHandler handler : onlineClients.values()) {
-                if(handler.getViewingItemId().equals(null) || handler.getViewingItemId().isEmpty()) {
-                handler.sendPacket(packet);
+                String viewingItemId = handler.getViewingItemId();
+                if (viewingItemId == null || viewingItemId.isEmpty()) {
+                    handler.sendPacket(packet);
+                }
+            }
             return;
-        } } }
+        }
         String target = itemId.trim();
         DataPacket packet = new DataPacket(command, payload);
         for (ClientHandler handler : onlineClients.values()) {
