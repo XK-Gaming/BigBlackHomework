@@ -26,7 +26,7 @@
          </padding>
          <children>
             <ImageView fx:id="j_image" fitHeight="80.0" fitWidth="80.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
-               <image><Image url="@img/imgUSER.png" /></image>
+               <image><Image url="@../img/imgUSER.png" /></image>
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </ImageView>
             <Label fx:id="j_LabelName" text="ADMINISTRATOR" textFill="WHITE">
@@ -95,7 +95,7 @@
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
                                  <children>
                                     <ImageView fitHeight="60.0" fitWidth="60.0" pickOnBounds="true" preserveRatio="true">
-                                       <image><Image url="@img/imgUSER.png" /></image>
+                                       <image><Image url="@../img/imgUSER.png" /></image>
                                     </ImageView>
                                     <VBox>
                                        <children>

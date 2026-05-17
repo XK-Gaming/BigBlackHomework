@@ -27,7 +27,7 @@
             <children>
                <ImageView fx:id="j_image" fitHeight="70.0" fitWidth="70.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
                   <image>
-                     <Image url="@img/imgUSER.png" />
+                     <Image url="@../img/imgUSER.png" />
                   </image>
                </ImageView>
                <Label fx:id="j_LabelName" text="ADMINISTRATOR" textFill="WHITE">

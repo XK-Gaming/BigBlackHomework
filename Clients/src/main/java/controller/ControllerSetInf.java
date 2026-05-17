@@ -198,7 +198,7 @@ public class ControllerSetInf implements ServerListener {
     void j_OnbuttonDangXuat(ActionEvent event) throws IOException {
         client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) j_buttonDangXuat, "View1.fxml");
+        SceneHelper.changeScene((Node) j_buttonDangXuat, "LoginView.fxml");
     }
 
     @FXML

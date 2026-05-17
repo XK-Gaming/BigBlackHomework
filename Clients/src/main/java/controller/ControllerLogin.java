@@ -39,7 +39,7 @@ public class ControllerLogin implements ServerListener {
     @FXML
     public void setJbutton_DangKy() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("View2.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("SignUpView.fxml"));
             Parent root = loader.load();
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
             window.setScene(new Scene(root));
@@ -48,7 +48,7 @@ public class ControllerLogin implements ServerListener {
 
     // Xử lý nút Đăng nhập
     @FXML
-    public void handleRegister() {
+    public void handleLogin() {
         if (username.getText().isEmpty() || password.getText().isEmpty()) {
             errorLabel.setText("Điền thông tin bắt buộc!");
             errorLabel.setVisible(true);

@@ -23,7 +23,7 @@
          <children>
             <ImageView fx:id="j_image" fitHeight="50.0" fitWidth="50.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
                <image>
-                  <Image url="@img/imgUSER.png" />
+                  <Image url="@../img/imgUSER.png" />
                </image>
                <cursor>
                   <Cursor fx:constant="HAND" />

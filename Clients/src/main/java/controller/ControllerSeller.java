@@ -38,7 +38,7 @@ public class ControllerSeller implements ServerListener {
     @FXML
     void On_LogOut(ActionEvent event) {
         UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) LogOut, "View1.fxml");
+        SceneHelper.changeScene((Node) LogOut, "LoginView.fxml");
     }
 
     @FXML

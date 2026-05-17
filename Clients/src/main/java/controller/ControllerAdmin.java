@@ -8,16 +8,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import model.User.User;
-import model.User.UserSession;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
 
-import java.io.IOException;
 
 public class ControllerAdmin{
     @FXML private Button LogOut;
@@ -33,7 +24,7 @@ public class ControllerAdmin{
     }
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "View1.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "LoginView.fxml");
 
     }
 

@@ -35,7 +35,7 @@ public class ControllerBidder implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "View1.fxml");
+        SceneHelper.changeScene((Node) LogOut, "LoginView.fxml");
     }
 
     @FXML
