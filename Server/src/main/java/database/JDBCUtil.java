@@ -36,7 +36,7 @@ public class JDBCUtil {
 
             String port = props.getProperty("db.port", "3306").trim();
             String url = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim() +
-                    "?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+                    "?useSSL=true&requireSSL=true&verifyServerCertificate=false&serverTimezone=UTC&allowPublicKeyRetrieval=true";
 
             // 2. Cấu hình HikariCP
             HikariConfig config = new HikariConfig();
