@@ -56,13 +56,44 @@ public class ControllerSeller implements ServerListener {
 
     public void initialize() {
         j_ItemType.getItems().setAll(list);
-
-        // Nếu muốn khi mở app lên nó chọn sẵn một cái (không bị trống)
         j_ItemType.setValue(list[0]);
+
         User p1 = UserSession.getLoggedInUser();
         j_LabelName.setText(p1.getName());
-        // Đăng ký controller này làm người nghe tin nhắn từ Server
+
         client.setListener(this);
+
+        // chặn ngày không hợp lệ
+        // 1. j_DateStart không được chọn ngày trước ngày hôm nay
+        j_DateStart.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                setDisable(empty || date.isBefore(LocalDate.now()));
+            }
+        });
+
+        // 2. j_DateEnd không được chọn ngày trước j_DateStart (hoặc trước ngày hôm nay)
+        j_DateEnd.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+
+                // Nếu j_DateStart đã chọn ngày, thì j_DateEnd phải từ ngày đó trở đi
+                // Nếu j_DateStart chưa chọn, thì mặc định j_DateEnd không được trước ngày hôm nay
+                LocalDate minDate = (j_DateStart.getValue() != null) ? j_DateStart.getValue() : LocalDate.now();
+
+                setDisable(empty || date.isBefore(minDate));
+            }
+        });
+
+        // 3. Tự động cập nhật lại j_DateEnd nếu người dùng thay đổi j_DateStart
+        j_DateStart.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null && j_DateEnd.getValue() != null && j_DateEnd.getValue().isBefore(newValue)) {
+                // Nếu ngày kết thúc cũ lỡ nhỏ hơn ngày bắt đầu mới chọn -> tự động xóa hoặc reset
+                j_DateEnd.setValue(newValue);
+            }
+        });
     }
 
 
@@ -119,54 +150,97 @@ public class ControllerSeller implements ServerListener {
             error_Label.setVisible(true);
             return;
         }
+        // Vô hiệu hóa nút để tránh người dùng click nhiều lần (Spam)
+        j_ApplyItem.setDisable(true);
+        error_Label.setTextFill(Color.BLACK);
+        error_Label.setText("Đang xử lý dữ liệu và tải ảnh lên...");
+        error_Label.setVisible(true);
 
         User p1 = UserSession.getLoggedInUser();
+
         ClientNetworkExecutor.execute(() -> {
             try {
                 if (file != null) {
                     fileName = uploadToCloudinary(file);
                 }
-                Instant start = createInstant(j_DateStart, j_TimeStart);
-                Instant end = createInstant(j_DateEnd, j_TimeEnd);
-                String itemType = j_ItemType.getValue();
+                //  Bắt lỗi định dạng thời gian nhập vào
+                Instant start, end;
+                try {
+                    start = createInstant(j_DateStart, j_TimeStart);
+                    end = createInstant(j_DateEnd, j_TimeEnd);
 
+                    // Lấy thời gian hiện tại của hệ thống (UTC) để so sánh
+                    Instant now = Instant.now();
+
+                    // Kiểm tra 1: Thời gian bắt đầu không được ở quá khứ
+                    if (start.isBefore(now)) {
+                        throw new IllegalArgumentException("Thời gian bắt đầu không được nhỏ hơn thời gian hiện tại!");
+                    }
+
+                    // Kiểm tra 2: Thời gian kết thúc phải sau thời gian bắt đầu
+                    if (end.isBefore(start)) {
+                        throw new IllegalArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu!");
+                    }
+                } catch (IllegalArgumentException e) {
+                    // Bắt riêng lỗi logic do mình tự throw (quá khứ hoặc sai thứ tự)
+                    Platform.runLater(() -> {
+                        error_Label.setTextFill(Color.RED);
+                        error_Label.setText(e.getMessage()); // Hiển thị đúng câu báo lỗi tùy trường hợp
+                        j_ApplyItem.setDisable(false);
+                    });
+                    return;
+                } catch (Exception e) {
+                    // Bắt lỗi sai định dạng parse giờ (HH:mm:ss) hoặc DatePicker trống
+                    Platform.runLater(() -> {
+                        error_Label.setTextFill(Color.RED);
+                        error_Label.setText("Định dạng giờ không hợp lệ (HH:mm:ss) hoặc ngày nhập bị lỗi!");
+                        j_ApplyItem.setDisable(false);
+                    });
+                    return;
+                }
+                // 4. Bắt lỗi định dạng giá tiền
+                double startingPrice;
+                try {
+                    startingPrice = Double.parseDouble(j_StartingPrice.getText());
+                    if (startingPrice <= 0) {
+                        throw new NumberFormatException();
+                    }
+                } catch (NumberFormatException e) {
+                    Platform.runLater(() -> {
+                        error_Label.setTextFill(Color.RED);
+                        error_Label.setText("Giá khởi điểm phải là số dương hợp lệ!");
+                        j_ApplyItem.setDisable(false);
+                    });
+                    return;
+                }
+                // 5. Chuẩn bị dữ liệu mở rộng theo loại mặt hàng
+                String itemType = j_ItemType.getValue();
                 Map<String, String> extraFields = new HashMap<>();
                 extraFields.put("brand", j_brand.getText());
                 extraFields.put("model", j_model.getText());
                 extraFields.put("manufacturer", j_manufacturer.getText());
                 extraFields.put("year", j_year.getText());
                 extraFields.put("artist", j_artist.getText());
-
-                try {
-                    double startingPrice = Double.parseDouble(j_StartingPrice.getText());
-                    Item item = ItemFactory.createItem(
-                            itemType,
-                            j_name.getText(),
-                            j_description.getText(),
-                            startingPrice,
-                            start, end,
-                            p1.getUsername(),
-                            extraFields,
-                            fileName
-                    );
-                    client.sendCommand(Command.CREATE_ITEM, item);
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
-                    Platform.runLater(() -> {
-                        error_Label.setTextFill(Color.RED);
-                        error_Label.setText("Giá khởi điểm phải là số hợp lệ!");
-                        error_Label.setVisible(true);
-                    });
-                }
+                // 6. Tạo đối tượng và gửi lên Server
+                Item item = ItemFactory.createItem(
+                        itemType,
+                        j_name.getText(),
+                        j_description.getText(),
+                        startingPrice,
+                        start, end,
+                        p1.getUsername(),
+                        extraFields,
+                        fileName
+                );
+                client.sendCommand(Command.CREATE_ITEM, item);
             } catch (Exception e) {
+                e.printStackTrace();
                 Platform.runLater(() -> {
-                    e.printStackTrace();
                     error_Label.setTextFill(Color.RED);
-                    error_Label.setText("Điền thông tin bắt buộc!");
-                    error_Label.setVisible(true);
+                    error_Label.setText("Có lỗi xảy ra trong quá trình đăng sản phẩm!");
+                    j_ApplyItem.setDisable(false);
                 });
             }
-
         });
     }
 
