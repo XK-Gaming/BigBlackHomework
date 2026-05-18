@@ -17,9 +17,9 @@ public class JDBCUtil {
     private static final HikariDataSource dataSource;
 
     static {
-        try (InputStream input = JDBCUtil.class.getClassLoader().getResourceAsStream("server.properties")) {
+        try (InputStream input = JDBCUtil.class.getClassLoader().getResourceAsStream("database.properties")) {
             if (input == null) {
-                throw new IllegalStateException("Không tìm thấy file server.properties trong classpath");
+                throw new IllegalStateException("Không tìm thấy file database.properties trong classpath");
             }
             Properties props = new Properties();
             props.load(input);
