@@ -21,6 +21,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
+@FunctionalInterface
+interface ConnectionProvider {
+    Connection getConnection() throws SQLException;
+}
+
 public class UserService {
     // ✅ SỬA LỖI #1: Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
     // Lock sẽ tự động bị xóa sau 10 phút không sử dụng
@@ -29,9 +34,23 @@ public class UserService {
           //  .weakValues()  Tự động giải phóng khi không còn reference **xem xet**
             .build();
 
-    private final DAOUser userDAO = DAOUser.getInstance();
-    private final DAOItems itemDAO = DAOItems.getInstance();
-    private final DAOAuction_Items auctionDAO = DAOAuction_Items.getInstance();
+    private final DAOUser userDAO;
+    private final DAOItems itemDAO;
+    private final DAOAuction_Items auctionDAO;
+    private final ConnectionProvider connectionProvider;
+
+    public UserService() {
+        this(DAOUser.getInstance(), DAOItems.getInstance(), DAOAuction_Items.getInstance(),
+                database.JDBCUtil::getConnection);
+    }
+
+    UserService(DAOUser userDAO, DAOItems itemDAO, DAOAuction_Items auctionDAO,
+                ConnectionProvider connectionProvider) {
+        this.userDAO = userDAO;
+        this.itemDAO = itemDAO;
+        this.auctionDAO = auctionDAO;
+        this.connectionProvider = connectionProvider;
+    }
 
     /**
      * ✅ Thread-safe: Lấy lock cho item, tự động tạo nếu chưa có
@@ -125,7 +144,7 @@ public class UserService {
 
         Connection con = null;
         try {
-            con = database.JDBCUtil.getConnection();
+            con = connectionProvider.getConnection();
             con.setAutoCommit(false);
 
             // ✅ Giữ isolation level mặc định (READ_COMMITTED hoặc REPEATABLE_READ)
@@ -231,7 +250,7 @@ public class UserService {
     public boolean updateUser(String username, String field, String value) {
         Connection con = null;
         try {
-            con = database.JDBCUtil.getConnection();
+            con = connectionProvider.getConnection();
             String sql;
 
             switch (field) {
@@ -273,7 +292,7 @@ public class UserService {
     public boolean changePassword(String username, String oldPassword, String newPassword) {
         Connection con = null;
         try {
-            con = database.JDBCUtil.getConnection();
+            con = connectionProvider.getConnection();
 
             // ✅ Update atomic: chỉ update nếu password hiện tại khớp với oldPassword
             String sql = "UPDATE users SET password = ? WHERE username = ? AND password = ?";
