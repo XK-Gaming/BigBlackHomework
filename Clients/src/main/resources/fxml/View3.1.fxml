@@ -57,6 +57,14 @@
             </VBox.margin>
          </Separator>
          <VBox VBox.vgrow="ALWAYS"/>
+         <Button fx:id="btnProductList" mnemonicParsing="false" onAction="#On_ProductList" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #34495e; -fx-text-fill: white; -fx-background-radius: 20;" text="Danh sách sản phẩm">
+            <font>
+               <Font name="System Bold" size="13.0" />
+            </font>
+            <cursor>
+               <Cursor fx:constant="HAND" />
+            </cursor>
+         </Button>
          <Button fx:id="LogOut" mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0"
                  style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-background-radius: 20;"
                  text="Đăng xuất">

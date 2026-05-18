@@ -97,15 +97,6 @@ public class DAOItems implements DaoInterface<Item> {
 
 
 
-    @Override
-    /*
-      Precondition: Không được implement cho DAOItems.
-      Postcondition: Không thay đổi state. Method trả 0.
-     */
-    public int Delete(Item item) {
-        return 0;
-    }
-
     /**
      * Precondition: Có thể tạo kết nối database và bảng items tồn tại.
      * Postcondition: Method trả về toàn bộ item được map từ bảng items, hoặc null nếu SQLException.
@@ -227,7 +218,18 @@ public class DAOItems implements DaoInterface<Item> {
         }
         return null;
     }
-
+    @Override
+    public int Delete(Item item) {
+        String sql = "DELETE FROM items WHERE my_row_id = ?";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, item.getDatabaseId());
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
 
 
 }

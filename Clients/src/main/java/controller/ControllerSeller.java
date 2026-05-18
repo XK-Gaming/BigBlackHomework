@@ -325,4 +325,10 @@ public class ControllerSeller implements ServerListener {
             });
         }
     }
+
+    @FXML
+    void On_ProductList(ActionEvent event) {
+        // Thay đường dẫn "/fxml/ProductListView.fxml" bằng file fxml danh sách sản phẩm thực tế của bạn
+        SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
+}
 }
