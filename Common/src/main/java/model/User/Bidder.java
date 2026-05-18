@@ -13,6 +13,10 @@ public final class Bidder extends User implements Serializable {
     public Bidder(String username, String password, String name, String email) {
         super(username, password, name, email, UserRole.BIDDER);
     }
+    public Bidder(String username, String password, String name, String email, double balance) {
+        super(username, password, name, email, UserRole.BIDDER);
+        this.setBalance(balance);
+    }
 
 
 }

@@ -62,6 +62,7 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.LOGOUT, new LogoutHandler(this.userService));
         handlers.put(Command.SET_ALLOW,new SetAllowHandler(this.userService));
         handlers.put(Command.DELETE_ITEM,new DeleteItems(this.userService));
+        handlers.put(Command.RECHARGE_AMOUNT,new RechargeAmountHandler(this.userService));
     }
     @Override
     public void run() {

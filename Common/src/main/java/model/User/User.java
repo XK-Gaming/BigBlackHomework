@@ -9,6 +9,7 @@ public class User implements Serializable {
     private String name;
     private String email;
     private UserRole role;
+    private double balance;
 
     // ✅ Constructor no-arg cho Gson deserialization
     public User() {
@@ -68,5 +69,11 @@ public class User implements Serializable {
         return "";
     }
 
+    public double getBalance() {
+        return balance;
+    }
 
+    public void setBalance(double balance) {
+        this.balance = balance;
+    }
 }

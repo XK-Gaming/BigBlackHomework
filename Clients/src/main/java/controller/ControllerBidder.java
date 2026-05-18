@@ -22,6 +22,7 @@ import network.DataPacket;
 import network.ServerListener;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,6 +62,8 @@ public class ControllerBidder implements ServerListener {
         if (p1 != null) {
             j_LabelName.setText(p1.getName());
         }
+        DecimalFormat df = new DecimalFormat("#,###");
+        j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
         List_Items_Bid.setPageCount(1);
         List_Items_Bid.setPageFactory(pageIndex -> {
             Label msg = new Label("Đang tải danh sách sản phẩm...");

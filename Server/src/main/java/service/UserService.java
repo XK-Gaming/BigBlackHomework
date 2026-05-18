@@ -76,15 +76,23 @@ public class UserService {
         // thì sẽ trả về khóa đó, nếu chưa có thì sẽ tạo mới và trả về.
         synchronized (lock) {
         Item item = itemDAO.selectById(itemId);
+        User user = userDAO.selectByUsernameOnly(bidderId);
         if (item == null) {return -1;}
         if (amount <= item.getCurrentHighestPrice()) {return -1;}
         item.setCurrentHighestPrice(amount);
 
         int updatedRows = itemDAO.Update(item);
+        if(amount > user.getBalance()) {return -1;}
+        else {userDAO.UpdateBalance(bidderId, user.getBalance() - amount);}
         if (updatedRows <= 0) {return -1;}
 
         // Cập nhật leading bidder trong bảng auction_items
         Auction auction = auctionDAO.selectByItemId(item);
+        String OldBidder = auction.getLeadingBidder();
+        User UserOldBidder = userDAO.selectByUsernameOnly(OldBidder);
+        if (UserOldBidder != null) {
+            userDAO.UpdateBalance(OldBidder, UserOldBidder.getBalance() + item.getCurrentHighestPrice());
+        }
 
         if (auction == null) {return -1;}
 
@@ -187,5 +195,14 @@ public class UserService {
             return itemDAO.Delete(item);
         }
         return  0;
+    }
+
+    public boolean rechargeAmount(String username, double amount) {
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user == null) return false;
+
+        double newBalance = user.getBalance() + amount;
+        userDAO.UpdateBalance(username, newBalance);
+        return true;
     }
 }

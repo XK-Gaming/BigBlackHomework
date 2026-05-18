@@ -73,9 +73,10 @@ public class ControllerAuction implements ServerListener {
         }
         if (item1 != null) {
             j_name.setText(item1.getName());
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
             j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
             renderImage();
-            DecimalFormat df = new DecimalFormat("#,###");
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
         }
         j_status.setText("Đang tải phiên đấu giá...");
@@ -190,7 +191,7 @@ public class ControllerAuction implements ServerListener {
             j_notified.setText("Vui lòng nhập giá đặt!");
             j_notified.setVisible(true);
             return;
-        } else if (Double.parseDouble(priceText) <=  item1.getCurrentHighestPrice()) {
+        } else if (Double.parseDouble(priceText) <=  item1.getCurrentHighestPrice() || Double.parseDouble(priceText) > p1.getBalance()) {
             j_notified.setText("Đặt giá không hợp lệ");
             j_notified.setVisible(true);
             return;
@@ -446,7 +447,19 @@ public class ControllerAuction implements ServerListener {
 
             Platform.runLater(() -> {
                 if (this_Auction != null) {
+                    try{
                     updateBidChart(this_Auction.getBidHistory());
+                    if(this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2)!= null){
+                    String oldBidder =this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getBidder();
+                    if(p1.getUsername().equals(oldBidder)){
+                        double oldPrice = this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getAmount();
+                        p1.setBalance(p1.getBalance() + oldPrice);
+                        DecimalFormat df = new DecimalFormat("#,###");
+                        j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+            ;};
+
+                }}catch (Exception e){
+                }
                 }
                 Object newPriceObj = update.get("newPrice");
                 if (newPriceObj instanceof Number) {
@@ -473,6 +486,9 @@ public class ControllerAuction implements ServerListener {
             Platform.runLater(() -> {
                 if (isSuccess) {
                     j_notified.setText("Đấu giá thành công");
+                    p1.setBalance(p1.getBalance() - Double.parseDouble(j_setPrice.getText()));
+                    DecimalFormat df = new DecimalFormat("#,###");
+                    j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
                 } else {
                     j_notified.setText(message);
                 }

@@ -7,5 +7,9 @@ public final class Seller extends User implements Serializable {
     public Seller(String username, String password, String name, String email) {
         super(username, password, name, email, UserRole.SELLER);
     }
+    public Seller(String username, String password, String name, String email, double balance) {
+        super(username, password, name, email, UserRole.SELLER);
+        this.setBalance(balance);
+    }
 
 }

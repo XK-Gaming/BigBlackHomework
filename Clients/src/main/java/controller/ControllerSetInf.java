@@ -19,10 +19,13 @@ import network.Command;
 import network.DataPacket;
 import network.ServerListener;
 import java.io.IOException;
+import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 public class ControllerSetInf implements ServerListener {
-
+    User p1 = UserSession.getLoggedInUser();
     private AuctionClient client = AuctionClient.getInstance();
 
     // Menu Components
@@ -62,7 +65,6 @@ public class ControllerSetInf implements ServerListener {
 
     public void initialize() {
         client.setListener(this);
-        User p1 = UserSession.getLoggedInUser();
 
         if (p1 != null) {
             // Set thông tin hiển thị ở Menu Trái
@@ -134,7 +136,6 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_OnUpdateInfo(ActionEvent event) {
-        User p1 = UserSession.getLoggedInUser();
         String newName = j_inputNewName.getText();
         String newTel = j_inputNewTel.getText();
 
@@ -176,7 +177,6 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_OnChangePassword(ActionEvent event) {
-        User p1 = UserSession.getLoggedInUser();
         String oldPassword = j_inputOldPassword.getText();
         String newPassword = j_inputNewPassword.getText();
         String confirmPassword = j_inputConfirmPassword.getText();
@@ -214,9 +214,13 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
+    // ----------------------------------------------------
+    // XỬ LÝ NGHIỆP VỤ NẠP TIỀN
+    // ----------------------------------------------------
+    String moneyStr;
     @FXML
     void j_OnPayMent(ActionEvent event) {
-        String moneyStr = j_inputMoney.getText();
+        moneyStr = j_inputMoney.getText();
 
         if (moneyStr == null || moneyStr.trim().isEmpty()) {
             j_labelMessagePayment.setTextFill(Color.RED);
@@ -234,16 +238,24 @@ public class ControllerSetInf implements ServerListener {
                 return;
             }
 
-
             j_labelMessagePayment.setTextFill(Color.BLUE);
-            j_labelMessagePayment.setText("Đang xử lý giao dịch nạp " + money + " đ...");
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_labelMessagePayment.setText("Đang xử lý giao dịch nạp " + df.format(money) + " VNĐ...");
             j_labelMessagePayment.setVisible(true);
             j_inputMoney.clear();
+
+            client.sendCommand(Command.RECHARGE_AMOUNT,
+                    Map.of("username", p1.getUsername(),
+                    "amount", money
+            ));
+
 
         } catch (NumberFormatException e) {
             j_labelMessagePayment.setTextFill(Color.RED);
             j_labelMessagePayment.setText("Vui lòng chỉ nhập số (VD: 100000)!");
             j_labelMessagePayment.setVisible(true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -272,7 +284,7 @@ public class ControllerSetInf implements ServerListener {
                 }
             });
         }
-        else if (Command.CHANGE_PASSWORD_RESULT.equals(command) || "CHANGE_PASSWORD_RESULT".equals(command.toString())) {
+        if (Command.CHANGE_PASSWORD_RESULT.equals(command) || "CHANGE_PASSWORD_RESULT".equals(command.toString())) {
             Map<String, Object> result = (Map<String, Object>) response.getPayload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
@@ -287,6 +299,20 @@ public class ControllerSetInf implements ServerListener {
                     j_inputNewPassword.clear();
                     j_inputConfirmPassword.clear();
                 }
+            });
+        }
+        if(Command.RECHARGE_AMOUNT_RESULT.equals(command)){
+            boolean isSuccess = (boolean) response.getPayload();
+            Platform.runLater(() -> {
+                if (isSuccess) {
+                    j_labelMessagePayment.setTextFill(Color.GREEN);
+                    j_labelMessagePayment.setText("Nạp tiền thành công!");
+                    p1.setBalance(p1.getBalance() + Double.parseDouble(moneyStr));
+                } else {
+                    j_labelMessagePayment.setTextFill(Color.RED);
+                    j_labelMessagePayment.setText("Nạp tiền thất bại");
+                }
+                j_labelMessagePayment.setVisible(true);
             });
         }
         // Thêm bắt sự kiện phản hồi giao dịch tiền ở đây (VD: Command.RECHARGE_RESULT)

@@ -51,11 +51,49 @@ public class DAOUser implements DaoInterface<User> {
             throw new RuntimeException(e);
         }
 
-    }@Override
-    public int Update(User user) {
-        return 0;
     }
+    @Override
+    public int Update(User user) {
+        try (Connection con = JDBCUtil.getConnection();) {
+            Statement st = null;
+            try {
+                st = con.createStatement();
 
+                String sql = "UPDATE khach SET password = '" + user.getPassword() + "', name = '" +
+                        user.getName() + "', email = '" + user.getAddress() + "' WHERE username = '" + user.getUsername() + "'";
+                int ketQua = st.executeUpdate(sql);
+                JDBCUtil.closeConnection(con);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    public int UpdateBalance(String username, double newBalance) {
+        // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)
+        String sql = "UPDATE khach SET balance = ? WHERE username = ?";
+        int ketQua = 0;
+
+        // Đưa cả Connection và PreparedStatement vào try-with-resources để tự động đóng khi dùng xong
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            // Set giá trị cho các dấu '?' theo thứ tự (1, 2, 3...)
+            pstmt.setDouble(1, newBalance);
+            pstmt.setString(2, username);
+
+            // Thực thi câu lệnh (không truyền chuỗi sql vào executeUpdate nữa)
+            ketQua = pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi cập nhật số dư: " + e.getMessage(), e);
+        }
+
+        return ketQua;
+    }
 
     /**
      * Precondition: username xác định một dòng khach.
@@ -152,14 +190,15 @@ public class DAOUser implements DaoInterface<User> {
                     String role = rs.getString("role");
                     String name = rs.getString("name");
                     String email = rs.getString("email");
+                    double balance = rs.getDouble("balance");
 
                     // 3. Kiểm tra mật khẩu (Nên dùng equals để so sánh String)
                     if (dbPassword.equals(password)) {
                         // Trả về đúng đối tượng theo Role
                         if ("Người bán".equals(role)) {
-                            return new Seller(username, dbPassword, name, email);
+                            return new Seller(username, dbPassword, name, email, balance);
                         } else if ("Người đấu giá".equals(role)) {
-                            return new Bidder(username, dbPassword, name, email);
+                            return new Bidder(username, dbPassword, name, email, balance);
                         } else if ("Admin".equals(role)) {
                             return new Admin(username, dbPassword, name, email);
                         }
@@ -193,12 +232,13 @@ public class DAOUser implements DaoInterface<User> {
                     String role = rs.getString("role");
                     String name = rs.getString("name");
                     String email = rs.getString("email");
+                    double balance = rs.getDouble("balance");
 
                     // Trả về đúng đối tượng theo Role mà không kiểm tra mật khẩu
                     if ("Người bán".equals(role)) {
-                        return new Seller(username, dbPassword, name, email);
+                        return new Seller(username, dbPassword, name, email, balance);
                     } else if ("Người đấu giá".equals(role)) {
-                        return new Bidder(username, dbPassword, name, email);
+                        return new Bidder(username, dbPassword, name, email, balance);
                     } else if ("Admin".equals(role)) {
                         return new Admin(username, dbPassword, name, email);
                     }
@@ -212,7 +252,5 @@ public class DAOUser implements DaoInterface<User> {
      * Precondition: Không được implement cho DAOUser.
      * Postcondition: Method trả null.
      */
-    public void UpdateBalance(String username, Double money) {
 
-    }
 }

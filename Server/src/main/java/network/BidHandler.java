@@ -31,7 +31,6 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             String itemId = String.valueOf(rawItemId);
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
-
             double newPrice = userService.processBid(itemId, bidderId, amount);
 
             if (newPrice > 0) {
