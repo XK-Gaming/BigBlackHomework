@@ -20,7 +20,9 @@ import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -130,6 +132,88 @@ class UserServiceTest {
     }
 
     /**
+     * ## Test anti-sniping: bid hop le trong 60 giay cuoi thi keo dai gio ket thuc them 90 giay.
+     */
+    @Test
+    void processBidExtendsAuctionEndTimeWhenBidArrivesInLastMinute() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Instant originalEnd = now.plusSeconds(30);
+        Item item = item("seller", 100, now.minusSeconds(3600), originalEnd);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        UserService service = serviceWith(
+                new FakeUserDao(),
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        assertEquals(150, service.processBid("1", "bidder1", 150), 0.001);
+
+        assertEquals(originalEnd.plusSeconds(UserService.ANTI_SNIPING_EXTENSION_SECONDS), item.getAuctionEndTime());
+        assertEquals(150, item.getCurrentHighestPrice(), 0.001);
+        assertEquals(1, itemDao.updateCalls);
+        assertEquals(1, auctionDao.updateCalls);
+    }
+
+    /**
+     * ## Test anti-sniping: bid ngoai 60 giay cuoi thi khong doi thoi gian ket thuc.
+     */
+    @Test
+    void processBidDoesNotExtendAuctionEndTimeOutsideLastMinute() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Instant originalEnd = now.plusSeconds(61);
+        Item item = item("seller", 100, now.minusSeconds(3600), originalEnd);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        UserService service = serviceWith(
+                new FakeUserDao(),
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        service.processBid("1", "bidder1", 150);
+
+        assertEquals(originalEnd, item.getAuctionEndTime());
+        assertEquals(1, itemDao.updateCalls);
+        assertEquals(1, auctionDao.updateCalls);
+    }
+
+    /**
+     * ## Test anti-sniping: hai bid lien tiep cung luc khong lam cong don 2 lan neu bid thu hai khong con nam trong 60 giay cuoi.
+     */
+    @Test
+    void processBidDoesNotDoubleExtendForImmediateConsecutiveBids() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Instant originalEnd = now.plusSeconds(30);
+        Instant firstExtendedEnd = originalEnd.plusSeconds(UserService.ANTI_SNIPING_EXTENSION_SECONDS);
+        Item item = item("seller", 100, now.minusSeconds(3600), originalEnd);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        UserService service = serviceWith(
+                new FakeUserDao(),
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        service.processBid("1", "bidder1", 150);
+        service.processBid("1", "bidder2", 200);
+
+        assertEquals(firstExtendedEnd, item.getAuctionEndTime());
+        assertEquals(200, item.getCurrentHighestPrice(), 0.001);
+        assertEquals(2, itemDao.updateCalls);
+        assertEquals(2, auctionDao.updateCalls);
+    }
+
+    /**
      * ## Test lay auction theo itemId: service nap item truoc roi moi lay auction tu DAO.
      */
     @Test
@@ -188,22 +272,36 @@ class UserServiceTest {
 
     private UserService serviceWith(FakeUserDao userDao, FakeItemDao itemDao, FakeAuctionDao auctionDao,
                                     int updateCount) {
-        return new UserService(userDao, itemDao, auctionDao, () -> connectionWithUpdateCount(updateCount));
+        return serviceWith(userDao, itemDao, auctionDao, updateCount, Clock.systemUTC());
+    }
+
+    private UserService serviceWith(FakeUserDao userDao, FakeItemDao itemDao, FakeAuctionDao auctionDao,
+                                    int updateCount, Clock clock) {
+        return new UserService(userDao, itemDao, auctionDao, () -> connectionWithUpdateCount(updateCount), clock);
     }
 
     private Item item(String sellerId, double currentPrice) {
+        Instant now = Instant.now();
+        return item(sellerId, currentPrice, now.minusSeconds(60), now.plusSeconds(60));
+    }
+
+    private Item item(String sellerId, double currentPrice, Instant start, Instant end) {
         Item item = new Item(
                 "Item",
                 "Description",
                 currentPrice,
-                Instant.now().minusSeconds(60),
-                Instant.now().plusSeconds(60),
+                start,
+                end,
                 sellerId,
                 ItemType.ART,
                 "image.png");
         item.setDatabaseId(1);
         item.setCurrentHighestPrice(currentPrice);
         return item;
+    }
+
+    private Auction runningAuction(Item item) {
+        return new StaticStatusAuction("auction-1", item, item.getSellerId(), Instant.now(), AuctionStatus.RUNNING);
     }
 
     private Connection connectionWithUpdateCount(int updateCount) {
@@ -264,6 +362,25 @@ class UserServiceTest {
         return null;
     }
 
+    private static final class StaticStatusAuction extends Auction {
+        private AuctionStatus status;
+
+        private StaticStatusAuction(String id, Item item, String sellerId, Instant createdAt, AuctionStatus status) {
+            super(id, item, sellerId, createdAt);
+            this.status = status;
+        }
+
+        @Override
+        public AuctionStatus getStatus() {
+            return status;
+        }
+
+        @Override
+        public void setStatus(AuctionStatus status) {
+            this.status = status;
+        }
+    }
+
     /**
      * ## Test fake DAO user: mo phong login, update profile va change password.
      */
@@ -296,6 +413,9 @@ class UserServiceTest {
      */
     private static final class FakeItemDao extends DAOItems {
         private final Item item;
+        private int updateResult = -1;
+        private int updateCalls;
+        private Item updatedItem;
 
         private FakeItemDao(Item item) {
             this.item = item;
@@ -313,7 +433,12 @@ class UserServiceTest {
 
         @Override
         public int Update(Connection con, Item item) throws SQLException {
-            throw new AssertionError("Unit test khong duoc ghi DB that.");
+            if (updateResult < 0) {
+                throw new AssertionError("Unit test khong duoc ghi DB that.");
+            }
+            this.updatedItem = item;
+            this.updateCalls++;
+            return updateResult;
         }
     }
 
@@ -324,6 +449,9 @@ class UserServiceTest {
         private final Auction auction;
         private boolean selectCalled;
         private Item selectedItem;
+        private int updateResult = -1;
+        private int updateCalls;
+        private Auction updatedAuction;
 
         private FakeAuctionDao(Auction auction) {
             this.auction = auction;
@@ -345,7 +473,12 @@ class UserServiceTest {
 
         @Override
         public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) {
-            throw new AssertionError("Unit test khong duoc ghi DB that.");
+            if (updateResult < 0) {
+                throw new AssertionError("Unit test khong duoc ghi DB that.");
+            }
+            this.updatedAuction = auction;
+            this.updateCalls++;
+            return updateResult;
         }
     }
 }

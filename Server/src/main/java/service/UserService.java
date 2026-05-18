@@ -14,6 +14,8 @@ import model.exception.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +29,9 @@ interface ConnectionProvider {
 }
 
 public class UserService {
+    static final long ANTI_SNIPING_WINDOW_SECONDS = 60;
+    static final long ANTI_SNIPING_EXTENSION_SECONDS = 90;
+
     // ✅ SỬA LỖI #1: Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
     // Lock sẽ tự động bị xóa sau 10 phút không sử dụng
     private static final Cache<String, ReentrantLock> itemLocks = CacheBuilder.newBuilder()
@@ -38,6 +43,7 @@ public class UserService {
     private final DAOItems itemDAO;
     private final DAOAuction_Items auctionDAO;
     private final ConnectionProvider connectionProvider;
+    private final Clock clock;
 
     public UserService() {
         this(DAOUser.getInstance(), DAOItems.getInstance(), DAOAuction_Items.getInstance(),
@@ -46,10 +52,16 @@ public class UserService {
 
     UserService(DAOUser userDAO, DAOItems itemDAO, DAOAuction_Items auctionDAO,
                 ConnectionProvider connectionProvider) {
+        this(userDAO, itemDAO, auctionDAO, connectionProvider, Clock.systemUTC());
+    }
+
+    UserService(DAOUser userDAO, DAOItems itemDAO, DAOAuction_Items auctionDAO,
+                ConnectionProvider connectionProvider, Clock clock) {
         this.userDAO = userDAO;
         this.itemDAO = itemDAO;
         this.auctionDAO = auctionDAO;
         this.connectionProvider = connectionProvider;
+        this.clock = clock;
     }
 
     /**
@@ -187,10 +199,11 @@ public class UserService {
                     transactionId,
                     bidderId,
                     amount,
-                    java.time.Instant.now()
+                    Instant.now(clock)
             );
             newHistory.add(newBid);
             auction.setBidHistory(newHistory);
+            applyAntiSnipingExtension(item);
 
             // BƯỚC A: Cập nhật bảng Auction
             int auctionResult = auctionDAO.Update(con, auction, item.getDatabaseId(), bidderId, amount);
@@ -237,6 +250,23 @@ public class UserService {
             }
             lock.unlock(); // ✅ LUÔN unlock
         }
+    }
+
+    private boolean applyAntiSnipingExtension(Item item) {
+        Instant endTime = item.getAuctionEndTime();
+        if (endTime == null) {
+            return false;
+        }
+
+        Instant now = Instant.now(clock);
+        Instant antiSnipingWindowStart = endTime.minusSeconds(ANTI_SNIPING_WINDOW_SECONDS);
+        boolean inLastMinute = !now.isBefore(antiSnipingWindowStart) && now.isBefore(endTime);
+        if (!inLastMinute) {
+            return false;
+        }
+
+        item.setAuctionEndTime(endTime.plusSeconds(ANTI_SNIPING_EXTENSION_SECONDS));
+        return true;
     }
 
     public List<Auction> getAllAuctions() {
