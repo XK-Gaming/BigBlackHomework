@@ -13,6 +13,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import model.User.User;
+import model.User.UserRole;
 import model.User.UserSession;
 import network.AuctionClient;
 import network.Command;
@@ -70,11 +71,11 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void On_MouseClickImg(MouseEvent event) {
-
     }
+    User p1;
     public void initialize() {
-        client.setListener(this);
-        User p1 = UserSession.getLoggedInUser();
+        p1 = UserSession.getLoggedInUser();
+        client.setListener(this);;
         if (p1 != null) {
             show_userName.setText(p1.getUsername());
             show_Password.setText("********");
@@ -84,7 +85,14 @@ public class ControllerSetInf implements ServerListener {
     }
     @FXML
     void j_event_return(ActionEvent event) {
-        SceneHelper.changeScene((Node) j_return, "/fxml/View3.fxml");
+        if (p1.getRole().equals(UserRole.BIDDER)) {
+            SceneHelper.changeScene((Node) j_return, "/fxml/View3.fxml");
+        } else if (p1.getRole().equals(UserRole.SELLER)) {
+            SceneHelper.changeScene((Node) j_return, "/fxml/View3.1.fxml");
+        } else {
+            SceneHelper.changeScene((Node) j_return, "/fxml/ViewAdmin.fxml");
+        }
+
 
     }
         @FXML
@@ -119,7 +127,7 @@ public class ControllerSetInf implements ServerListener {
 
         @FXML
         void j_OnSetName(ActionEvent event)  {
-            User p1 = UserSession.getLoggedInUser();
+            User user = UserSession.getLoggedInUser();
             String newName = j_inputNewName.getText();
 
             if (newName == null || newName.trim().isEmpty()) {
@@ -131,7 +139,7 @@ public class ControllerSetInf implements ServerListener {
 
             try {
                 client.sendCommand(Command.UPDATE_USER, Map.of(
-                        "username", p1.getUsername(),
+                        "username", user.getUsername(),
                         "field", "name",
                         "value", newName
                 ));

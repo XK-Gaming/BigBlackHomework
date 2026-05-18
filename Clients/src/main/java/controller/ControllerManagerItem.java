@@ -4,6 +4,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
@@ -184,7 +185,7 @@ public class ControllerManagerItem implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-
+        SceneHelper.changeScene((Node) LogOut, "/fxml/ViewAdmin.fxml");
     }
 
     @FXML
