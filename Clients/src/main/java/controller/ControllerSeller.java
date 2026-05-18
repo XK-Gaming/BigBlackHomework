@@ -41,7 +41,6 @@ public class ControllerSeller implements ServerListener {
     // Tối ưu 2: Dùng Map để quản lý việc ẩn hiện Pane gọn gàng
     private final Map<String, HBox> categoryPaneMap = new HashMap<>();
 
-    @FXML private Button LogOut;
     @FXML private Button j_ApplyItem;
     @FXML private Label error_Label;
     @FXML private ComboBox<String> j_ItemType;
@@ -154,13 +153,33 @@ public class ControllerSeller implements ServerListener {
 
     @FXML
     void handle_Items() {
-        // Validation cơ bản đầu vào công tâm
-        if (j_name.getText().trim().isEmpty() || j_StartingPrice.getText().trim().isEmpty() ||
-                j_DateStart.getValue() == null || j_DateEnd.getValue() == null ||
-                j_TimeStart.getText().trim().isEmpty() || j_TimeEnd.getText().trim().isEmpty()) {
-            showError("Điền thông tin bắt buộc!");
+        // --- BẮT ĐẦU PHẦN KIỂM TRA THÔNG TIN BẮT BUỘC CHI TIẾT ---
+        if (j_name.getText().trim().isEmpty()) {
+            showError("Vui lòng nhập Tên sản phẩm (*)");
+            j_name.requestFocus();
             return;
         }
+
+        if (j_DateStart.getValue() == null || j_TimeStart.getText().trim().isEmpty()) {
+            showError("Vui lòng chọn đầy đủ Ngày và Giờ bắt đầu (*)");
+            if (j_DateStart.getValue() == null) j_DateStart.requestFocus();
+            else j_TimeStart.requestFocus();
+            return;
+        }
+
+        if (j_DateEnd.getValue() == null || j_TimeEnd.getText().trim().isEmpty()) {
+            showError("Vui lòng chọn đầy đủ Ngày và Giờ kết thúc (*)");
+            if (j_DateEnd.getValue() == null) j_DateEnd.requestFocus();
+            else j_TimeEnd.requestFocus();
+            return;
+        }
+
+        if (j_StartingPrice.getText().trim().isEmpty()) {
+            showError("Vui lòng nhập Giá khởi điểm sản phẩm (*)");
+            j_StartingPrice.requestFocus();
+            return;
+        }
+        // --- KẾT THÚC KIỂM TRA THÔNG TIN BẮT BUỘC ---
 
         j_ApplyItem.setDisable(true);
         error_Label.setTextFill(Color.BLACK);
