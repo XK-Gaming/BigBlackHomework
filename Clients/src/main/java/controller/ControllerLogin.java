@@ -102,7 +102,7 @@ public class ControllerLogin implements ServerListener {
                         p1 = (User) result.get("user");
                         UserSession.setLoggedInUser(p1);
                         if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/View3.fxml");}
-                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/View3.1.fxml");}
+                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/SellerView.fxml");}
                         else{SceneHelper.changeScene(jbutton_DangNhap, "/fxml/ViewAdmin.fxml");};
                     } catch (ClassCastException e) {
                         e.printStackTrace();

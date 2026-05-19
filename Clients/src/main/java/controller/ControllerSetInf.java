@@ -88,7 +88,7 @@ public class ControllerSetInf implements ServerListener {
         if (p1.getRole().equals(UserRole.BIDDER)) {
             SceneHelper.changeScene((Node) j_return, "/fxml/View3.fxml");
         } else if (p1.getRole().equals(UserRole.SELLER)) {
-            SceneHelper.changeScene((Node) j_return, "/fxml/View3.1.fxml");
+            SceneHelper.changeScene((Node) j_return, "/fxml/SellerView.fxml");
         } else {
             SceneHelper.changeScene((Node) j_return, "/fxml/ViewAdmin.fxml");
         }

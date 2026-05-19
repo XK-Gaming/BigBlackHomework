@@ -2,7 +2,6 @@ package controller;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.chart.LineChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,7 +33,7 @@ public class ControllerAdmin{
 
     @FXML
     void On_PaymentManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "/fxml/View3.1.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/SellerView.fxml");
     }
 
     @FXML
