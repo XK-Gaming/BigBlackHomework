@@ -1,5 +1,6 @@
 package controller;
 
+import dao.DAOAuction_Items;
 import dao.DAOItems;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -13,11 +14,15 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
+import model.auction.AuctionStatus;
+import model.auction.BidTransaction;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class ControllerProductList {
@@ -29,6 +34,7 @@ public class ControllerProductList {
     @FXML private TableColumn<Item, Double> colPrice;
     @FXML private TableColumn<Item, String> colTimeStart;
     @FXML private TableColumn<Item, String> colTimeEnd;
+    @FXML private TableColumn<Item, AuctionStatus> colSessionStatus;
 
     @FXML private TextField txtSearch;
     @FXML private Label j_LabelName;
@@ -48,11 +54,9 @@ public class ControllerProductList {
         // 1. Lấy thông tin user hiện tại từ static UserSession
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
-            // Hiển thị tên đầy đủ (hoặc dùng currentUser.getUsername() tùy bạn muốn)
             j_LabelName.setText(currentUser.getName());
 
-            // Vì class User của bạn hiện chưa có trường Số dư (Balance),
-            // tạm thời hiển thị cố định hoặc bạn có thể bổ sung trường này vào DB/User sau.
+            // Hiển thị số dư,implement sau
             j_textSoDu.setText("0 VNĐ");
         }
 
@@ -105,7 +109,67 @@ public class ControllerProductList {
         }));
 
         tableProducts.setItems(filteredData);
+        // Định dạng cột Trạng thái phiên đấu giá
+        colSessionStatus.setCellValueFactory(cellData -> {
+            Item item = cellData.getValue();
+
+            // Gọi DAO để lấy thông tin phiên đấu giá dựa trên Item hiện tại
+            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(item);
+
+            if (auctionItem != null && auctionItem.getStatus() != null) {
+                // Trả về thuộc tính status (Lưu ý: Thay .getStatus() bằng hàm getter thực tế trong model của bạn)
+                return new javafx.beans.property.SimpleObjectProperty<>(auctionItem.getStatus());
+            }
+            return new javafx.beans.property.SimpleObjectProperty<>(null);
+        });
+
+        colSessionStatus.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(AuctionStatus status, boolean empty) {
+                super.updateItem(status, empty);
+
+                if (empty || status == null) {
+                    setText(null);
+                    setStyle(""); // Reset style tránh lỗi lặp dòng của JavaFX
+                } else {
+                    // Kiểm tra các giá trị Enum AuctionStatus của bạn để map cho đúng
+                    switch (status) {
+                        case OPEN: // Giả định: Chưa diễn ra / Sắp diễn ra
+                            setText("Sắp diễn ra");
+                            setStyle("-fx-text-fill: #17a2b8; -fx-font-weight: bold;"); // Màu xanh dương bói
+                            break;
+
+                        case RUNNING:   // Giả định: Đang diễn ra
+                            setText("Đang diễn ra");
+                            setStyle("-fx-text-fill: #28a745; -fx-font-weight: bold;"); // Màu xanh lá
+                            break;
+
+                        case FINISHED:    // Giả định: Đã kết thúc
+                            setText("Đã kết thúc");
+                            setStyle("-fx-text-fill: #dc3545; -fx-font-weight: bold;"); // Màu đỏ
+                            break;
+
+                        case PAID:
+                            setText("Đã thanh toán");
+                            setStyle("-fx-text-fill: #007bff; -fx-font-weight: bold;"); // Màu xanh biển đậm
+                            break;
+
+                        case CANCELLED:
+                            setText("Đã hủy");
+                            setStyle("-fx-text-fill: #6c757d; -fx-font-style: italic;"); // Màu xám nghiêng
+                            break;
+
+                        default:
+                            setText(status.toString());
+                            setStyle("");
+                            break;
+
+                    }
+                }
+            }
+        });
     }
+
 
     /**
      * Tải danh sách sản phẩm và chỉ lọc ra những sản phẩm do Seller này đăng bán
@@ -157,7 +221,7 @@ public class ControllerProductList {
 
         showAlert(Alert.AlertType.INFORMATION, "Tính năng", "Hệ thống sẽ mở giao diện chỉnh sửa cho: " + selectedItem.getName());
     }
-
+//chỉ được xóa sản phẩm khi chưa có ai bid
     @FXML
     void On_DeleteProduct(ActionEvent event) {
         Item selectedItem = tableProducts.getSelectionModel().getSelectedItem();
@@ -174,13 +238,28 @@ public class ControllerProductList {
 
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            // Gọi xuống DAO để xóa sản phẩm dưới database.
-            // Khi bạn đã update code hàm Delete trong DAOItems, hãy mở comment dòng bên dưới ra:
-            // int check = DAOItems.getInstance().Delete(selectedItem);
+//  Lấy thông tin đấu giá một cách an toàn (tránh NullPointerException)
+            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
 
-            // Xóa trực tiếp trên giao diện để cập nhật ngay lập tức
-            productList.remove(selectedItem);
-            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Xóa sản phẩm thành công!");
+            // Kiểm tra xem sản phẩm này đã có lịch sử đặt giá nào chưa
+            boolean hasBids = false;
+            if (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty()) {
+                hasBids = true;
+            }
+
+            if (hasBids) {
+                // Nếu đã có người đặt giá -> Không cho phép xóa
+                showAlert(Alert.AlertType.WARNING, "Thông báo", "Chỉ có thể xóa Item chưa được đặt giá!");
+            } else {
+                // Nếu chưa có ai đặt giá -> Tiến hành xóa từ DB ra tới UI
+                if (auctionItem != null) {
+                    DAOAuction_Items.getInstance().Delete(selectedItem);
+                }
+
+                DAOItems.getInstance().Delete(selectedItem);
+                productList.remove(selectedItem);
+                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Xóa sản phẩm thành công!");
+            }
         }
     }
 

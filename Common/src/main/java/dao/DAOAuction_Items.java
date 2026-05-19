@@ -291,4 +291,15 @@ public class DAOAuction_Items{
 
         return auction;
     }
+    public int Delete(Item item) {
+        String sql = "DELETE FROM auction_items WHERE id_item = ?";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, item.getDatabaseId());
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
 }

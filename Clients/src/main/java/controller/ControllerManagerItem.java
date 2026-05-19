@@ -88,7 +88,7 @@ public class ControllerManagerItem implements ServerListener {
                                 case RUNNING: statusString = "RUNNING (" + timeFormatted + ")"; break;
                                 case FINISHED: statusString = "FINISHED"; break;
                                 case PAID: statusString = "PAID"; break;
-                                case CANCELED: statusString = "CANCELED"; break;
+                                case CANCELLED: statusString = "CANCELLED"; break;
                             }
 
                             // Cập nhật vào thuộc tính hiển thị trên TableView

@@ -185,11 +185,9 @@ public class ControllerAuction implements ServerListener {
         if (priceText == null || priceText.isEmpty()) {
             j_notified.setText("Vui lòng nhập giá đặt!");
             j_notified.setVisible(true);
-            return;
         } else if (Double.parseDouble(priceText) <=  item1.getCurrentHighestPrice()) {
             j_notified.setText("Đặt giá không hợp lệ");
             j_notified.setVisible(true);
-            return;
         }else{
 
         client.sendCommand(Command.BID, Map.of(
@@ -198,9 +196,6 @@ public class ControllerAuction implements ServerListener {
                 "amount", priceText
         ));}
     }
-
-    @FXML
-    private AnchorPane Pane1;
 
     @FXML
     private Label j_LabelName;
@@ -242,7 +237,6 @@ public class ControllerAuction implements ServerListener {
 
     @FXML
     private Label j_CurrentPrice;
-
     @FXML
     private Label j_notified;
 
@@ -305,7 +299,7 @@ public class ControllerAuction implements ServerListener {
                         handleFinishedAuction();
                     }
                 }
-                case PAID, CANCELED -> {
+                case PAID, CANCELLED -> {
                     j_apply.setDisable(true);
                     j_status.setText(status == AuctionStatus.PAID ? "ĐÃ THANH TOÁN" : "ĐÃ HỦY");
                 }

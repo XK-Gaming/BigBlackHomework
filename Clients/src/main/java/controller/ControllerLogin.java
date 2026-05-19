@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class ControllerLogin implements ServerListener {
 
-    private AuctionClient client = AuctionClient.getInstance();
+    private final AuctionClient client = AuctionClient.getInstance();
     public User p1 = null;
 
     @FXML private AnchorPane Pane1;
@@ -103,7 +103,7 @@ public class ControllerLogin implements ServerListener {
                         UserSession.setLoggedInUser(p1);
                         if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/BidderView.fxml");}
                         else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/SellerView.fxml");}
-                        else{SceneHelper.changeScene(jbutton_DangNhap, "/fxml/AdminView.fxml");};
+                        else{SceneHelper.changeScene(jbutton_DangNhap, "/fxml/AdminView.fxml");}
                     } catch (ClassCastException e) {
                         e.printStackTrace();
                     }

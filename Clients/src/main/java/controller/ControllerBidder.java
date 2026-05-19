@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ControllerBidder implements ServerListener {
-    private AuctionClient client = AuctionClient.getInstance();
+    private final AuctionClient client = AuctionClient.getInstance();
     private boolean dataLoaded = false;
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
@@ -35,7 +35,7 @@ public class ControllerBidder implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
+        SceneHelper.changeScene( LogOut, "/fxml/LoginView.fxml");
     }
 
     @FXML
@@ -52,7 +52,7 @@ public class ControllerBidder implements ServerListener {
 
     @FXML
     private Label j_LabelName;
-    private int itemsPerPage = 4;
+    private final int itemsPerPage = 4;
     private List<Item> allAssets = new ArrayList<>();
 
     public void initialize() throws IOException {
@@ -129,9 +129,7 @@ public class ControllerBidder implements ServerListener {
             allAssets = (ArrayList<Item>) response.payload();
             dataLoaded = true;
 
-            Platform.runLater(() -> {
-                setupPagination();
-            });
+            Platform.runLater(this::setupPagination);
         }
         if (Command.ITEMS_UPDATE.equals(command)) {
             Item updatedItem = (Item) response.payload();

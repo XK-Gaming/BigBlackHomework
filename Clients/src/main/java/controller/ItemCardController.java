@@ -71,7 +71,7 @@ public class ItemCardController {
                 case RUNNING -> j_status.setText("ĐANG DIỄN RA (" + formatDuration(secondsToNext) + ")");
                 case FINISHED -> j_status.setText("ĐÃ KẾT THÚC");
                 case PAID -> j_status.setText("ĐÃ THANH TOÁN");
-                case CANCELED -> j_status.setText("ĐÃ HỦY");
+                case CANCELLED -> j_status.setText("ĐÃ HỦY");
             }
         }));
 
