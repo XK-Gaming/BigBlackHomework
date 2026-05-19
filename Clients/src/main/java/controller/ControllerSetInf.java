@@ -86,11 +86,11 @@ public class ControllerSetInf implements ServerListener {
     @FXML
     void j_event_return(ActionEvent event) {
         if (p1.getRole().equals(UserRole.BIDDER)) {
-            SceneHelper.changeScene((Node) j_return, "/fxml/View3.fxml");
+            SceneHelper.changeScene((Node) j_return, "/fxml/BidderView.fxml");
         } else if (p1.getRole().equals(UserRole.SELLER)) {
             SceneHelper.changeScene((Node) j_return, "/fxml/SellerView.fxml");
         } else {
-            SceneHelper.changeScene((Node) j_return, "/fxml/ViewAdmin.fxml");
+            SceneHelper.changeScene((Node) j_return, "/fxml/AdminView.fxml");
         }
 
 

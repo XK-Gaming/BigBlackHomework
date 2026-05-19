@@ -185,7 +185,7 @@ public class ControllerManagerItem implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "/fxml/ViewAdmin.fxml");
+        SceneHelper.changeScene((Node) LogOut, "/fxml/AdminView.fxml");
     }
 
     @FXML

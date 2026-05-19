@@ -30,7 +30,7 @@ public class ControllerBidder implements ServerListener {
     private boolean dataLoaded = false;
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/View5.fxml");
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
     }
 
     @FXML
@@ -106,7 +106,7 @@ public class ControllerBidder implements ServerListener {
                 controller.setData(data);
                 card.setOnMouseClicked(event -> {
                     ItemSession.setLoggedInItem(data);
-                    SceneHelper.changeScene((Node) event.getSource(), "/fxml/View4.fxml");
+                    SceneHelper.changeScene((Node) event.getSource(), "/fxml/BiddingView.fxml");
                 });
                 flowPane.getChildren().add(card);
             } catch (IOException e) {

@@ -18,7 +18,7 @@ public class ControllerAdmin{
     @FXML private Label lblRevenue;
     @FXML private LineChart<?, ?> lineChart;
     @FXML void On_ItemManager(ActionEvent event) {
-        SceneHelper.changeScene(j_ItemManager, "/fxml/ViewManagerItem.fxml");
+        SceneHelper.changeScene(j_ItemManager, "/fxml/AdminItemManagerView.fxml");
 
     }
     @FXML
@@ -38,7 +38,7 @@ public class ControllerAdmin{
 
     @FXML
     void On_UserManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "/fxml/ViewManagerUser.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/AdminUserManagerView.fxml");
     }
 
 

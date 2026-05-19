@@ -294,7 +294,7 @@ public class ControllerSeller implements ServerListener {
     }
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/View5.fxml");
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
     }
 
     private void showError(String message) {

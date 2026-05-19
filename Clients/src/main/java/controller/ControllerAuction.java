@@ -234,7 +234,7 @@ public class ControllerAuction implements ServerListener {
     @FXML
     void On_Return(ActionEvent event) throws IOException {
         cleanup();
-        SceneHelper.changeScene(j_return, "/fxml/View3.fxml");
+        SceneHelper.changeScene(j_return, "/fxml/BidderView.fxml");
         ItemSession.cleanItemSession();
         client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
 
@@ -319,7 +319,7 @@ public class ControllerAuction implements ServerListener {
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
             PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "ViewPaid.fxml"));
+            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "PayingView.fxml"));
             delay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
