@@ -94,8 +94,31 @@ public class DAOItems implements DaoInterface<Item> {
             return pstmt.executeUpdate();
         }
     }
+    public ArrayList<Item> selectBySellerId(String sellerId) {
+        ArrayList<Item> list = new ArrayList<>();
+        String sql = "SELECT * FROM items WHERE sellerId = ?";
 
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
 
+            pstmt.setString(1, sellerId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                // lấy TOÀN BỘ sản phẩm của Seller này
+                while (rs.next()) {
+                    Item item = mapResultSetToItem(rs);
+                    if (item != null) {
+                        list.add(item);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi thực hiện selectBySellerId với sellerId: " + sellerId);
+            e.printStackTrace();
+        }
+
+        return list;
+    }
 
     /**
      * Precondition: Có thể tạo kết nối database và bảng items tồn tại.

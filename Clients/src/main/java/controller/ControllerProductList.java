@@ -2,10 +2,13 @@ package controller;
 
 import dao.DAOAuction_Items;
 import dao.DAOItems;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -14,16 +17,12 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
-import model.auction.Auction;
 import model.auction.AuctionStatus;
-import model.auction.BidTransaction;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ControllerProductList {
 
@@ -40,41 +39,34 @@ public class ControllerProductList {
     @FXML private Label j_LabelName;
     @FXML private Label j_textSoDu;
 
-
-    // Danh sách lưu trữ sản phẩm phục vụ TableView
     private final ObservableList<Item> productList = FXCollections.observableArrayList();
     private FilteredList<Item> filteredData;
 
-    // Định dạng thời gian hiển thị: Ngày/Tháng/Năm Giờ:Phút
+    // Sử dụng HashMap để cache (lưu tạm) trạng thái, tránh việc gọi DB liên tục trong CellFactory
+    private final Map<Integer, AuctionStatus> statusCache = new HashMap<>();
+
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
 
     @FXML
     public void initialize() {
-        // 1. Lấy thông tin user hiện tại từ static UserSession
+        // 1. Thông tin user
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             j_LabelName.setText(currentUser.getName());
-
-            // Hiển thị số dư,implement sau
             j_textSoDu.setText("0 VNĐ");
         }
 
-        // 2. Cấu hình map dữ liệu vào các cột của TableView
+        // 2. Cấu hình các cột cơ bản
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
-
-        // Hiển thị loại mặt hàng từ Enum ItemType thông qua hàm toString()
-        colCategory.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getItemType() != null) {
-                return new SimpleStringProperty(cellData.getValue().getItemType());
-            }
-            return new SimpleStringProperty("");
-        });
-
         colPrice.setCellValueFactory(new PropertyValueFactory<>("startingPrice"));
 
-        // Định dạng cột Giá khởi điểm hiển thị thêm chữ "VNĐ" và dấu phẩy phân cách hàng nghìn
+        colCategory.setCellValueFactory(cellData -> {
+            String type = cellData.getValue().getItemType();
+            return new SimpleStringProperty(type != null ? type : "");
+        });
+
         colPrice.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(Double price, boolean empty) {
@@ -87,123 +79,139 @@ public class ControllerProductList {
             }
         });
 
-        // Định dạng 2 cột thời gian từ Instant về String dễ đọc
         colTimeStart.setCellValueFactory(cellData -> formatInstant(cellData.getValue().getAuctionStartTime()));
         colTimeEnd.setCellValueFactory(cellData -> formatInstant(cellData.getValue().getAuctionEndTime()));
 
-        // 3. Tải sản phẩm từ Database lên bảng
-        loadProductsFromDatabase();
-
-        // 4. Tích hợp thanh tìm kiếm Real-time (Gõ đến đâu lọc đến đấy)
-        filteredData = new FilteredList<>(productList, p -> true);
-        txtSearch.textProperty().addListener((observable, oldValue, newValue) -> filteredData.setPredicate(item -> {
-            if (newValue == null || newValue.trim().isEmpty()) {
-                return true;
-            }
-            String lowerCaseFilter = newValue.toLowerCase();
-
-            // Hỗ trợ tìm kiếm theo cả Tên sản phẩm hoặc Mã sản phẩm
-            if (item.getName() != null && item.getName().toLowerCase().contains(lowerCaseFilter)) {
-                return true;
-            } else return String.valueOf(item.getDatabaseId()).contains(lowerCaseFilter);
-        }));
-
-        tableProducts.setItems(filteredData);
-        // Định dạng cột Trạng thái phiên đấu giá
+        // Tối ưu hóa cột Trạng Thái: Lấy từ Cache đã nạp sẵn, KHÔNG GỌI DAO Ở ĐÂY
         colSessionStatus.setCellValueFactory(cellData -> {
             Item item = cellData.getValue();
-
-            // Gọi DAO để lấy thông tin phiên đấu giá dựa trên Item hiện tại
-            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(item);
-
-            if (auctionItem != null && auctionItem.getStatus() != null) {
-                // Trả về thuộc tính status (Lưu ý: Thay .getStatus() bằng hàm getter thực tế trong model của bạn)
-                return new javafx.beans.property.SimpleObjectProperty<>(auctionItem.getStatus());
-            }
-            return new javafx.beans.property.SimpleObjectProperty<>(null);
+            AuctionStatus status = statusCache.get(item.getDatabaseId());
+            return new SimpleObjectProperty<>(status);
         });
 
         colSessionStatus.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(AuctionStatus status, boolean empty) {
                 super.updateItem(status, empty);
-
                 if (empty || status == null) {
                     setText(null);
-                    setStyle(""); // Reset style tránh lỗi lặp dòng của JavaFX
+                    setStyle("");
                 } else {
-                    // Kiểm tra các giá trị Enum AuctionStatus của bạn để map cho đúng
+                    // Tận dụng switch-case tối ưu hiệu năng hiển thị text & màu sắc
                     switch (status) {
-                        case OPEN: // Giả định: Chưa diễn ra / Sắp diễn ra
+                        case OPEN:
                             setText("Sắp diễn ra");
-                            setStyle("-fx-text-fill: #17a2b8; -fx-font-weight: bold;"); // Màu xanh dương bói
+                            setStyle("-fx-text-fill: #17a2b8; -fx-font-weight: bold;");
                             break;
-
-                        case RUNNING:   // Giả định: Đang diễn ra
+                        case RUNNING:
                             setText("Đang diễn ra");
-                            setStyle("-fx-text-fill: #28a745; -fx-font-weight: bold;"); // Màu xanh lá
+                            setStyle("-fx-text-fill: #28a745; -fx-font-weight: bold;");
                             break;
-
-                        case FINISHED:    // Giả định: Đã kết thúc
+                        case FINISHED:
                             setText("Đã kết thúc");
-                            setStyle("-fx-text-fill: #dc3545; -fx-font-weight: bold;"); // Màu đỏ
+                            setStyle("-fx-text-fill: #dc3545; -fx-font-weight: bold;");
                             break;
-
                         case PAID:
                             setText("Đã thanh toán");
-                            setStyle("-fx-text-fill: #007bff; -fx-font-weight: bold;"); // Màu xanh biển đậm
+                            setStyle("-fx-text-fill: #007bff; -fx-font-weight: bold;");
                             break;
-
                         case CANCELLED:
                             setText("Đã hủy");
-                            setStyle("-fx-text-fill: #6c757d; -fx-font-style: italic;"); // Màu xám nghiêng
+                            setStyle("-fx-text-fill: #6c757d; -fx-font-style: italic;");
                             break;
-
                         default:
                             setText(status.toString());
                             setStyle("");
                             break;
-
                     }
                 }
             }
         });
-    }
 
-
-    /**
-     * Tải danh sách sản phẩm và chỉ lọc ra những sản phẩm do Seller này đăng bán
-     */
-    private void loadProductsFromDatabase() {
-        productList.clear();
-        ArrayList<Item> allItems = DAOItems.getInstance().selectAll();
-
-        User currentUser = UserSession.getLoggedInUser();
-        if (allItems != null && currentUser != null) {
-            String currentSellerUsername = currentUser.getUsername(); // Đối chiếu với sellerId trong DB
-
-            for (Item item : allItems) {
-                // Kiểm tra nếu sản phẩm có sellerId trùng với username người đang đăng nhập
-                if (item.getSellerId() != null && item.getSellerId().equals(currentSellerUsername)) {
-                    productList.add(item);
+        // 3. Tích hợp bộ lọc tìm kiếm Real-time
+        filteredData = new FilteredList<>(productList, p -> true);
+        txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredData.setPredicate(item -> {
+                if (newValue == null || newValue.trim().isEmpty()) {
+                    return true;
                 }
-            }
-        }
+                String lowerCaseFilter = newValue.toLowerCase().trim();
+                if (item.getName() != null && item.getName().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
+                }
+                return String.valueOf(item.getDatabaseId()).contains(lowerCaseFilter);
+            });
+        });
+        tableProducts.setItems(filteredData);
+
+        // 4. Chạy luồng ngầm để nạp dữ liệu từ DB lên mà không lo đơ màn hình
+        loadProductsFromDatabaseAsync();
     }
 
     /**
-     * Hàm helper đổi Instant sang chuỗi ngày tháng trực quan
+     * TỐI ƯU: Tải danh sách bằng luồng ngầm (Background Thread) và nạp trước trạng thái vào Cache
      */
+    private void loadProductsFromDatabaseAsync() {
+        User currentUser = UserSession.getLoggedInUser();
+        if (currentUser == null) return;
+
+        String currentSellerUsername = currentUser.getUsername();
+
+        // Hiển thị trạng thái đang tải (Tùy chọn: Có thể set placeholder cho table)
+        tableProducts.setPlaceholder(new ProgressIndicator());
+
+        Task<List<Item>> loadTask = new Task<>() {
+            @Override
+            protected List<Item> call() throws Exception {
+                // Gợi ý tốt nhất: Viết hàm selectBySellerId(currentSellerUsername) trong DAO để tránh selectAll()
+                ArrayList<Item> sellerItems = DAOItems.getInstance().selectBySellerId(currentSellerUsername);
+                Map<Integer, AuctionStatus> localCache = new HashMap<>();
+
+                if (sellerItems != null) {
+                    for (Item item : sellerItems) {
+                            // Nạp trạng thái đấu giá của từng item vào cache
+                            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(item);
+                            if (auctionItem != null) {
+                                localCache.put(item.getDatabaseId(), auctionItem.getStatus());
+                            }
+                        }
+                    }
+
+                // Đẩy cache tạm thời về vùng nhớ tạm của class
+                Platform.runLater(() -> {
+                    statusCache.clear();
+                    statusCache.putAll(localCache);
+                });
+
+                return sellerItems != null ? sellerItems : new ArrayList<>();
+            }
+        };
+
+        // Khi Task hoàn thành thành công, cập nhật giao diện trên UI Thread
+        loadTask.setOnSucceeded(e -> {
+            productList.setAll(loadTask.getValue());
+            tableProducts.setPlaceholder(new Label("Không có sản phẩm nào."));
+        });
+
+        // Khi Task thất bại
+        loadTask.setOnFailed(e -> {
+            tableProducts.setPlaceholder(new Label("Lỗi khi tải dữ liệu từ cơ sở dữ liệu."));
+            loadTask.getException().printStackTrace();
+        });
+
+        // Kích hoạt chạy luồng ngầm
+        Thread thread = new Thread(loadTask);
+        thread.setDaemon(true); // Đảm bảo thread tự tắt khi tắt ứng dụng
+        thread.start();
+    }
+
     private SimpleStringProperty formatInstant(Instant instant) {
-        if (instant == null) {
-            return new SimpleStringProperty("");
-        }
+        if (instant == null) return new SimpleStringProperty("");
         return new SimpleStringProperty(formatter.format(instant));
     }
 
     @FXML
     void On_AddProduct(ActionEvent event) {
-        // Chuyển hướng quay lại màn hình thêm sản phẩm
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/SellerView.fxml");
     }
 
@@ -214,14 +222,9 @@ public class ControllerProductList {
             showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng chọn một sản phẩm trong danh sách để sửa!");
             return;
         }
-
-        // Bạn có thể truyền dữ liệu sản phẩm được chọn sang màn hình sửa tại đây:
-        // Ví dụ: ControllerEditProduct.setTargetItem(selectedItem);
-        // SceneHelper.changeScene((Node) event.getSource(), "/fxml/EditProductView.fxml");
-
         showAlert(Alert.AlertType.INFORMATION, "Tính năng", "Hệ thống sẽ mở giao diện chỉnh sửa cho: " + selectedItem.getName());
     }
-//chỉ được xóa sản phẩm khi chưa có ai bid
+
     @FXML
     void On_DeleteProduct(ActionEvent event) {
         Item selectedItem = tableProducts.getSelectionModel().getSelectedItem();
@@ -230,7 +233,6 @@ public class ControllerProductList {
             return;
         }
 
-        // Hộp thoại xác nhận trước khi xóa
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("Xác nhận xóa");
         confirmAlert.setHeaderText(null);
@@ -238,25 +240,22 @@ public class ControllerProductList {
 
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-//  Lấy thông tin đấu giá một cách an toàn (tránh NullPointerException)
-            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
 
-            // Kiểm tra xem sản phẩm này đã có lịch sử đặt giá nào chưa
-            boolean hasBids = false;
-            if (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty()) {
-                hasBids = true;
-            }
+            // Xử lý logic xóa chạy mượt hơn bằng cách dùng luồng phụ nếu cần,
+            // hoặc giữ nguyên vì hành động xóa đơn lẻ diễn ra rất nhanh.
+            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
+            boolean hasBids = (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty());
 
             if (hasBids) {
-                // Nếu đã có người đặt giá -> Không cho phép xóa
                 showAlert(Alert.AlertType.WARNING, "Thông báo", "Chỉ có thể xóa Item chưa được đặt giá!");
             } else {
-                // Nếu chưa có ai đặt giá -> Tiến hành xóa từ DB ra tới UI
                 if (auctionItem != null) {
                     DAOAuction_Items.getInstance().Delete(selectedItem);
                 }
-
                 DAOItems.getInstance().Delete(selectedItem);
+
+                // Xóa khỏi cache và danh sách hiển thị
+                statusCache.remove(selectedItem.getDatabaseId());
                 productList.remove(selectedItem);
                 showAlert(Alert.AlertType.INFORMATION, "Thành công", "Xóa sản phẩm thành công!");
             }
@@ -265,7 +264,7 @@ public class ControllerProductList {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        UserSession.cleanUserSession(); // Xóa sạch session static giải phóng bộ nhớ
+        UserSession.cleanUserSession();
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
     }
 
