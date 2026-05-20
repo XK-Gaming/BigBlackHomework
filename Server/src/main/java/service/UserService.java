@@ -351,4 +351,26 @@ public class UserService {
     public void logout(String username) {
         // Cleanup session nếu cần
     }
+    /**
+     * Cập nhật thông tin sản phẩm vào cơ sở dữ liệu.
+     * @param item Đối tượng Item chứa dữ liệu mới từ Client gửi lên.
+     * @throws PersistenceException Nếu không có dòng nào được cập nhật hoặc xảy ra lỗi DB.
+     */
+    public void updateItem(Item item) throws PersistenceException {
+        try {
+            // Gọi hàm Update từ DAOItems và lấy số lượng dòng bị tác động
+            int rowsAffected = DAOItems.getInstance().Update(item);
+
+            // Nếu trả về 0 nghĩa là ID không tồn tại hoặc câu lệnh SQL thất bại
+            if (rowsAffected == 0) {
+                throw new PersistenceException("Cập nhật thất bại. Không tìm thấy sản phẩm hoặc dữ liệu không thay đổi.");
+            }
+
+            System.out.println("[UserService] Cập nhật thành công sản phẩm có ID: " + item.getDatabaseId());
+
+        } catch (Exception e) {
+            // Bọc lại toàn bộ lỗi phát sinh (SQLException, Jackson mapping,...) thành PersistenceException
+            throw new PersistenceException("Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage(), e);
+        }
+    }
 }
