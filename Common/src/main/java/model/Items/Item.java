@@ -1,18 +1,16 @@
 package model.Items;
 
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import model.Entity.Entity;
-import model.auction.AuctionStatus;
-
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
-public class Item  implements Serializable {
+public class Item implements Serializable {
     private static final long serialVersionUID = 1L;
-    private int databaseId;  // Khi vào trong database thì sẽ tự cấp cho 1 id
+
+    private int databaseId;  // Tự động tăng khi lưu vào DB
     private String name;
     private String description;
     private double startingPrice;
@@ -22,6 +20,10 @@ public class Item  implements Serializable {
     private String sellerId;
     private ItemType itemType;
     private String img;
+
+    // Thêm biến để lưu trữ các thuộc tính động (JSON)
+    private Map<String, String> properties = new HashMap<>();
+
     public Item(
             String name,
             String description,
@@ -42,13 +44,30 @@ public class Item  implements Serializable {
         this.itemType = itemType;
         this.img = img;
     }
-    public Item(){};
+
+    public Item() {}
 
     public Item(String name, String description, double startingPrice, String sellerId, String imgData, String itemType) {
+        this.name = name;
+        this.description = description;
+        this.startingPrice = startingPrice;
+        this.sellerId = sellerId;
+        this.img = imgData;
+        this.itemType = ItemType.fromString(itemType);
     }
 
-    public Map<String,String> getProperties(){
-        return null;}
+
+    public Map<String, String> getProperties() {
+        if (this.properties == null) {
+            this.properties = new HashMap<>();
+        }
+        return this.properties;
+    }
+
+    // ✅ Đã thêm: Giúp ControllerEditProduct nạp thông tin động khi bấm nút Save
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
+    }
 
     public void setDatabaseId(int id) {
         this.databaseId = id;
@@ -94,7 +113,7 @@ public class Item  implements Serializable {
         return sellerId;
     }
 
-    public String getImg(){
+    public String getImg() {
         return img;
     }
 
@@ -126,44 +145,50 @@ public class Item  implements Serializable {
         this.sellerId = sellerId;
     }
 
-    public void setItemType(ItemType itemType) {
-        this.itemType = itemType;
-    }
-
     public void setImg(String img) {
         this.img = img;
     }
 
-    public String getItemType() {
-            if(itemType.equals(ItemType.ART)){
-                return "Mỹ thuật";
-            }
-            if (itemType.equals(ItemType.ELECTRONICS)){
-                return "Điện tử";
-            }
-            if (itemType.equals(ItemType.VEHICLE)){
-                return "Phương tiện giao thông";
-            }
-            return "";
+    // Lấy đối tượng Enum gốc (Rất quan trọng cho việc kiểm tra logic)
+    public ItemType getRawItemType() {
+        return this.itemType;
     }
 
-    // 1. Khai báo Property
+    public void setItemType(ItemType itemType) {
+        this.itemType = itemType;
+    }
+
+    // ✅ Giữ nguyên phục vụ TableView hiển thị Tiếng Việt
+    public String getItemType() {
+        if (itemType == null) {
+            return "";
+        }
+        if (itemType == ItemType.ART) {
+            return "Mỹ thuật";
+        }
+        if (itemType == ItemType.ELECTRONICS) {
+            return "Điện tử";
+        }
+        if (itemType == ItemType.VEHICLE) {
+            return "Phương tiện giao thông";
+        }
+        return itemType.toString();
+    }
+    // 1. Khai báo Property (Hỗ trợ TableView)
     private transient StringProperty displayStatus = new SimpleStringProperty("");
+
     public StringProperty displayStatusProperty() {
         if (displayStatus == null) {
             displayStatus = new SimpleStringProperty("");
         }
         return displayStatus;
     }
-    // 2. Getter cho TableView (Dùng cho PropertyValueFactory)
+
     public String getDisplayStatus() {
-        return displayStatus.get();
+        return displayStatusProperty().get();
     }
 
-    // 4. Setter để cập nhật giá trị
     public void setDisplayStatus(String status) {
-        this.displayStatus.set(status);
+        this.displayStatusProperty().set(status);
     }
-
-
 }

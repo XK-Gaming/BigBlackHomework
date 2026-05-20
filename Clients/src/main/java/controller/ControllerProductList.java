@@ -214,7 +214,6 @@ public class ControllerProductList {
     void On_AddProduct(ActionEvent event) {
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/SellerView.fxml");
     }
-
     @FXML
     void On_EditProduct(ActionEvent event) {
         Item selectedItem = tableProducts.getSelectionModel().getSelectedItem();
@@ -222,7 +221,31 @@ public class ControllerProductList {
             showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng chọn một sản phẩm trong danh sách để sửa!");
             return;
         }
-        showAlert(Alert.AlertType.INFORMATION, "Tính năng", "Hệ thống sẽ mở giao diện chỉnh sửa cho: " + selectedItem.getName());
+
+        AuctionStatus status = statusCache.get(selectedItem.getDatabaseId());
+        if (status == null) status = AuctionStatus.OPEN;
+
+        boolean hasBids = false;
+        var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
+        if (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty()) {
+            hasBids = true;
+        }
+
+        // Kiểm tra luật trạng thái
+        if (status == AuctionStatus.FINISHED || status == AuctionStatus.PAID) {
+            showAlert(Alert.AlertType.ERROR, "Bị từ chối", "Phiên đấu giá đã kết thúc/thanh toán. Không thể sửa!");
+            return;
+        }
+
+        // Dùng SceneHelper nâng cấp: Vừa chuyển scene vừa lấy chuẩn Controller ra để nạp data
+        ControllerEditProduct editController = SceneHelper.changeSceneAndGetController(
+                (Node) event.getSource(), "/fxml/EditProductView.fxml"
+        );
+
+        if (editController != null) {
+            // Gọi hàm truyền dữ liệu và kích hoạt luật disable trường nhập liệu
+            editController.initData(selectedItem, status, hasBids);
+        }
     }
 
     @FXML
