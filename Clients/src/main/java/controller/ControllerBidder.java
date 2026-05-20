@@ -143,7 +143,11 @@ public class ControllerBidder implements ServerListener {
         }
     }
 
-    public void On_BidHistory(ActionEvent actionEvent) {
+    public void On_BidHistory(ActionEvent event) {
+        SceneHelper.changeScene((Node) event.getSource(), "/fxml/BidHistoryView.fxml");
+    }
+
+    public void On_MyAuctions(ActionEvent event) {
     }
 }
 
