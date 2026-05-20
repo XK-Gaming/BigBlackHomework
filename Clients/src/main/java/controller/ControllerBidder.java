@@ -142,6 +142,9 @@ public class ControllerBidder implements ServerListener {
             });
         }
     }
+
+    public void On_BidHistory(ActionEvent actionEvent) {
+    }
 }
 
 
