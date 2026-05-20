@@ -73,12 +73,13 @@ class AuctionEngineTest {
     }
 
     private Item item() {
+        Instant now = Instant.now();
         return new Item(
                 "Item",
                 "Description",
                 100,
-                Instant.now().minusSeconds(60),
-                Instant.now().plusSeconds(60),
+                now.plusSeconds(60),
+                now.plusSeconds(120),
                 "seller",
                 ItemType.ART,
                 "image.png");

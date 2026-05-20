@@ -16,6 +16,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <javafx.mainClass>controller.Launcher</javafx.mainClass>
+    <javafx.skip>false</javafx.skip>
     <junit.version>5.12.1</junit.version>
   </properties>
 
@@ -95,8 +97,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <source>25</source>
-          <target>25</target>
+          <release>${maven.compiler.release}</release>
         </configuration>
       </plugin>
       <plugin>
@@ -107,7 +108,7 @@
           <execution>
             <id>default-cli</id>
             <configuration>
-              <mainClass>controller.Launcher</mainClass>
+              <mainClass>${javafx.mainClass}</mainClass>
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>

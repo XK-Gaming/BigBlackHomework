@@ -152,6 +152,33 @@
             }
         }
 
+        private void syncAuctionSnapshot(Auction auction) {
+            if (auction == null || item1 == null) {
+                return;
+            }
+            this_Auction = auction;
+            Item auctionItem = auction.getItem();
+            if (auctionItem == null) {
+                return;
+            }
+            item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
+            if (auctionItem.getAuctionStartTime() != null) {
+                item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
+            }
+            if (auctionItem.getAuctionEndTime() != null) {
+                item1.setAuctionEndTime(auctionItem.getAuctionEndTime());
+                finishHandled = false;
+            }
+        }
+
+        private void syncAuctionEndTime(Object endTimeValue) {
+            if (item1 == null || !(endTimeValue instanceof Instant auctionEndTime)) {
+                return;
+            }
+            item1.setAuctionEndTime(auctionEndTime);
+            finishHandled = false;
+        }
+
         private void renderImage() {
             if (item1.getImg() != null && !item1.getImg().isEmpty()) {
                 if (item1.getImg().startsWith("http")) {
@@ -430,6 +457,7 @@
 
             if (Command.GET_AUCTION_RESULT.equals(command)) {
                 this_Auction = (Auction) response.payload();
+                syncAuctionSnapshot(this_Auction);
                 onAuctionDataLoaded(this_Auction);
                 Platform.runLater(() -> {
                     if (this_Auction != null) {
@@ -447,13 +475,11 @@
                     }
 
                     Platform.runLater(() -> {
-                        if (update.get("auction") instanceof Auction) {
-                            this_Auction = (Auction) update.get("auction");
+                        Object auctionObj = update.get("auction");
+                        if (auctionObj instanceof Auction) {
+                            syncAuctionSnapshot((Auction) auctionObj);
                         }
-
-                        if (this_Auction != null) {
-                            updateBidChart(this_Auction.getBidHistory());
-                        }
+                        syncAuctionEndTime(update.get("auctionEndTime"));
 
                         Object newPriceObj = update.get("newPrice");
                         if (newPriceObj instanceof Number) {
@@ -465,6 +491,9 @@
                             this_Auction.setLeadingBidder(bidderId);
                         }
 
+                        if (this_Auction != null) {
+                            updateBidChart(this_Auction.getBidHistory());
+                        }
                         updatePriceAndLeader();
                         j_notified.setText("Có lượt đặt giá mới trong phiên.");
                         j_notified.setVisible(true);
@@ -479,6 +508,7 @@
                     String message = (String) result.get("message");
                     Platform.runLater(() -> {
                         if (isSuccess) {
+                            syncAuctionEndTime(result.get("auctionEndTime"));
                             j_notified.setText("Đấu giá thành công");
                         } else {
                             j_notified.setText(message);
@@ -493,6 +523,7 @@
                     Map<?, ?> responsePayload = (Map<?, ?>) response.payload();
                     if (responsePayload.get("auction") instanceof Auction) {
                         this_Auction = (Auction) responsePayload.get("auction");
+                        syncAuctionSnapshot(this_Auction);
                     }
                     Platform.runLater(() -> {
                         if (this_Auction != null) {

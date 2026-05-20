@@ -85,10 +85,15 @@ public class DAOItems implements DaoInterface<Item> {
 
     @Override
     public int Update(Connection con, Item item) throws SQLException {
-        String sql = "UPDATE items SET currentHighestBid = ? WHERE my_row_id = ?";
+        String sql = "UPDATE items SET currentHighestBid = ?, auctionEndTime = ? WHERE my_row_id = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, item.getCurrentHighestPrice());
-            pstmt.setLong(2, item.getDatabaseId());
+            if (item.getAuctionEndTime() == null) {
+                pstmt.setNull(2, Types.TIMESTAMP);
+            } else {
+                pstmt.setTimestamp(2, Timestamp.from(item.getAuctionEndTime()));
+            }
+            pstmt.setLong(3, item.getDatabaseId());
             return pstmt.executeUpdate();
         }
     }

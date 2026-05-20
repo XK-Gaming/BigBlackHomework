@@ -117,7 +117,7 @@ public class AuctionServer {
     }
 
     // Hàm main bây giờ cực kỳ gọn gàng
-     static void main(String[] args) {
+     public static void main(String[] args) {
         AuctionServer server = new AuctionServer();
         server.launch();// Gọi hàm launch tại đây
     }
