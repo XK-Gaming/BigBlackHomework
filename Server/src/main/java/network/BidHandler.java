@@ -5,6 +5,7 @@ import model.auction.Auction;
 import model.exception.AuctionException;
 
 import java.io.ObjectOutputStream;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,6 +44,13 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             Auction latestAuction = userService.getAuctionByItemId(itemId);
             if (latestAuction != null) {
                 bidUpdate.put("auction", latestAuction);
+                Instant auctionEndTime = latestAuction.getItem() != null
+                        ? latestAuction.getItem().getAuctionEndTime()
+                        : null;
+                if (auctionEndTime != null) {
+                    response.put("auctionEndTime", auctionEndTime);
+                    bidUpdate.put("auctionEndTime", auctionEndTime);
+                }
             }
             AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
         } catch (AuctionException e) {

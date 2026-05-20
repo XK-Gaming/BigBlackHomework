@@ -153,6 +153,33 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    private void syncAuctionSnapshot(Auction auction) {
+        if (auction == null || item1 == null) {
+            return;
+        }
+        this_Auction = auction;
+        Item auctionItem = auction.getItem();
+        if (auctionItem == null) {
+            return;
+        }
+        item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
+        if (auctionItem.getAuctionStartTime() != null) {
+            item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
+        }
+        if (auctionItem.getAuctionEndTime() != null) {
+            item1.setAuctionEndTime(auctionItem.getAuctionEndTime());
+            finishHandled = false;
+        }
+    }
+
+    private void syncAuctionEndTime(Object endTimeValue) {
+        if (item1 == null || !(endTimeValue instanceof Instant auctionEndTime)) {
+            return;
+        }
+        item1.setAuctionEndTime(auctionEndTime);
+        finishHandled = false;
+    }
+
     private void renderImage() {
         if (item1.getImg() != null && !item1.getImg().isEmpty()) {
             if (item1.getImg().startsWith("http")) {
@@ -430,6 +457,7 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.GET_AUCTION_RESULT.equals(command)) {
             this_Auction = (Auction) response.payload();
+            syncAuctionSnapshot(this_Auction);
             onAuctionDataLoaded(this_Auction);
             Platform.runLater(() -> {
                 if (this_Auction != null) {
@@ -444,19 +472,22 @@ public class ControllerAuction implements ServerListener {
                 return;
             }
             this_Auction =(Auction) update.get("auction");
+            syncAuctionSnapshot(this_Auction);
+            syncAuctionEndTime(update.get("auctionEndTime"));
 
 
             Platform.runLater(() -> {
-                if (this_Auction != null) {
-                    updateBidChart(this_Auction.getBidHistory());
-                }
                 Object newPriceObj = update.get("newPrice");
                 if (newPriceObj instanceof Number) {
                     item1.setCurrentHighestPrice(((Number) newPriceObj).doubleValue());
                 }
                 Object auctionObj = update.get("auction");
                 if (auctionObj instanceof Auction) {
-                    this_Auction = (Auction) auctionObj;
+                    syncAuctionSnapshot((Auction) auctionObj);
+                }
+                syncAuctionEndTime(update.get("auctionEndTime"));
+                if (this_Auction != null) {
+                    updateBidChart(this_Auction.getBidHistory());
                 }
                 // ✅ FIX: Đảm bảo leadingBidder được set từ bidderId trong BID_UPDATE
                 String bidderId = String.valueOf(update.get("bidderId"));
@@ -474,6 +505,7 @@ public class ControllerAuction implements ServerListener {
             String message = (String) result.get("message");
             Platform.runLater(() -> {
                 if (isSuccess) {
+                    syncAuctionEndTime(result.get("auctionEndTime"));
                     j_notified.setText("Đấu giá thành công");
                 } else {
                     j_notified.setText(message);
@@ -484,6 +516,7 @@ public class ControllerAuction implements ServerListener {
         if (Command.SET_AUCTION_RESULT.equals(command)) {
             Map<String, Object> responsePayload = (Map) response.payload();
             this_Auction =(Auction) responsePayload.get("auction");
+            syncAuctionSnapshot(this_Auction);
             // Xử lý dữ liệu phiên đấu giá nếu cần, ví dụ cập nhật chi tiết hiển thị
             // CẬP NHẬT BIỂU ĐỒ TẠI ĐÂY - Khi dữ liệu đã thực sự về tới Client
             Platform.runLater(() -> {

@@ -1,5 +1,7 @@
 package network;
 
+import model.Items.Item;
+import model.Items.ItemType;
 import model.auction.Auction;
 import model.exception.BidRejectedException;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.time.Instant;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +40,36 @@ class BidHandlerTest {
         assertEquals(true, payload.get("success"));
         assertEquals(150.0, payload.get("newPrice"));
         assertEquals("7", payload.get("itemId"));
+    }
+
+    @Test
+    void successfulBidIncludesLatestAuctionEndTimeWhenAuctionIsLoaded() throws Exception {
+        Instant endTime = Instant.parse("2026-05-20T10:05:30Z");
+        Item item = new Item(
+                "Item",
+                "Description",
+                100,
+                endTime.minusSeconds(300),
+                endTime,
+                "seller",
+                ItemType.ART,
+                "image.png");
+        item.setDatabaseId(7);
+        Auction auction = new Auction("auction-1", item, "seller", endTime.minusSeconds(600));
+        FakeUserService userService = new FakeUserService();
+        userService.acceptedPrice = 150;
+        userService.latestAuction = auction;
+        BidHandler handler = new BidHandler(userService);
+
+        DataPacket packet = handle(handler, Map.of(
+                "itemId", "7",
+                "bidderId", "bidder1",
+                "amount", "150"));
+
+        Map<?, ?> payload = (Map<?, ?>) packet.payload();
+        assertEquals(Command.BID_RESULT, packet.command());
+        assertEquals(true, payload.get("success"));
+        assertEquals(endTime, payload.get("auctionEndTime"));
     }
 
     /**
@@ -99,6 +132,7 @@ class BidHandlerTest {
     private static final class FakeUserService extends UserService {
         private RuntimeException failure;
         private double acceptedPrice;
+        private Auction latestAuction;
 
         @Override
         public double processBid(String itemId, String bidderId, double amount) {
@@ -110,7 +144,7 @@ class BidHandlerTest {
 
         @Override
         public Auction getAuctionByItemId(String itemId) {
-            return null;
+            return latestAuction;
         }
     }
 }

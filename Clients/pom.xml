@@ -16,6 +16,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <javafx.mainClass>controller.Launcher</javafx.mainClass>
+    <javafx.skip>false</javafx.skip>
     <junit.version>5.12.1</junit.version>
   </properties>
 
@@ -107,7 +109,7 @@
           <execution>
             <id>default-cli</id>
             <configuration>
-              <mainClass>controller.Launcher</mainClass>
+              <mainClass>${javafx.mainClass}</mainClass>
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>
