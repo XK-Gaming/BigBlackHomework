@@ -17,7 +17,7 @@ public class JDBCUtil {
     private static final HikariDataSource dataSource;
 
     static {
-        try (InputStream input = JDBCUtil.class.getClassLoader().getResourceAsStream("database.properties")) {
+        try (InputStream input = openConfigStream()) {
             if (input == null) {
                 throw new IllegalStateException("Không tìm thấy file database.properties trong classpath");
             }
@@ -82,6 +82,15 @@ public class JDBCUtil {
             logger.error("Lỗi nghiêm trọng khi khởi tạo Connection Pool", e);
             throw new ExceptionInInitializerError(e);
         }
+    }
+
+    private static InputStream openConfigStream() {
+        ClassLoader classLoader = JDBCUtil.class.getClassLoader();
+        InputStream input = classLoader.getResourceAsStream("database.properties");
+        if (input != null) {
+            return input;
+        }
+        return classLoader.getResourceAsStream("server.properties");
     }
 
     private JDBCUtil() {}
