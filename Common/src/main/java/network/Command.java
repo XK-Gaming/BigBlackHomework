@@ -52,6 +52,16 @@ public enum Command {
     SELECT_ITEMS_ADMIN,
     SELECT_ITEMS_ADMIN_RESULT,
     BROADCAST_ITEM_UPDATE,
-    ITEMS_UPDATE
+    ITEMS_UPDATE,
+
+    EDIT_ITEM,   // Thay thế cho việc Sửa/Edit item trực tiếp ở DAO
+    EDIT_ITEM_RESULT,
+
+    DELETE_ITEM ,   // Thay thế cho việc Xóa/Delete item trực tiếp ở DAO
+    DELETE_ITEM_RESULT,
+
+    GET_SELLER_ITEMS,
+    GET_SELLER_ITEMS_RESULT,
+
 
 }

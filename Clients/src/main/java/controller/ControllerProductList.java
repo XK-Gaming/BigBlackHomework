@@ -1,14 +1,11 @@
 package controller;
 
-import dao.DAOAuction_Items;
-import dao.DAOItems;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -18,13 +15,15 @@ import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.AuctionStatus;
+import network.*;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class ControllerProductList {
+public class ControllerProductList implements ServerListener {
 
     @FXML private TableView<Item> tableProducts;
     @FXML private TableColumn<Item, Integer> colId;
@@ -39,10 +38,11 @@ public class ControllerProductList {
     @FXML private Label j_LabelName;
     @FXML private Label j_textSoDu;
 
+    private final AuctionClient client = AuctionClient.getInstance();
     private final ObservableList<Item> productList = FXCollections.observableArrayList();
     private FilteredList<Item> filteredData;
 
-    // Sử dụng HashMap để cache (lưu tạm) trạng thái, tránh việc gọi DB liên tục trong CellFactory
+    // Bộ nhớ đệm quản lý trạng thái đồng bộ dữ liệu nhận từ mạng
     private final Map<Integer, AuctionStatus> statusCache = new HashMap<>();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
@@ -50,14 +50,17 @@ public class ControllerProductList {
 
     @FXML
     public void initialize() {
-        // 1. Thông tin user
+        // Thiết lập lắng nghe phản hồi từ máy chủ hệ thống
+        client.setListener(this);
+
+        // 1. Thông tin user cá nhân
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             j_LabelName.setText(currentUser.getName());
             j_textSoDu.setText("0 VNĐ");
         }
 
-        // 2. Cấu hình các cột cơ bản
+        // 2. Cấu hình ánh xạ cột hiển thị danh sách
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colPrice.setCellValueFactory(new PropertyValueFactory<>("startingPrice"));
@@ -82,7 +85,7 @@ public class ControllerProductList {
         colTimeStart.setCellValueFactory(cellData -> formatInstant(cellData.getValue().getAuctionStartTime()));
         colTimeEnd.setCellValueFactory(cellData -> formatInstant(cellData.getValue().getAuctionEndTime()));
 
-        // Tối ưu hóa cột Trạng Thái: Lấy từ Cache đã nạp sẵn, KHÔNG GỌI DAO Ở ĐÂY
+        // Trạng thái được ánh xạ động từ vùng Cache nhận từ mạng
         colSessionStatus.setCellValueFactory(cellData -> {
             Item item = cellData.getValue();
             AuctionStatus status = statusCache.get(item.getDatabaseId());
@@ -97,7 +100,6 @@ public class ControllerProductList {
                     setText(null);
                     setStyle("");
                 } else {
-                    // Tận dụng switch-case tối ưu hiệu năng hiển thị text & màu sắc
                     switch (status) {
                         case OPEN:
                             setText("Sắp diễn ra");
@@ -128,7 +130,7 @@ public class ControllerProductList {
             }
         });
 
-        // 3. Tích hợp bộ lọc tìm kiếm Real-time
+        // 3. Bộ lọc tìm kiếm thời gian thực (Real-time Filter)
         filteredData = new FilteredList<>(productList, p -> true);
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
             filteredData.setPredicate(item -> {
@@ -144,65 +146,92 @@ public class ControllerProductList {
         });
         tableProducts.setItems(filteredData);
 
-        // 4. Chạy luồng ngầm để nạp dữ liệu từ DB lên mà không lo đơ màn hình
-        loadProductsFromDatabaseAsync();
+        // 4. Phát lệnh mạng yêu cầu lấy danh sách sản phẩm từ Server
+        requestProductsFromNetwork();
     }
 
     /**
-     * TỐI ƯU: Tải danh sách bằng luồng ngầm (Background Thread) và nạp trước trạng thái vào Cache
+     * THAY THẾ LUỒNG NGẦM CŨ: Gửi yêu cầu dữ liệu thông qua lệnh mạng lên ServerHandler
      */
-    private void loadProductsFromDatabaseAsync() {
+    private void requestProductsFromNetwork() {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser == null) return;
 
-        String currentSellerUsername = currentUser.getUsername();
-
-        // Hiển thị trạng thái đang tải (Tùy chọn: Có thể set placeholder cho table)
+        // Trạng thái chờ đợi phản hồi
         tableProducts.setPlaceholder(new ProgressIndicator());
 
-        Task<List<Item>> loadTask = new Task<>() {
-            @Override
-            protected List<Item> call() throws Exception {
-                // Gợi ý tốt nhất: Viết hàm selectBySellerId(currentSellerUsername) trong DAO để tránh selectAll()
-                ArrayList<Item> sellerItems = DAOItems.getInstance().selectBySellerId(currentSellerUsername);
-                Map<Integer, AuctionStatus> localCache = new HashMap<>();
+        // Gửi lệnh không gây nghẽn UI mạng
+        ClientNetworkExecutor.execute(() -> {
+            try {
+                client.sendCommand(Command.GET_SELLER_ITEMS, currentUser.getUsername());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
 
-                if (sellerItems != null) {
-                    for (Item item : sellerItems) {
-                            // Nạp trạng thái đấu giá của từng item vào cache
-                            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(item);
-                            if (auctionItem != null) {
-                                localCache.put(item.getDatabaseId(), auctionItem.getStatus());
-                            }
-                        }
+    /**
+     * Hàm nhận và xử lý tập trung toàn bộ dữ liệu trả về bất đồng bộ từ các Handler của Server
+     */
+    @Override
+    public void onServerResponse(DataPacket response) {
+        // --- CASE 1: Nhận danh sách sản phẩm ---
+        if (Command.GET_SELLER_ITEMS_RESULT.equals(response.command())) {
+            Map<String, Object> data = (Map<String, Object>) response.payload();
+            boolean isSuccess = (boolean) data.get("success");
+
+            Platform.runLater(() -> {
+                if (isSuccess) {
+                    List<Item> serverItems = (List<Item>) data.get("items");
+                    Map<Integer, String> stringStatusCache = (Map<Integer, String>) data.get("statusCache");
+
+                    // Làm sạch và đồng bộ dữ liệu trạng thái mới
+                    statusCache.clear();
+                    if (stringStatusCache != null) {
+                        stringStatusCache.forEach((id, statusStr) -> {
+                            statusCache.put(id, AuctionStatus.valueOf(statusStr));
+                        });
                     }
 
-                // Đẩy cache tạm thời về vùng nhớ tạm của class
-                Platform.runLater(() -> {
-                    statusCache.clear();
-                    statusCache.putAll(localCache);
-                });
+                    // Đổ dữ liệu mới nhận lên TableView
+                    productList.setAll(serverItems != null ? serverItems : new ArrayList<>());
+                    tableProducts.setPlaceholder(new Label("Không có sản phẩm nào."));
+                } else {
+                    String errorMsg = (String) data.getOrDefault("message", "Lỗi không xác định từ Server.");
+                    tableProducts.setPlaceholder(new Label("Không thể lấy dữ liệu: " + errorMsg));
+                }
+            });
+        }
+        // --- CASE 2: Nhận kết quả phản hồi xóa sản phẩm ---
+        else if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+            Map<String, Object> resData = (Map<String, Object>) response.payload();
+            boolean success = (boolean) resData.get("success");
+            String message = (String) resData.get("message");
 
-                return sellerItems != null ? sellerItems : new ArrayList<>();
-            }
-        };
+            // Đồng bộ cập nhật giao diện trên JavaFX Application Thread
+            Platform.runLater(() -> {
+                if (success) {
+                    // Trích xuất ID an toàn qua lớp Number để tránh xung đột Integer/Long từ dòng mạng
+                    int deletedItemId = ((Number) resData.get("deletedItemId")).intValue();
 
-        // Khi Task hoàn thành thành công, cập nhật giao diện trên UI Thread
-        loadTask.setOnSucceeded(e -> {
-            productList.setAll(loadTask.getValue());
-            tableProducts.setPlaceholder(new Label("Không có sản phẩm nào."));
-        });
+                    // Tìm kiếm sản phẩm trong danh sách hiển thị hiện tại để xóa cục bộ
+                    Item itemToRemove = productList.stream()
+                            .filter(item -> item.getDatabaseId() == deletedItemId)
+                            .findFirst()
+                            .orElse(null);
 
-        // Khi Task thất bại
-        loadTask.setOnFailed(e -> {
-            tableProducts.setPlaceholder(new Label("Lỗi khi tải dữ liệu từ cơ sở dữ liệu."));
-            loadTask.getException().printStackTrace();
-        });
+                    if (itemToRemove != null) {
+                        productList.remove(itemToRemove);
+                        statusCache.remove(deletedItemId);
+                    }
 
-        // Kích hoạt chạy luồng ngầm
-        Thread thread = new Thread(loadTask);
-        thread.setDaemon(true); // Đảm bảo thread tự tắt khi tắt ứng dụng
-        thread.start();
+                    showAlert(Alert.AlertType.INFORMATION, "Thành công", message);
+                } else {
+                    // Server từ chối xóa do không thỏa mãn điều kiện ràng buộc dữ liệu (ví dụ: đã có người đặt giá)
+                    showAlert(Alert.AlertType.ERROR, "Không thể xóa", message);
+                }
+            });
+        }
     }
 
     private SimpleStringProperty formatInstant(Instant instant) {
@@ -214,6 +243,7 @@ public class ControllerProductList {
     void On_AddProduct(ActionEvent event) {
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/SellerView.fxml");
     }
+
     @FXML
     void On_EditProduct(ActionEvent event) {
         Item selectedItem = tableProducts.getSelectionModel().getSelectedItem();
@@ -225,25 +255,19 @@ public class ControllerProductList {
         AuctionStatus status = statusCache.get(selectedItem.getDatabaseId());
         if (status == null) status = AuctionStatus.OPEN;
 
-        boolean hasBids = false;
-        var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
-        if (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty()) {
-            hasBids = true;
-        }
-
         // Kiểm tra luật trạng thái
         if (status == AuctionStatus.FINISHED || status == AuctionStatus.PAID) {
             showAlert(Alert.AlertType.ERROR, "Bị từ chối", "Phiên đấu giá đã kết thúc/thanh toán. Không thể sửa!");
             return;
         }
 
-        // Dùng SceneHelper nâng cấp: Vừa chuyển scene vừa lấy chuẩn Controller ra để nạp data
+        boolean hasBids = false;
+
         ControllerEditProduct editController = SceneHelper.changeSceneAndGetController(
                 (Node) event.getSource(), "/fxml/EditProductView.fxml"
         );
 
         if (editController != null) {
-            // Gọi hàm truyền dữ liệu và kích hoạt luật disable trường nhập liệu
             editController.initData(selectedItem, status, hasBids);
         }
     }
@@ -256,6 +280,7 @@ public class ControllerProductList {
             return;
         }
 
+        // Hiển thị hộp thoại xác nhận trên luồng UI chính
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("Xác nhận xóa");
         confirmAlert.setHeaderText(null);
@@ -264,24 +289,17 @@ public class ControllerProductList {
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
 
-            // Xử lý logic xóa chạy mượt hơn bằng cách dùng luồng phụ nếu cần,
-            // hoặc giữ nguyên vì hành động xóa đơn lẻ diễn ra rất nhanh.
-            var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
-            boolean hasBids = (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty());
-
-            if (hasBids) {
-                showAlert(Alert.AlertType.WARNING, "Thông báo", "Chỉ có thể xóa Item chưa được đặt giá!");
-            } else {
-                if (auctionItem != null) {
-                    DAOAuction_Items.getInstance().Delete(selectedItem);
+            // Phát lệnh mạng bất đồng bộ bằng Network Executor chuyên dụng
+            ClientNetworkExecutor.execute(() -> {
+                try {
+                    client.sendCommand(Command.DELETE_ITEM, selectedItem);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Platform.runLater(() -> {
+                        showAlert(Alert.AlertType.ERROR, "Lỗi kết nối", "Không thể gửi yêu cầu xóa đến máy chủ!");
+                    });
                 }
-                DAOItems.getInstance().Delete(selectedItem);
-
-                // Xóa khỏi cache và danh sách hiển thị
-                statusCache.remove(selectedItem.getDatabaseId());
-                productList.remove(selectedItem);
-                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Xóa sản phẩm thành công!");
-            }
+            });
         }
     }
 

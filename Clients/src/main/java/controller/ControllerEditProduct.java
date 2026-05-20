@@ -2,8 +2,6 @@ package controller;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import dao.DAOAuction_Items;
-import dao.DAOItems;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -19,7 +17,7 @@ import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.AuctionStatus;
-import network.ClientNetworkExecutor; // Đảm bảo executor luồng phụ hoạt động đồng bộ
+import network.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-public class ControllerEditProduct {
+public class ControllerEditProduct implements ServerListener {
 
     private File selectedFile = null;
     private String uploadedImageUrl = null;
@@ -44,6 +42,9 @@ public class ControllerEditProduct {
     private final String[] categoryList = new String[]{"Mỹ thuật", "Điện tử", "Phương tiện giao thông"};
     private final Map<String, HBox> categoryPaneMap = new HashMap<>();
     private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    // Lấy instance quản lý socket tương tự như bên ControllerProductList
+    private final AuctionClient client = AuctionClient.getInstance();
 
     @FXML private Label j_LabelName;
     @FXML private Label j_textSoDu;
@@ -61,7 +62,7 @@ public class ControllerEditProduct {
     @FXML private Label lblAppendNoteTitle;
     @FXML private TextArea txtAppendNote;
 
-    // Trường mở rộng loại mặt hàng giống hệt ControllerSeller
+    // Trường mở rộng loại mặt hàng
     @FXML private ComboBox<String> j_ItemType;
     @FXML private HBox j_paneArt;
     @FXML private HBox j_paneElectronics;
@@ -77,8 +78,14 @@ public class ControllerEditProduct {
     @FXML private Button btnSave;
     @FXML private Label error_Label;
 
+    // Biến lưu lại Event Action để dùng khi chuyển Scene sau khi nhận phản hồi từ luồng mạng thành công
+    private ActionEvent currentEvent;
+
     @FXML
     public void initialize() {
+        // Đăng ký lắng nghe các gói tin từ Server trả về cho View này
+        client.setListener(this);
+
         initCloudinary();
 
         // Đăng ký ánh xạ các pane mở rộng
@@ -88,7 +95,6 @@ public class ControllerEditProduct {
 
         j_ItemType.getItems().setAll(categoryList);
 
-        // 🌟 THÊM DÒNG NÀY: Lắng nghe sự kiện thay đổi của ComboBox ngay khi khởi tạo
         j_ItemType.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             handle_Info(null);
         });
@@ -99,7 +105,6 @@ public class ControllerEditProduct {
             j_textSoDu.setText("0 VNĐ");
         }
 
-        // Ràng buộc giới hạn ngày cho DatePicker tránh Seller chọn sai thời gian
         setupDatePickerConstraints();
     }
 
@@ -131,9 +136,9 @@ public class ControllerEditProduct {
         this.currentItem = item;
         this.currentStatus = status;
         this.itemHasBids = hasBids;
-        this.uploadedImageUrl = item.getImg(); // Lưu lại link ảnh cũ mặc định
+        this.uploadedImageUrl = item.getImg();
 
-        // 1. Đổ dữ liệu chữ lên các Control
+        // Đổ dữ liệu lên các trường
         txtName.setText(item.getName());
         txtDescription.setText(item.getDescription());
         txtStartPrice.setText(String.format("%.0f", item.getStartingPrice()));
@@ -141,22 +146,19 @@ public class ControllerEditProduct {
         parseAndSetAuctionTime(item.getAuctionStartTime(), dpStartDate, txtTimeStart);
         parseAndSetAuctionTime(item.getAuctionEndTime(), dpEndDate, txtTimeEnd);
 
-        // 2. Hiển thị ảnh cũ từ Cloudinary URL lên ImageView
         if (item.getImg() != null && !item.getImg().trim().isEmpty()) {
             try {
-                MyImgView.setImage(new Image(item.getImg(), true)); // true để tải bất đồng bộ không gây lag UI
+                MyImgView.setImage(new Image(item.getImg(), true));
             } catch (Exception e) {
                 System.err.println("Không thể nạp ảnh cũ từ URL: " + item.getImg());
             }
         }
 
-        // 3. Xử lý đồng bộ Thể loại & Fields mở rộng
         if (item.getItemType() != null) {
             String uiCategoryType = convertModelTypeToUiType(item.getItemType().toString());
             j_ItemType.setValue(uiCategoryType);
-            handle_Info(null); // Kích hoạt ẩn/hiện pane tương ứng
+            handle_Info(null);
 
-            // Đổ dữ liệu các thuộc tính bổ sung nếu có
             Map<String, String> props = item.getProperties();
             if (props != null) {
                 j_brand.setText(props.getOrDefault("brand", ""));
@@ -167,29 +169,24 @@ public class ControllerEditProduct {
             }
         }
 
-        // 4. Reset trạng thái vùng đính kèm note
         vboxAppendNote.setVisible(false);
         vboxAppendNote.setManaged(false);
 
-        // 5. Áp dụng các luật hạn chế sửa giao diện
         applyPermissionRules();
     }
 
     private void applyPermissionRules() {
         if (currentStatus == AuctionStatus.OPEN || currentStatus == AuctionStatus.CANCELLED) {
-            return; // Toàn quyền chỉnh sửa
+            return;
         }
 
         if (currentStatus == AuctionStatus.RUNNING) {
-            // Khóa các trường cốt lõi trong mọi trạng thái RUNNING
             setCoreFieldsDisabled(true);
 
             if (!itemHasBids) {
-                // CHƯA CÓ BID: Cho phép chỉnh sửa tiếp Mô tả & Đổi ảnh mới
                 txtDescription.setDisable(false);
                 btnUploadImage.setDisable(false);
             } else {
-                // ĐÃ CÓ BID: Khóa toàn bộ form, chỉ kích hoạt khối Append Note
                 txtDescription.setDisable(true);
                 btnUploadImage.setDisable(true);
 
@@ -217,7 +214,7 @@ public class ControllerEditProduct {
 
     @FXML
     void On_Save(ActionEvent event) {
-        // --- BƯỚC 1: KIỂM TRA CHUẨN VALIDATE BAN ĐẦU TRÊN UI ---
+        // --- BƯỚC 1: VALIDATE UI (Chạy trên JavaFX Application Thread) ---
         if (txtName.getText().trim().isEmpty()) {
             showError("Vui lòng nhập Tên sản phẩm (*)");
             return;
@@ -227,37 +224,36 @@ public class ControllerEditProduct {
             return;
         }
 
+        // 🌟 TRÍCH XUẤT TOÀN BỘ DỮ LIỆU UI RA BIẾN SƠ CẤP TRƯỚC KHI VÀO LUỒNG NỀN
+        // Điều này giúp tránh NullPointerException và không gây đơ giao diện
+        String nameText = txtName.getText().trim();
+        String descText = txtDescription.getText().trim();
+        String startPriceText = txtStartPrice.getText().trim();
+        String itemTypeVal = j_ItemType.getValue();
+
+        String appendNoteText = txtAppendNote.getText().trim();
+
+        String brandText = j_brand.getText() == null ? "" : j_brand.getText().trim();
+        String modelText = j_model.getText() == null ? "" : j_model.getText().trim();
+        String manufacturerText = j_manufacturer.getText() == null ? "" : j_manufacturer.getText().trim();
+        String yearText = j_year.getText() == null ? "" : j_year.getText().trim();
+        String artistText = j_artist.getText() == null ? "" : j_artist.getText().trim();
+
+        // Đọc dữ liệu ngày giờ (DatePicker và TextField cũng phải đọc trước)
+        LocalDate startDate = dpStartDate.getValue();
+        String timeStartText = txtTimeStart.getText().trim();
+        LocalDate endDate = dpEndDate.getValue();
+        String timeEndText = txtTimeEnd.getText().trim();
+
+        this.currentEvent = event; // Lưu trữ sự kiện chuyển trang
         btnSave.setDisable(true);
         error_Label.setTextFill(Color.BLACK);
         error_Label.setText("Đang xác thực thông tin và lưu dữ liệu...");
         error_Label.setVisible(true);
 
-        // --- BƯỚC 2: CHẠY NỀN BẰNG EXECUTOR TRÁNH TREO GIAO DIỆN ---
+        // --- BƯỚC 2: XỬ LÝ BACKGROUND VÀ PHÁT LỆNH BẤT ĐỒNG BỘ ---
         ClientNetworkExecutor.execute(() -> {
             try {
-                int itemId = currentItem.getDatabaseId();
-
-                // 🌟 PHÒNG CHỐNG ĐA LUỒNG: Đọc trạng thái real-time mới nhất tại DB ngay lúc bấm Lưu
-                Item dbItem = DAOItems.getInstance().selectById(String.valueOf(itemId));
-                var auctionItem = DAOAuction_Items.getInstance().selectByItemId(dbItem);
-
-                AuctionStatus realStatus = (auctionItem != null) ? auctionItem.getStatus() : AuctionStatus.OPEN;
-                boolean realHasBids = (auctionItem != null && auctionItem.getBidHistory() != null && !auctionItem.getBidHistory().isEmpty());
-
-                // Chặn nếu phiên đấu giá đột ngột kết thúc trong lúc đang gõ
-                if (realStatus == AuctionStatus.FINISHED || realStatus == AuctionStatus.PAID) {
-                    showErrorInUIThread("Phiên đấu giá vừa kết thúc hoặc đã thanh toán. Không thể cập nhật!");
-                    return;
-                }
-
-                // Chặn xung đột: Lúc mở form báo chưa có lượt đặt giá, lúc bấm lưu thì người ta đã đặt giá mất rồi
-                if (currentStatus == AuctionStatus.RUNNING && !itemHasBids && realHasBids) {
-                    showErrorInUIThread("Xung đột đa luồng: Đã có người vừa đặt giá! Hệ thống sẽ tải lại form.");
-                    Platform.runLater(() -> initData(dbItem, realStatus, realHasBids));
-                    return;
-                }
-
-                // Xử lý upload ảnh mới lên Cloudinary nếu có thay đổi file
                 if (selectedFile != null) {
                     String newUrl = uploadToCloudinary(selectedFile);
                     if (newUrl != null) {
@@ -268,94 +264,119 @@ public class ControllerEditProduct {
                     }
                 }
 
-                // --- BƯỚC 3: TIẾN HÀNH ĐÓNG GÓI DỮ LIỆU ĐỂ UPDATE ---
-                if (realStatus == AuctionStatus.RUNNING && realHasBids) {
-                    // Áp dụng luật Append Note (Nối đuôi mô tả cũ, bảo vệ dữ liệu gốc)
-                    String note = txtAppendNote.getText().trim();
-                    if (note.isEmpty()) {
+                // --- BƯỚC 3: ĐÓNG GÓI THÔNG TIN (Chỉ dùng biến đã trích xuất, không chạm vào UI nữa) ---
+                if (currentStatus == AuctionStatus.RUNNING && itemHasBids) {
+                    if (appendNoteText.isEmpty()) {
                         showErrorInUIThread("Vui lòng nhập nội dung thông tin bổ sung!");
                         return;
                     }
 
                     DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
                     String timestamp = dtf.format(LocalDateTime.now());
-                    String appendedDescription = dbItem.getDescription() + "\n[* Cập nhật ngày " + timestamp + ": " + note + "]";
+                    String appendedDescription = currentItem.getDescription() + "\n[* Cập nhật ngày " + timestamp + ": " + appendNoteText + "]";
 
-                    dbItem.setDescription(appendedDescription);
-                    DAOItems.getInstance().Update(dbItem);
+                    currentItem.setDescription(appendedDescription);
                 } else {
-                    // Chế độ sửa thông thường (OPEN, CANCELLED hoặc RUNNING chưa có bid)
-                    dbItem.setName(txtName.getText().trim());
-                    dbItem.setDescription(txtDescription.getText().trim());
-                    dbItem.setImg(uploadedImageUrl);
+                    currentItem.setName(nameText);
+                    currentItem.setDescription(descText);
+                    currentItem.setImg(uploadedImageUrl);
 
-                    /// Thuộc tính mở rộng
+                    // Thuộc tính mở rộng (Sử dụng an toàn các biến String cục bộ)
                     Map<String, String> extraFields = new HashMap<>();
+                    extraFields.put("brand", brandText.isEmpty() ? null : brandText);
+                    extraFields.put("model", modelText.isEmpty() ? null : modelText);
+                    extraFields.put("manufacturer", manufacturerText.isEmpty() ? null : manufacturerText);
+                    extraFields.put("year", yearText.isEmpty() ? null : yearText);
+                    extraFields.put("artist", artistText.isEmpty() ? null : artistText);
 
-                    // Ép các trường trống về null để JSON sinh ra đúng dạng "artist": null thay vì "artist": ""
-                    extraFields.put("brand", j_brand.getText().trim().isEmpty() ? null : j_brand.getText().trim());
-                    extraFields.put("model", j_model.getText().trim().isEmpty() ? null : j_model.getText().trim());
-                    extraFields.put("manufacturer", j_manufacturer.getText().trim().isEmpty() ? null : j_manufacturer.getText().trim());
-                    extraFields.put("year", j_year.getText().trim().isEmpty() ? null : j_year.getText().trim());
-                    extraFields.put("artist", j_artist.getText().trim().isEmpty() ? null : j_artist.getText().trim());
+                    currentItem.setProperties(extraFields);
+                    currentItem.setItemType(model.Items.ItemType.fromString(itemTypeVal));
 
-                    dbItem.setProperties(extraFields);
-
-                // Đồng bộ lại chuỗi ItemType từ UI vào Model trước khi lưu
-                    dbItem.setItemType(model.Items.ItemType.fromString(j_ItemType.getValue()));
-
-                    // Riêng OPEN / CANCELLED được quyền sửa đổi thêm Giá trị xuất phát & Thời gian
-                    if (realStatus == AuctionStatus.OPEN || realStatus == AuctionStatus.CANCELLED) {
+                    if (currentStatus == AuctionStatus.OPEN || currentStatus == AuctionStatus.CANCELLED) {
                         try {
-                            double startingPrice = Double.parseDouble(txtStartPrice.getText().trim());
+                            double startingPrice = Double.parseDouble(startPriceText);
                             if (startingPrice <= 0) throw new NumberFormatException();
-                            dbItem.setStartingPrice(startingPrice);
+                            currentItem.setStartingPrice(startingPrice);
                         } catch (NumberFormatException e) {
                             showErrorInUIThread("Giá khởi điểm nhập vào phải là số dương hợp lệ!");
                             return;
                         }
 
                         try {
-                            Instant startInstant = createInstant(dpStartDate, txtTimeStart);
-                            Instant endInstant = createInstant(dpEndDate, txtTimeEnd);
+                            // Tạo Instant từ các biến Date/String an toàn đã bóc tách
+                            if (startDate == null || endDate == null) {
+                                showErrorInUIThread("Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc!");
+                                return;
+                            }
+
+                            Instant startInstant = createInstantFromData(startDate, timeStartText);
+                            Instant endInstant = createInstantFromData(endDate, timeEndText);
 
                             if (startInstant.isBefore(Instant.now())) {
-                                throw new IllegalArgumentException("Thời gian bắt đầu chỉnh sửa không được nhỏ hơn hiện tại!");
+                                showErrorInUIThread("Thời gian bắt đầu chỉnh sửa không được nhỏ hơn hiện tại!");
+                                return;
                             }
                             if (endInstant.isBefore(startInstant)) {
-                                throw new IllegalArgumentException("Thời gian kết thúc phải sau mốc bắt đầu!");
+                                showErrorInUIThread("Thời gian kết thúc phải sau mốc bắt đầu!");
+                                return;
                             }
 
-                            dbItem.setAuctionStartTime(startInstant);
-                            dbItem.setAuctionEndTime(endInstant);
+                            currentItem.setAuctionStartTime(startInstant);
+                            currentItem.setAuctionEndTime(endInstant);
                         } catch (DateTimeParseException e) {
                             showErrorInUIThread("Định dạng giờ nhập vào không đúng quy chuẩn (HH:mm:ss)!");
                             return;
-                        } catch (IllegalArgumentException e) {
-                            showErrorInUIThread(e.getMessage());
-                            return;
                         }
                     }
-
-                    // Gọi tầng dữ liệu ghi đè bản ghi mới xuống DB
-                    DAOItems.getInstance().Update(dbItem);
                 }
 
-                // Cập nhật UI thông báo thành công và chuyển scene về danh sách
-                Platform.runLater(() -> {
+                // Gửi lệnh qua luồng mạng lên Server
+                client.sendCommand(Command.EDIT_ITEM, currentItem);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                showErrorInUIThread("Không thể kết nối đến máy chủ hệ thống!");
+            }
+        });
+    }
+
+    /**
+     * 🌟 ĐỒNG BỘ KIẾN TRÚC: Hàm nhận kết quả phản hồi bất đồng bộ từ EditItemHandler của Server
+     */
+    @Override
+    public void onServerResponse(DataPacket response) {
+        if (Command.EDIT_ITEM_RESULT.equals(response.command())) {
+            // Ép kiểu payload nhận được (EditItemHandler gửi về gói tin Boolean)
+            boolean isSuccess = (boolean) response.payload();
+
+            Platform.runLater(() -> {
+                if (isSuccess) {
                     error_Label.setTextFill(Color.GREEN);
                     error_Label.setText("Cập nhật thông tin sản phẩm thành công!");
 
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Cập nhật sản phẩm thành công!", ButtonType.OK);
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Cập nhật thành công!", ButtonType.OK);
                     alert.showAndWait();
-                    On_Back(event);
-                });
 
-            } catch (Exception e) {
-                e.printStackTrace();
-                showErrorInUIThread("Hệ thống gặp lỗi trong quá trình đồng bộ lưu dữ liệu!");
-            }
-        });
+                    // Quay về danh sách sản phẩm bằng Event đã lưu giữ trước đó
+                    if (currentEvent != null) {
+                        On_Back(currentEvent);
+                    }
+                } else {
+                    error_Label.setTextFill(Color.RED);
+                    error_Label.setText("Cập nhật thất bại từ hệ thống hoặc dính lỗi xung đột!");
+                    btnSave.setDisable(false);
+                }
+            });
+        }
+    }
+
+    public Instant createInstantFromData(LocalDate date, String timeStr) throws DateTimeParseException {
+        if (timeStr.matches("^\\d{1,2}:\\d{2}$")) {
+            timeStr += ":00";
+        }
+        return LocalDateTime.of(date, LocalTime.parse(timeStr, DateTimeFormatter.ofPattern("HH:mm:ss")))
+                .atZone(ZoneId.systemDefault())
+                .toInstant();
     }
 
     public String uploadToCloudinary(File localFile) {
@@ -381,7 +402,6 @@ public class ControllerEditProduct {
         }
     }
 
-
     @FXML
     void On_Back(ActionEvent event) {
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
@@ -393,7 +413,6 @@ public class ControllerEditProduct {
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
     }
 
-    // --- CÁC PHƯƠNG THỨC TIỆN ÍCH TRỢ GIÚP ĐỒNG BỘ LOGIC ---
     private void parseAndSetAuctionTime(Instant instant, DatePicker datePicker, TextField timeField) {
         if (instant == null) return;
         LocalDateTime ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
@@ -401,16 +420,6 @@ public class ControllerEditProduct {
         timeField.setText(ldt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
     }
 
-    public Instant createInstant(DatePicker datePicker, TextField timeField) throws DateTimeParseException {
-        LocalDate date = datePicker.getValue();
-        String timeStr = timeField.getText().trim();
-        if (timeStr.matches("^\\d{1,2}:\\d{2}$")) {
-            timeStr += ":00";
-        }
-        return LocalDateTime.of(date, LocalTime.parse(timeStr, DateTimeFormatter.ofPattern("HH:mm:ss")))
-                .atZone(ZoneId.systemDefault())
-                .toInstant();
-    }
 
     private void setupDatePickerConstraints() {
         dpStartDate.setDayCellFactory(picker -> new DateCell() {
@@ -452,6 +461,7 @@ public class ControllerEditProduct {
             btnSave.setDisable(false);
         });
     }
+
     @FXML
     void handle_Info(ActionEvent event) {
         String selectedCategory = j_ItemType.getValue();
@@ -460,11 +470,10 @@ public class ControllerEditProduct {
             if (pane != null) {
                 boolean isMatch = category.equals(selectedCategory);
                 pane.setVisible(isMatch);
-                pane.setManaged(isMatch); // Giúp giao diện co giãn, không để lại khoảng trống thụt vào
+                pane.setManaged(isMatch);
             }
         });
 
-        // 🌟 THÊM LOGIC: Xóa sạch dữ liệu của các trường KHÔNG thuộc nhóm được chọn
         if (!"Mỹ thuật".equals(selectedCategory)) {
             j_artist.setText("");
         }
