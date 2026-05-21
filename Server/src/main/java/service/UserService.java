@@ -9,6 +9,7 @@ import model.Items.Item;
 import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.auction.BidHistoryDTO;
 import model.exception.*;
 
 import java.sql.Connection;
@@ -269,9 +270,6 @@ public class UserService {
         return true;
     }
 
-    public List<Auction> getAllAuctions() {
-        return auctionDAO.selectAll();
-    }
 
     /**
      * ✅ SỬA LỖI #3: Update trực tiếp qua SQL thay vì lấy object về
@@ -373,4 +371,90 @@ public class UserService {
             throw new PersistenceException("Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage(), e);
         }
     }
+
+    public List<BidHistoryDTO> getBidderHistory(String username) {
+        List<model.auction.Auction> allAuctions = dao.DAOAuction_Items.getInstance().selectAll();
+        List<BidHistoryDTO> resultList = new java.util.ArrayList<>();
+
+        for (model.auction.Auction auction : allAuctions) {
+            List<model.auction.BidTransaction> txList = auction.getBidHistory();
+            if (txList == null || txList.isEmpty()) continue;
+
+            double myMaxBid = 0;
+            String myLastTime = "";
+            boolean hasParticipated = false;
+
+            // 1. Duyệt lịch sử đặt giá của phòng
+            for (model.auction.BidTransaction tx : txList) {
+                if (username.equals(tx.getBidder())) {
+                    hasParticipated = true;
+                    if (tx.getAmount() > myMaxBid) {
+                        myMaxBid = tx.getAmount();
+                    }
+                    myLastTime = tx.getBidTime() != null ? tx.getBidTime().toString() : "Không rõ";
+                }
+            }
+
+            // 2. Nếu tìm thấy dữ liệu đặt giá của user, phân tích trạng thái thông minh
+            if (hasParticipated) {
+                String displayStatus = "LOST"; // Mặc định
+
+                // Lấy giá trị cao nhất hiện tại từ transaction cuối cùng
+                double currentPrice = txList.get(txList.size() - 1).getAmount();
+                boolean isLeading = username.equals(auction.getLeadingBidder());
+
+                // Lấy đối tượng Enum trực tiếp
+                AuctionStatus auctionStatus = auction.getStatus();
+
+                // SỬA TẠI ĐÂY: So sánh trực tiếp bằng Enum AuctionStatus.RUNNING
+                if (auctionStatus == AuctionStatus.RUNNING) {
+                    if (isLeading) {
+                        displayStatus = "WINNING"; // Đang dẫn đầu phòng (Màu xanh lá)
+                    } else {
+                        displayStatus = "OUTBID";  // Đã bị người khác vượt mặt (Màu đỏ)
+                    }
+                }
+                // Các trường hợp kết thúc (CLOSED, FINISHED, hoặc các trạng thái khác)
+                else {
+                    if (isLeading) {
+                        displayStatus = "WON";     // Kết thúc và giành chiến thắng chung cuộc (Màu vàng)
+                    } else {
+                        displayStatus = "LOST";    // Kết thúc và thất bại (Màu xám)
+                    }
+                }
+
+                // Lấy tên sản phẩm tạm thời
+                String itemName = "Sản phẩm mã #" + auction.getItemId();
+
+                resultList.add(new BidHistoryDTO(
+                        auction.getItemId(),
+                        itemName,
+                        myMaxBid,
+                        currentPrice,
+                        myLastTime,
+                        displayStatus
+                ));
+            }
+        } // Kết thúc vòng lặp for
+
+        return resultList; // Đã thêm dòng return quan trọng bị thiếu ở đây
+    }
+
+    public List<Auction> getAllAuctions() {
+        List<Auction> auctions = auctionDAO.selectAll();
+        if (auctions == null) return new ArrayList<>();
+
+        for (Auction auction : auctions) {
+            // Nếu item bị null, dùng DAOItems lấy trực tiếp từ DB lên đắp vào
+            if (auction.getItem() == null && auction.getItemId() != 0) {
+                // Chuyển long itemId thành String nếu DAOItems.selectById yêu cầu String
+                Item item = itemDAO.selectById(String.valueOf(auction.getItemId()));
+                if (item != null) {
+                    auction.setItem(item);
+                }
+            }
+        }
+        return auctions;
+    }
+
 }

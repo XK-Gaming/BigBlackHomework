@@ -183,8 +183,16 @@ public class DAOAuction_Items{
      */
     public List<Auction> selectAll() {
         List<Auction> list = new ArrayList<>();
-        // Câu lệnh lấy tất cả dữ liệu từ bảng
-        String sql = "SELECT * FROM auction_items";
+
+        // ✅ Đã cấu hình chính xác theo các cột thực tế: auctionStartTime, auctionEndTime, imgdata
+        String sql = "SELECT " +
+                "    a.id_item, a.status, a.currentPrice, a.leadingbider, a.bidHistory, " +
+                "    i.name AS item_name, " +
+                "    i.auctionStartTime AS item_start, " +
+                "    i.auctionEndTime AS item_end, " +
+                "    i.imgdata AS item_img " +
+                "FROM auction_items a " +
+                "LEFT JOIN items i ON a.id_item = i.my_row_id";
 
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql);
@@ -193,35 +201,52 @@ public class DAOAuction_Items{
             while (rs.next()) {
                 Auction auction = new Auction();
 
-                // 1. Lấy các thông tin cơ bản
+                // 1. Đồng bộ ID phiên đấu giá
                 auction.setItemId(rs.getLong("id_item"));
-                // Lưu ý: Nếu bạn có đối tượng Item bên trong Auction, hãy set nó ở đây
-                // auction.setCurrentPrice(rs.getDouble("currentPrice"));
 
-                // 2. Giải mã Status (Enum)
+                // 2. Khởi tạo và nạp đầy đủ thuộc tính cho thực thể Item để nuôi UI AssetCard
+                model.Items.Item item = new model.Items.Item();
+                item.setDatabaseId(rs.getInt("id_item"));
+                item.setName(rs.getString("item_name"));
+                item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
+
+                // Lấy link/tên ảnh từ cột imgdata
+                item.setImg(rs.getString("item_img"));
+
+                // ⚡ SỬA LỖI CHÍ MẠNG: Đọc dữ liệu mốc thời gian an toàn từ DB
+                Timestamp startTimestamp = rs.getTimestamp("item_start");
+                Timestamp endTimestamp = rs.getTimestamp("item_end");
+
+                if (startTimestamp != null) {
+                    item.setAuctionStartTime(startTimestamp.toInstant());
+                }
+                if (endTimestamp != null) {
+                    item.setAuctionEndTime(endTimestamp.toInstant());
+                }
+
+                // Gán đối tượng Item hoàn chỉnh vào Auction
+                auction.setItem(item);
+
+                // 3. Giải mã trạng thái phiên (status)
                 String statusJson = rs.getString("status");
                 if (statusJson != null) {
-                    // Nếu bạn lưu bằng name() thì dùng AuctionStatus.valueOf()
-                    // Nếu lưu bằng gson.toJson() thì dùng dòng dưới:
                     try {
                         auction.setStatus(gson.fromJson(statusJson, AuctionStatus.class));
                     } catch (Exception e) {
-                        // Dự phòng nếu trong DB chỉ là chữ thuần "OPEN" không có ngoặc kép
                         auction.setStatus(AuctionStatus.valueOf(statusJson.replace("\"", "")));
                     }
                 }
 
-                // 3. Giải mã Leading Bidder (Username string)
+                // 4. Giải mã tài khoản đang dẫn đầu (leadingbider)
                 String leadingUsername = rs.getString("leadingbider");
                 if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
                     auction.setLeadingBidder(leadingUsername);
                 }
 
-                // 4. Giải mã Bid History (List)
+                // 5. Giải mã lịch sử các lượt đặt giá (bidHistory)
                 String historyJson = rs.getString("bidHistory");
                 if (historyJson != null && !historyJson.isEmpty()) {
                     try {
-                        // ✅ Dùng custom Gson với TypeAdapter cho BidTransaction
                         java.lang.reflect.Type listType = new com.google.gson.reflect.TypeToken<ArrayList<BidTransaction>>(){}.getType();
                         List<BidTransaction> history = gson.fromJson(historyJson, listType);
                         auction.setBidHistory(history);
@@ -231,11 +256,10 @@ public class DAOAuction_Items{
                     }
                 }
 
-                // Thêm vào danh sách kết quả
                 list.add(auction);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi khi SelectAll: " + e.getMessage());
+            System.err.println("Lỗi nghiêm trọng tại selectAll: " + e.getMessage());
             e.printStackTrace();
         }
 
@@ -244,23 +268,30 @@ public class DAOAuction_Items{
     // ✅ SELECT bình thường
     public Auction selectByItemId(Connection con, Item item) throws SQLException {
         String sql = "SELECT * FROM auction_items WHERE id_item = ?";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, item.getDatabaseId());
-        ResultSet rs = ps.executeQuery();
-
-        if (rs.next()) {
-            return mapResultSetToAuction(rs);
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, item.getDatabaseId());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // ✅ TRUYỀN THÊM biến item vào đây
+                    return mapResultSetToAuction(rs, item);
+                }
+            }
         }
         return null;
     }
-    private Auction mapResultSetToAuction(ResultSet rs) throws SQLException {
+    private Auction mapResultSetToAuction(ResultSet rs, Item item) throws SQLException {
         Auction auction = new Auction();
 
-        // 1. Lấy thông tin cơ bản (id_item mapped sang itemId)
-        // Lưu ý: Kiểm tra xem cột trong DB của bạn là "id_item" hay "item_id" để đồng nhất nhé
-        auction.setItemId(rs.getLong("id_item"));
+        long idItem = rs.getLong("id_item");
+        auction.setItemId(idItem);
 
-        // 2. Giải mã Status (Enum)
+        // ✅ SỬA TẠI ĐÂY: Cập nhật giá mới nhất từ bảng đấu giá vào item có sẵn
+        item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
+
+        // Gán object item đã có sẵn từ ngoài vào auction
+        auction.setItem(item);
+
+        // --- Các đoạn dưới giữ nguyên ---
         String statusJson = rs.getString("status");
         if (statusJson != null) {
             try {
@@ -270,13 +301,11 @@ public class DAOAuction_Items{
             }
         }
 
-        // 3. Giải mã Leading Bidder (Username string)
         String leadingUsername = rs.getString("leadingbider");
         if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
             auction.setLeadingBidder(leadingUsername);
         }
 
-        // 4. Giải mã Bid History (List)
         String historyJson = rs.getString("bidHistory");
         if (historyJson != null && !historyJson.isEmpty()) {
             try {
@@ -284,7 +313,6 @@ public class DAOAuction_Items{
                 List<BidTransaction> history = gson.fromJson(historyJson, listType);
                 auction.setBidHistory(history);
             } catch (Exception e) {
-                System.err.println("⚠️ Lỗi deserialize bidHistory: " + e.getMessage());
                 auction.setBidHistory(new ArrayList<>());
             }
         }
