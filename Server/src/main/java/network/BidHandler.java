@@ -7,6 +7,7 @@ import model.exception.AuctionException;
 import java.io.ObjectOutputStream;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class BidHandler extends BaseHandler implements RequestHandler {
@@ -53,6 +54,15 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 }
             }
             AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
+
+            if (latestAuction != null) {
+                System.out.println("[Server Realtime] Phát tín hiệu cập nhật đơn lẻ cho Item ID: " + itemId);
+
+                // Gửi qua kênh chung (itemId = null) để toàn bộ client ngoài sảnh (Pagination) cập nhật giá mới
+                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, latestAuction);
+            } else {
+                System.err.println("[Server Lỗi] Không thể phát tín hiệu ITEMS_UPDATE vì không tìm thấy dữ liệu đấu giá hiện tại!");
+            }
         } catch (AuctionException e) {
             fillErrorResponse(response, e);
         } catch (Exception e) {
