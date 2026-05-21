@@ -111,7 +111,7 @@ public class ControllerManagerItem implements ServerListener {
                                 return; // Thoát luôn, không chạy xuống switch nữa
                             }
                             String statusString = switch (status) {
-                                case OPEN -> "OPEN (" + timeFormatted + ")";
+                                case OPEN -> "OPEN  (" + timeFormatted + ")";
                                 case RUNNING -> "RUNNING (" + timeFormatted + ")";
                                 case FINISHED -> "FINISHED";
                                 case PAID -> "PAID";

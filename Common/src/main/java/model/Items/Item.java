@@ -45,8 +45,16 @@ public class Item  implements Serializable {
     }
     public Item(){};
 
-    public Item(String name, String description, double startingPrice, String sellerId, String imgData, String itemType) {
+    public Item(String name, String description, double startingPrice, String sellerId, ItemType itemType, String imgData) {
+        this.name = name;
+        this.description = description;
+        this.startingPrice = startingPrice;
+        this.currentHighestPrice = startingPrice;
+        this.sellerId = sellerId;
+        this.itemType = itemType;
+        this.img = imgData;
     }
+
 
     public Map<String,String> getProperties(){
         return null;}

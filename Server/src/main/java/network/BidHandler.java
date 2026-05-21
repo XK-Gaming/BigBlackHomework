@@ -1,10 +1,14 @@
 package network;
 
+import model.Items.Item;
+import model.auction.BidTransaction;
 import service.UserService;
 import model.auction.Auction;
 
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class BidHandler extends BaseHandler implements RequestHandler {
@@ -31,9 +35,12 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             String itemId = String.valueOf(rawItemId);
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
-            double newPrice = userService.processBid(itemId, bidderId, amount);
-
-            if (newPrice > 0) {
+            Map<String,Object> result = userService.processBid(itemId, bidderId, amount);
+            if (result != null){
+                ArrayList<BidTransaction> bidHistory = (ArrayList<BidTransaction>) result.get("bidHistory");
+                Auction latestAuction = (Auction) result.get("latestAuction");
+                Item item = (Item) result.get("item");
+                double newPrice = (double) result.get("newPrice");
                 response.put("success", true);
                 response.put("message", "Đấu giá thành công");
                 response.put("newPrice", newPrice);
@@ -46,12 +53,18 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 bidUpdate.put("bidderId", bidderId);
                 bidUpdate.put("newPrice", newPrice);
 
-                Auction latestAuction = userService.getAuctionByItemId(itemId);
                 if (latestAuction != null) {
                     bidUpdate.put("auction", latestAuction);
                 }
+                String usernameOldBidder = bidHistory.get(bidHistory.size() - 2).getBidder(); // Lấy username của người đặt giá trước đó
+                Map<String, Object> notifPayload = new HashMap<>();
+                notifPayload.put("item", item);
+                notifPayload.put("auction", latestAuction);
+                notifPayload.put("bidderId",bidderId);
+                notifPayload.put("newPrice",newPrice);
                 // Để cập nhật teeen toàn bộ các clients đang trong phiên đấu giá
                 AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
+                AuctionServer.sendToSpecificUser(usernameOldBidder, Command.NOTIFICATION, notifPayload);
             } else {
                 response.put("success", false);
                 response.put("message", "Giá đặt phải cao hơn giá hiện tại");

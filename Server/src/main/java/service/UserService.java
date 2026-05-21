@@ -68,7 +68,7 @@ public class UserService {
     }
 
 
-    public double processBid(String itemId, String bidderId, double amount) {
+    public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
         Object lock = itemLocks.computeIfAbsent(itemId, k -> new Object());
         // Là khóa the id của item để đảm bảo chỉ một thread được
         // phép xử lý bid cho item đó tại một thời điểm.
@@ -77,24 +77,26 @@ public class UserService {
         synchronized (lock) {
         Item item = itemDAO.selectById(itemId);
         User user = userDAO.selectByUsernameOnly(bidderId);
-        if (item == null) {return -1;}
-        if (amount <= item.getCurrentHighestPrice()) {return -1;}
+        if (item == null) {return null;}
+        if (amount <= item.getCurrentHighestPrice()) {return null;}
+        double oldHighestPrice = item.getCurrentHighestPrice();
+
+        if(amount > user.getBalance()) {return null;}
+        else {userDAO.UpdateBalance(bidderId, user.getBalance() - amount);}
         item.setCurrentHighestPrice(amount);
 
         int updatedRows = itemDAO.Update(item);
-        if(amount > user.getBalance()) {return -1;}
-        else {userDAO.UpdateBalance(bidderId, user.getBalance() - amount);}
-        if (updatedRows <= 0) {return -1;}
+        if (updatedRows <= 0) {return null;}
 
         // Cập nhật leading bidder trong bảng auction_items
         Auction auction = auctionDAO.selectByItemId(item);
         String OldBidder = auction.getLeadingBidder();
         User UserOldBidder = userDAO.selectByUsernameOnly(OldBidder);
         if (UserOldBidder != null) {
-            userDAO.UpdateBalance(OldBidder, UserOldBidder.getBalance() + item.getCurrentHighestPrice());
+            userDAO.UpdateBalance(OldBidder, UserOldBidder.getBalance() + oldHighestPrice);
         }
 
-        if (auction == null) {return -1;}
+        if (auction == null) {return null;}
 
         try {
             List<model.auction.BidTransaction> newHistory = new ArrayList<>(auction.getBidHistory());
@@ -109,13 +111,22 @@ public class UserService {
             auction.setbidHistory(newHistory);
 
             int updateResult = auctionDAO.Update(auction, item.getDatabaseId(), bidderId, amount);
-            if (updateResult > 0) {} else {return -1;}
+            if (updateResult > 0) {} else {return null;}
         } catch (Exception e) {
             System.err.println("❌ processBid: Lỗi khi addding BidTransaction: " + e.getMessage());
             e.printStackTrace();
-            return -1;
+            return null;
         }
-        return amount;}
+            Map<String, Object> finalResult = new HashMap<>();
+            finalResult.put("item", item);
+            finalResult.put("user", user);
+            finalResult.put("latestAuction", auction); // Khớp với (Auction) result.get("latestAuction")
+            finalResult.put("newPrice", amount);       // Khớp với (double) result.get("newPrice")
+            finalResult.put("bidHistory", new ArrayList<>(auction.getBidHistory())); // Trả về dạng ArrayList chuẩn
+            //
+            //   Trả về cả item, user, latestAuction, newPrice, và bidHistory để client có thể cập nhật toàn bộ giao diện một cách chính xác.}
+            return finalResult;
+        }
     }
 
     public void updateAuctionStatus(String auctionId, String itemId, String status) {
@@ -204,5 +215,13 @@ public class UserService {
         double newBalance = user.getBalance() + amount;
         userDAO.UpdateBalance(username, newBalance);
         return true;
+    }
+
+    public ArrayList getBidHistory(String itemId) {
+        Auction auction = auctionDAO.selectByItemId(itemDAO.selectById(itemId));
+        if (auction != null) {
+            return new ArrayList<>(auction.getBidHistory());
+    }
+    return null;
     }
 }

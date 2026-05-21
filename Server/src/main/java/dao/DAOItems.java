@@ -309,7 +309,7 @@ public class DAOItems implements DaoInterface<Item> {
         Timestamp endTime = rs.getTimestamp("auctionEndTime");
         String imgData = rs.getString("imgdata");
         double currentHighestPrice = rs.getDouble("currentHighestBid");
-        Item item = new Item(name, description, startingPrice, sellerId, imgData, itemType);
+        Item item = new Item(name, description, startingPrice, sellerId, ItemType.fromString(itemType), imgData);
         item.setDatabaseId(rs.getInt("my_row_id"));
         if (startTime != null) {
             item.setAuctionStartTime(startTime.toInstant());

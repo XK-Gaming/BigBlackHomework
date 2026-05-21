@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.chart.CategoryAxis;
@@ -38,6 +39,8 @@ import network.Command;
 import network.ServerListener;
 import network.DataPacket;
 import network.AuctionEngine;
+import org.controlsfx.control.Notifications;
+
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -55,7 +58,6 @@ public class ControllerAuction implements ServerListener {
     static Auction this_Auction;
     private String watchToken;
     private boolean finishHandled;
-
     public void initialize() throws IOException {
         client.setListener(this);
         showSessionProductAndLoadingAuctionState();
@@ -289,6 +291,11 @@ public class ControllerAuction implements ServerListener {
         cleanup();
         finishHandled = false;
         watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
+            if (status == null) {
+                j_status.setText("KHÔNG XÁC ĐỊNH");
+                j_apply.setDisable(true);
+                return;
+            }
             if (this_Auction != null) {
                 this_Auction.setStatus(status);
             }
@@ -418,6 +425,74 @@ public class ControllerAuction implements ServerListener {
                 .withZone(ZoneId.systemDefault())
                 .format(instant);
     }
+
+    private void handleIncomingToastNotification(Object payload) {
+        DecimalFormat df = new DecimalFormat("#,###");
+        try {
+            // 1. Giải mã gói tin từ Server
+            Map<String, Object> notifData = (Map<String, Object>) payload;
+            double newPrice = (double) notifData.get("newPrice");
+            Item item =(Item) notifData.get("item");
+            Auction auction = (Auction) notifData.get("auction");
+
+            // 2. BẮT BUỘC: Đẩy việc hiển thị lên UI Thread của JavaFX
+            Platform.runLater(() -> {
+                // 1. Tạo Layout HBox chứa nội dung thông báo
+                javafx.scene.layout.HBox customToast = new javafx.scene.layout.HBox();
+                customToast.setSpacing(12);
+                customToast.setAlignment(Pos.CENTER_LEFT);
+
+                // ĐỔI STYLE NỀN: Đổ bóng nhẹ (Drop Shadow), bo góc và bo viền màu đỏ nhạt để cảnh báo bị vượt giá
+                customToast.setStyle(
+                        "-fx-background-color: #FFFFFF; " +
+                                "-fx-background-radius: 10px; " +
+                                "-fx-border-color: #FFCDD2; " +
+                                "-fx-border-radius: 10px; " +
+                                "-fx-border-width: 1px; " +
+                                "-fx-padding: 12px 16px; " +
+                                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 8, 0, 0, 4);"
+                );
+
+                // 2. Icon chuông thông báo (Nền đỏ tròn, chuông trắng)
+                javafx.scene.shape.Circle iconBg = new javafx.scene.shape.Circle(16, javafx.scene.paint.Color.web("#E53935"));
+                Label icon = new Label("🔔");
+                icon.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+                StackPane iconPane = new StackPane(iconBg, icon);
+
+                // 3. Phần chữ hiển thị (Tiêu đề + Nội dung)
+                javafx.scene.layout.VBox textContainer = new javafx.scene.layout.VBox();
+                textContainer.setSpacing(3);
+
+                Label titleLabel = new Label("SẢN PHẨM BỊ VƯỢT GIÁ!");
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #B71C1C;");
+
+                Label messageLabel = new Label("Sản phẩm " + item.getName()+" : "+ df.format(newPrice) + " VNĐ"  ); // Đổ chuỗi tin nhắn từ Server vào
+                messageLabel.setStyle("-fx-text-fill: #424242; -fx-font-size: 12px; -fx-font-family: 'Segoe UI', Arial;");
+                messageLabel.setWrapText(true);
+                messageLabel.setMaxWidth(260); // Giới hạn chiều rộng chữ để tự động xuống dòng gọn gàng
+
+                textContainer.getChildren().addAll(titleLabel, messageLabel);
+                customToast.getChildren().addAll(iconPane, textContainer);
+
+                // 4. Gọi hàm hiển thị ControlsFX lồng vào TRONG ỨNG DỤNG
+                Notifications.create()
+                        // ĐÂY LÀ ĐIỀU KIỆN TIÊN QUYẾT: Đưa Node neo vào để nó tính toán tọa độ theo CỬA SỔ APP
+                        .owner(j_textSoDu)
+
+                        .graphic(customToast)
+                        .hideAfter(Duration.seconds(4))
+
+                        // Định vị ở góc dưới bên phải CỦA ỨNG DỤNG
+                        .position(Pos.BOTTOM_RIGHT)
+
+                        // Dùng .show() thuần túy để loại bỏ hoàn toàn cái khung màu xám mặc định của Windows/Mac bên ngoài
+                        .show();
+            });
+
+        } catch (Exception e) {
+            System.err.println("Lỗi khi hiển thị Toast Notification: " + e.getMessage());
+        }
+    }
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.getCommand();
@@ -502,6 +577,9 @@ public class ControllerAuction implements ServerListener {
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             j_notified.setText("Sản phẩm đã bị xóa");
             j_status.setText("KHÔNG TỒN TẠI");
+        }
+        if(Command.NOTIFICATION.equals(command)){
+            handleIncomingToastNotification(response.getPayload());
         }
     }
 }

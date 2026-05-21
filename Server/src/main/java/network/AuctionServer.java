@@ -77,6 +77,16 @@ public class AuctionServer {
     public static ClientHandler getHandlerByUsername(String username) {
         return onlineClients.get(username);
     }
+    public static void sendToSpecificUser (String username, Command command, Object payload) {
+        ClientHandler handler = getHandlerByUsername(username);
+        if (handler != null) {
+            // Gọi hàm gửi dữ liệu của chính handler đó
+            // Bạn có thể dùng hàm sendResponse dùng chung từ BaseHandler nếu có truyền 'out' của handler vào
+            handler.sendPacket(new DataPacket(command, payload));
+        } else {
+            System.out.println("User " + username + " không online, bỏ qua gửi thông báo trực tiếp.");
+        }
+    }
 
     private static ThreadPoolExecutor createWorkerPool() {
         int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
