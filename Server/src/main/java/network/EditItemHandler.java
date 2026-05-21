@@ -24,8 +24,8 @@ public class EditItemHandler extends BaseHandler implements RequestHandler {
                 // Trả kết quả THÀNH CÔNG về cho chính Client vừa gửi yêu cầu sửa
                 sendResponse(out, Command.EDIT_ITEM_RESULT, true);
 
-                // Phát broadcast thông báo cho toàn bộ các Client khác biết danh sách sản phẩm vừa có thay đổi
-                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, item);
+                Object allAuctionsLatest = userService.getAllAuctions();
+                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, allAuctionsLatest);
 
             } catch (PersistenceException e) {
                 System.err.println("[EditItemHandler] " + e.getMessage());

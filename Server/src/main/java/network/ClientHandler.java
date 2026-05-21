@@ -66,6 +66,7 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.EDIT_ITEM, new EditItemHandler(this.userService));
         handlers.put(Command.DELETE_ITEM, new DeleteItemHandler());
         handlers.put(Command.GET_SELLER_ITEMS,new GetSellerItemsHandler(this.userService));
+        handlers.put(Command.GET_BIDDER_HISTORY, new GetBidderHistoryHandler(this.userService));
     }
     @Override
     public void run() {

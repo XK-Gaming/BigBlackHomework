@@ -53,11 +53,8 @@ public class AuctionServer {
         // TRƯỜNG HỢP 1: Gửi cho những người KHÔNG xem item nào (itemId truyền vào trống/null)
         if (itemId == null || itemId.isBlank()) {
             for (ClientHandler handler : onlineClients.values()) {
-                String clientViewingId = handler.getViewingItemId();
-                // Dùng == null hoặc isEmpty() để kiểm tra an toàn
-                if (clientViewingId == null || clientViewingId.isEmpty()) {
+                // Không lọc viewingItemId nữa, cứ online là gửi hết!
                     handler.sendPacket(packet);
-                }
             }
             return; // Sau khi chạy hết vòng lặp gửi cho mọi người mới return
         }
