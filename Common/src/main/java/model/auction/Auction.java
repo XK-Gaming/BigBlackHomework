@@ -213,4 +213,36 @@ public class Auction extends Entity implements Serializable {
     public void setBidHistory(List history) {
         this.bidHistory = history;
     }
+    /**
+     * Precondition: Auction đã tồn tại, item có giá khởi điểm (buyNowPrice/reservePrice).
+     * Postcondition: Trả về giá cao nhất hiện tại của phiên đấu giá.
+     * Nếu chưa có ai đặt giá, trả về giá khởi điểm (getCurrentPrice) của chính Item đó.
+     */
+    public double getCurrentPrice() {
+        if (bidHistory == null || bidHistory.isEmpty()) {
+            // Nếu chưa có ai đặt giá, lấy giá mặc định ban đầu từ Item
+            return (item != null) ? item.getCurrentHighestPrice() : 0.0;
+        }
+        // Nếu đã có lịch sử, lấy mức giá của lượt giao dịch cuối cùng (cao nhất)
+        BidTransaction highestBid = bidHistory.get(bidHistory.size() - 1);
+        return highestBid.getAmount();
+    }
+
+    /**
+     * Hàm Overriding phương thức equals mặc định của Java.
+     * Giúp hệ thống Client (ArrayList.indexOf) có thể so sánh và tìm kiếm chính xác
+     * hai đối tượng Auction hoặc Item dựa trên ID lưu trữ thay vì so sánh địa chỉ ô nhớ.
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Auction other = (Auction) obj;
+        return this.itemId == other.itemId;
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(itemId);
+    }
 }
