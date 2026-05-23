@@ -7,7 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.List;
 
 public class GetAllAuctionsHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public GetAllAuctionsHandler(UserService userService) {
         this.userService = userService;

@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class ControllerLogin implements ServerListener {
 
-    private AuctionClient client = AuctionClient.getInstance();
+    private final AuctionClient client = AuctionClient.getInstance();
     public User p1 = null;
 
     @FXML private AnchorPane Pane1;
@@ -39,7 +39,7 @@ public class ControllerLogin implements ServerListener {
     @FXML
     public void setJbutton_DangKy() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("View2.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SignUpView.fxml"));
             Parent root = loader.load();
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
             window.setScene(new Scene(root));
@@ -48,7 +48,7 @@ public class ControllerLogin implements ServerListener {
 
     // Xử lý nút Đăng nhập
     @FXML
-    public void handleRegister() {
+    public void handleLogin() {
         if (username.getText().isEmpty() || password.getText().isEmpty()) {
             errorLabel.setText("Điền thông tin bắt buộc!");
             errorLabel.setVisible(true);
@@ -61,7 +61,7 @@ public class ControllerLogin implements ServerListener {
         String this_password = password.getText();
         ClientNetworkExecutor.execute(() -> {
             try {
-                client.sendCommand(Command.LOGIN, Map.of(
+                client.sendCommand(network.Command.LOGIN, Map.of(
                         "username", this_username,
                         "password", this_password
                 ));
@@ -86,11 +86,11 @@ public class ControllerLogin implements ServerListener {
     // Nhận phản hồi từ Server qua ObjectStream
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.LOGIN_RESULT.equals(command)) {
             // Ép kiểu trực tiếp từ Payload
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = result.containsKey("success") && (boolean) result.get("success");
 
             Platform.runLater(() -> {
@@ -101,9 +101,9 @@ public class ControllerLogin implements ServerListener {
                     try {
                         p1 = (User) result.get("user");
                         UserSession.setLoggedInUser(p1);
-                        if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.fxml");}
-                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "View3.1.fxml");}
-                        else{SceneHelper.changeScene(jbutton_DangNhap, "ViewAdmin.fxml");};
+                        if (p1.getRole() == UserRole.BIDDER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/BidderView.fxml");}
+                        else if (p1.getRole() == UserRole.SELLER) {SceneHelper.changeScene(jbutton_DangNhap, "/fxml/SellerView.fxml");}
+                        else{SceneHelper.changeScene(jbutton_DangNhap, "/fxml/AdminView.fxml");}
                     } catch (ClassCastException e) {
                         e.printStackTrace();
                     }

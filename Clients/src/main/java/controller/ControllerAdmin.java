@@ -2,23 +2,11 @@ package controller;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.chart.LineChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import model.User.User;
-import model.User.UserSession;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
-
-import java.io.IOException;
-
 public class ControllerAdmin{
     @FXML private Button LogOut;
     @FXML private Button j_ItemManager;
@@ -28,13 +16,10 @@ public class ControllerAdmin{
     @FXML private Label lblRevenue;
     @FXML private LineChart<?, ?> lineChart;
     @FXML void On_ItemManager(ActionEvent event) {
-        SceneHelper.changeScene(j_ItemManager, "ViewManagerItem.fxml");
-
-    }
+        SceneHelper.changeScene(j_ItemManager, "/fxml/AdminItemManagerView.fxml");}
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "View1.fxml");
-
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/LoginView.fxml");
     }
 
     @FXML
@@ -43,12 +28,12 @@ public class ControllerAdmin{
 
     @FXML
     void On_PaymentManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "View3.1.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/SellerView.fxml");
     }
 
     @FXML
     void On_UserManager(ActionEvent event) {
-        SceneHelper.changeScene(j_PaymentManager, "ViewManagerUser.fxml");
+        SceneHelper.changeScene(j_PaymentManager, "/fxml/AdminUserManagerView.fxml");
     }
 
 

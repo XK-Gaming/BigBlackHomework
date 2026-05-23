@@ -1,0 +1,114 @@
+/* Định nghĩa các biến màu sắc tổng thể để quản lý tập trung */
+.root {
+    -fx-primary-dark: #243342;   /* Màu xanh đen bên trái */
+    -fx-accent-blue: #299be8;    /* Màu xanh biển của nút Đăng nhập */
+    -fx-accent-hover: #1d82c6;   /* Màu xanh biển đậm hơn khi hover */
+    -fx-text-gray: #7f8c8d;      /* Màu chữ xám của label nhập liệu */
+    -fx-border-light: #e0e0e0;   /* Màu viền ô nhập liệu xám nhạt như ảnh mẫu */
+    -fx-border-focus: #299be8;   /* Màu viền ô nhập liệu đổi sang xanh khi click vào */
+}
+
+/* --- VÙNG BÊN TRÁI (LEFT PANEL) --- */
+.left-panel {
+    -fx-background-color: -fx-primary-dark;
+}
+
+.brand-title {
+    -fx-font-family: "System";
+    -fx-font-weight: bold;
+    -fx-font-size: 38px; /* Bạn có thể đổi lại 32px nếu muốn giống FXML cũ */
+    -fx-text-fill: #ffffff;
+}
+
+.brand-subtitle {
+    -fx-font-family: "System";
+    -fx-font-size: 14px;
+    -fx-text-fill: #a0b2c6;
+}
+
+/* Nút Đăng ký ngay / Quay lại đăng nhập (Dạng viền Outline) */
+.btn-outline {
+    -fx-background-color: transparent;
+    -fx-border-color: #ffffff;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "System";
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-padding: 10px 30px 10px 30px;
+    -fx-cursor: hand;
+}
+
+.btn-outline:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+}
+
+
+/* --- VÙNG BÊN PHẢI (FORM) --- */
+.right-panel {
+    -fx-background-color: #ffffff;
+    -fx-padding: 0px 55px 0px 55px;
+}
+
+.form-title {
+    -fx-font-family: "System";
+    -fx-font-weight: bold;
+    -fx-font-size: 26px;
+    -fx-text-fill: -fx-primary-dark;
+}
+
+.input-label {
+    -fx-font-family: "System";
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-text-gray;
+}
+
+/* Định dạng chung cho cả TextField & PasswordField & ComboBox */
+.custom-input {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 6;
+    -fx-border-color: -fx-border-light;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-font-size: 14px;
+    -fx-padding: 8px 12px;
+}
+
+.custom-input:focused {
+    -fx-border-color: -fx-border-focus;
+    -fx-background-color: #ffffff;
+}
+
+/* Thông báo lỗi */
+.error-text {
+    -fx-text-fill: #e74c3c;
+    -fx-font-size: 13px;
+}
+
+/* Nút bấm chính dạng đặc (Solid Button) */
+.btn-primary {
+    -fx-background-color: -fx-accent-blue;
+    -fx-background-radius: 25;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "System";
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+    -fx-background-color: -fx-accent-hover;
+}
+
+/* Đường dẫn Quên mật khẩu */
+.custom-link {
+    -fx-text-fill: -fx-accent-blue;
+    -fx-font-size: 13px;
+    -fx-underline: false;
+}
+
+.custom-link:hover {
+    -fx-text-fill: -fx-accent-hover;
+    -fx-underline: true;
+}

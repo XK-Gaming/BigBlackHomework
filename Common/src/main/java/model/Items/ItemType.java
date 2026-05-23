@@ -1,27 +1,22 @@
 package model.Items;
 
-
-/**
- * Enum loại sản phẩm được hỗ trợ trong hệ thống đấu giá.
- */
 public enum ItemType {
-    ELECTRONICS,
-    ART,
-    VEHICLE;
-    /**
-     * Precondition: text là tên loại item dạng tiếng Việt từ UI hoặc database.
-     * Postcondition: Method trả về ItemType tương ứng, hoặc null nếu không khớp loại nào.
-     */
+    ART, ELECTRONICS, VEHICLE;
+
     public static ItemType fromString(String text) {
-        if(text.equals("Mỹ thuật")){
-            return ART;
+        if (text == null) return null;
+        String trimmed = text.trim();
+
+        // Chấp nhận cả dữ liệu dạng tiếng Việt cũ lẫn định dạng Enum tiếng Anh mới
+        if (trimmed.equalsIgnoreCase("Mỹ thuật") || trimmed.equalsIgnoreCase("ART")) {
+            return ItemType.ART;
         }
-        if (text.equals("Điện tử")){
-            return ELECTRONICS;
+        if (trimmed.equalsIgnoreCase("Điện tử") || trimmed.equalsIgnoreCase("ELECTRONICS")) {
+            return ItemType.ELECTRONICS;
         }
-        if (text.equals("Phương tiện giao thông")){
-            return VEHICLE;
+        if (trimmed.equalsIgnoreCase("Phương tiện giao thông") || trimmed.equalsIgnoreCase("VEHICLE")) {
+            return ItemType.VEHICLE;
         }
-        return null; // Hoặc trả về một Role mặc định
+        return null;
     }
 }

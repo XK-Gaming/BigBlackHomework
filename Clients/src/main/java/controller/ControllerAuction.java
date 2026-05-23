@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -21,10 +22,7 @@ import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.Items.Item;
@@ -49,21 +47,63 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+    import javafx.animation.PauseTransition;
+    import javafx.application.Platform;
+    import javafx.event.ActionEvent;
+    import javafx.fxml.FXML;
+    import javafx.scene.Cursor;
+    import javafx.scene.Node;
+    import javafx.scene.chart.CategoryAxis;
+    import javafx.scene.chart.LineChart;
+    import javafx.scene.chart.NumberAxis;
+    import javafx.scene.chart.XYChart;
+    import javafx.scene.control.Button;
+    import javafx.scene.control.Label;
+    import javafx.scene.control.TextField;
+    import javafx.scene.image.Image;
+    import javafx.scene.image.ImageView;
+    import javafx.scene.input.MouseEvent;
+    import javafx.scene.layout.HBox;
+    import javafx.scene.layout.Region;
+    import javafx.scene.layout.StackPane;
+    import javafx.scene.paint.Color;
+    import javafx.util.Duration;
+    import model.Items.Item;
+    import model.Items.ItemSession;
+    import model.User.User;
+    import model.User.UserSession;
+    import model.auction.Auction;
+    import model.auction.AuctionStatus;
+    import model.auction.BidTransaction;
+    import network.AuctionClient;
+    import network.Command;
+    import network.ServerListener;
+    import network.DataPacket;
+    import network.AuctionEngine;
+    import java.io.IOException;
+    import java.sql.SQLException;
+    import java.text.DecimalFormat;
+    import java.time.Instant;
+    import java.time.ZoneId;
+    import java.time.format.DateTimeFormatter;
+    import java.util.List;
+    import java.util.Map;
 
-public class ControllerAuction implements ServerListener {
-    private AuctionClient client = AuctionClient.getInstance();
-    private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
-    User p1 = UserSession.getLoggedInUser();
-    Item item1 = ItemSession.getLoggedInItem();
-    static Auction this_Auction;
-    private String watchToken;
-    private boolean finishHandled;
-    public void initialize() throws IOException {
-        client.setListener(this);
-        showSessionProductAndLoadingAuctionState();
-        client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
-        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
-    }
+    public class ControllerAuction implements ServerListener {
+        private final AuctionClient client = AuctionClient.getInstance();
+        private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
+        User p1 = UserSession.getLoggedInUser();
+        Item item1 = ItemSession.getLoggedInItem();
+        static Auction this_Auction;
+        private String watchToken;
+        private boolean finishHandled;
+
+        public void initialize() throws IOException {
+            client.setListener(this);
+            showSessionProductAndLoadingAuctionState();
+            client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
+            client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
+        }
 
     /**
      * Tránh nháy UI: điền ngay thông tin sản phẩm đã có từ {@link ItemSession};
@@ -91,89 +131,116 @@ public class ControllerAuction implements ServerListener {
         j_notified.setVisible(false);
     }
 
-    public void onAuctionDataLoaded(Auction auction) {
-        this_Auction = auction;
-        Platform.runLater(() -> {
+        public void onAuctionDataLoaded(Auction auction) {
+            this_Auction = auction;
+            Platform.runLater(() -> {
+                if (this_Auction == null) {
+                    System.out.println("⚠ Cảnh báo: Không tìm thấy phiên đấu giá cho sản phẩm này!");
+
+                    // Vẫn hiển thị thông tin cơ bản của sản phẩm
+                    j_LabelName.setText(p1.getName());
+                    j_name.setText(item1.getName());
+                    renderImage();
+                    j_description.setText(item1.getDescription());
+
+                    // Khoá chức năng đấu giá lại vì chưa có phiên
+                    j_status.setText("CHƯA DIỄN RA");
+                    j_apply.setDisable(true);
+                    j_notified.setText("Sản phẩm này hiện chưa được mở bán.");
+                    j_notified.setVisible(true);
+
+                    updatePriceAndLeader(); // Cập nhật giá gốc
+                    return; // DỪNG LẠI NGAY, KHÔNG GỌI setupUI() NỮA ĐỂ TRÁNH LỖI
+                }
+
+                try {
+                    setupUI();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        private void setupUI() throws SQLException {
+            j_status.setTextFill(Color.web("#f1c40f"));
+            if (j_countdown != null) {
+                j_countdown.setVisible(true);
+            }
+            j_LabelName.setText(p1.getName());
+            j_name.setText(item1.getName());
+            renderImage();
+            j_description.setText(item1.getDescription());
+            updatePriceAndLeader();
+            startStatusEngine();
+        }
+
+        private void updatePriceAndLeader() {
             if (this_Auction == null) {
-                System.out.println("⚠ Cảnh báo: Không tìm thấy phiên đấu giá cho sản phẩm này!");
-
-                // Vẫn hiển thị thông tin cơ bản của sản phẩm
-                j_LabelName.setText(p1.getName());
-                j_name.setText(item1.getName());
-                renderImage();
-                j_description.setText(item1.getDescription());
-
-                // Khoá chức năng đấu giá lại vì chưa có phiên
-                j_status.setText("CHƯA DIỄN RA");
-                j_apply.setDisable(true);
-                j_notified.setText("Sản phẩm này hiện chưa được mở bán.");
-                j_notified.setVisible(true);
-
-                updatePriceAndLeader(); // Cập nhật giá gốc
-                return; // DỪNG LẠI NGAY, KHÔNG GỌI setupUI() NỮA ĐỂ TRÁNH LỖI
+                // Nếu chưa có Auction, hiển thị giá từ ItemSession
+                DecimalFormat df = new DecimalFormat("#,###");
+                j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
+                j_leadingBidder.setText("—");
+                return;
             }
 
-            try {
-                setupUI();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    private void setupUI() throws SQLException {
-        j_status.setTextFill(Color.web("#f1c40f"));
-        if (j_countdown != null) {
-            j_countdown.setVisible(true);
-        }
-        j_LabelName.setText(p1.getName());
-        j_name.setText(item1.getName());
-        renderImage();
-        j_description.setText(item1.getDescription());
-        updatePriceAndLeader();
-        startStatusEngine();
-    }
-
-    private void updatePriceAndLeader() {
-        if (this_Auction == null) {
-            // Nếu chưa có Auction, hiển thị giá từ ItemSession
+            // ✅ ƯU TIÊN lấy tất cả dữ liệu từ this_Auction vì nó vừa được load từ DB
             DecimalFormat df = new DecimalFormat("#,###");
+
+            // Cập nhật lại giá cho item1 để đồng bộ các hàm khác
+
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
-            j_leadingBidder.setText("—");
-            return;
-        }
 
-        // ✅ ƯU TIÊN lấy tất cả dữ liệu từ this_Auction vì nó vừa được load từ DB
-        DecimalFormat df = new DecimalFormat("#,###");
+            // Lấy tên người dẫn đầu
+            String leader = this_Auction.getLeadingBidder();
 
-        // Cập nhật lại giá cho item1 để đồng bộ các hàm khác
-
-        j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
-
-        // Lấy tên người dẫn đầu
-        String leader = this_Auction.getLeadingBidder();
-
-        if (leader == null || leader.trim().isEmpty() || leader.equalsIgnoreCase("null")) {
-            j_leadingBidder.setText("Chưa có");
-        } else {
-            j_leadingBidder.setText(leader.replace("\"", ""));
-        }
-    }
-
-    private void renderImage() {
-        if (item1.getImg() != null && !item1.getImg().isEmpty()) {
-            if (item1.getImg().startsWith("http")) {
-                j_img.setImage(new Image(item1.getImg()));
+            if (leader == null || leader.trim().isEmpty() || leader.equalsIgnoreCase("null")) {
+                j_leadingBidder.setText("Chưa có");
             } else {
-                // Thử load từ resource trước
-                String imgPath = "/controller/img/" + item1.getImg();
-                java.net.URL imgUrl = getClass().getResource(imgPath);
-                if (imgUrl != null) {
-                    j_img.setImage(new Image(imgUrl.toExternalForm()));
+                j_leadingBidder.setText(leader.replace("\"", ""));
+            }
+        }
+
+        private void syncAuctionSnapshot(Auction auction) {
+            if (auction == null || item1 == null) {
+                return;
+            }
+            this_Auction = auction;
+            Item auctionItem = auction.getItem();
+            if (auctionItem == null) {
+                return;
+            }
+            item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
+            if (auctionItem.getAuctionStartTime() != null) {
+                item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
+            }
+            if (auctionItem.getAuctionEndTime() != null) {
+                item1.setAuctionEndTime(auctionItem.getAuctionEndTime());
+                finishHandled = false;
+            }
+        }
+
+        private void syncAuctionEndTime(Object endTimeValue) {
+            if (item1 == null || !(endTimeValue instanceof Instant auctionEndTime)) {
+                return;
+            }
+            item1.setAuctionEndTime(auctionEndTime);
+            finishHandled = false;
+        }
+
+        private void renderImage() {
+            if (item1.getImg() != null && !item1.getImg().isEmpty()) {
+                if (item1.getImg().startsWith("http")) {
+                    j_img.setImage(new Image(item1.getImg()));
+                } else {
+                    // Thử load từ resource trước
+                    String imgPath = "/controller/img/" + item1.getImg();
+                    java.net.URL imgUrl = getClass().getResource(imgPath);
+                    if (imgUrl != null) {
+                        j_img.setImage(new Image(imgUrl.toExternalForm()));
+                    }
                 }
             }
         }
-    }
 
     @FXML
     private TextField j_setPrice;
@@ -184,30 +251,40 @@ public class ControllerAuction implements ServerListener {
     @FXML
     private Label j_leadingBidder;
 
-    @FXML
-    void On_apply(ActionEvent event) throws IOException {
-        j_notified.setVisible(false);
+        @FXML
+        void On_apply(ActionEvent event) throws IOException {
+            j_notified.setVisible(false);
+            String priceText = j_setPrice.getText();
 
-        String priceText = j_setPrice.getText();
-        if (priceText == null || priceText.isEmpty()) {
-            j_notified.setText("Vui lòng nhập giá đặt!");
-            j_notified.setVisible(true);
-            return;
-        } else if (Double.parseDouble(priceText) <=  item1.getCurrentHighestPrice() || Double.parseDouble(priceText) > p1.getBalance()) {
-            j_notified.setText("Đặt giá không hợp lệ");
-            j_notified.setVisible(true);
-            return;
-        }else{
+            if (priceText == null || priceText.trim().isEmpty()) {
+                j_notified.setText("Vui lòng nhập giá đặt!");
+                j_notified.setVisible(true);
+                return;
+            }
 
-        client.sendCommand(Command.BID, Map.of(
-                "itemId", item1.getDatabaseId(),
-                "bidderId", p1.getUsername(),
-                "amount", priceText
-        ));}
-    }
+            try {
+                // Sử dụng Long thay vì Double để ép người dùng nhập số nguyên (VNĐ)
+                long bidAmount = Long.parseLong(priceText);
 
-    @FXML
-    private AnchorPane Pane1;
+                if (bidAmount <= item1.getCurrentHighestPrice()) {
+                    j_notified.setText("Giá đặt phải lớn hơn giá hiện tại!");
+                    j_notified.setVisible(true);
+                } else if (bidAmount > p1.getBalance()) {
+                    j_notified.setText("Số dư không đủ để đấu giá");
+                    j_notified.setVisible(true);
+                } else {
+                    client.sendCommand(Command.BID, Map.of(
+                            "itemId", item1.getDatabaseId(),
+                            "bidderId", p1.getUsername(),
+                            "amount", priceText
+                    ));
+                }
+            } catch (NumberFormatException e) {
+                // Nếu nhập 150000.5 hoặc chuỗi chữ, app sẽ nhảy vào đây chứ không bị crash
+                j_notified.setText("Giá đặt phải là số nguyên hợp lệ (Không chứa dấu thập phân)!");
+                j_notified.setVisible(true);
+            }
+        }
 
     @FXML
     private Label j_LabelName;
@@ -238,12 +315,12 @@ public class ControllerAuction implements ServerListener {
 
     }
 
-    @FXML
-    void On_Return(ActionEvent event) throws IOException {
-        cleanup();
-        SceneHelper.changeScene(j_return, "View3.fxml");
-        ItemSession.cleanItemSession();
-        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
+        @FXML
+        void On_Return(ActionEvent event) throws IOException {
+            cleanup();
+            SceneHelper.changeScene(j_return, "/fxml/BidderView.fxml");
+            ItemSession.cleanItemSession();
+            client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
 
     }
 
@@ -253,17 +330,17 @@ public class ControllerAuction implements ServerListener {
     @FXML
     private Label j_notified;
 
-    private void updateTimerLabels(long current) {
-        long d = current / 86400;
-        long h = (current % 86400) / 3600;
-        long m = (current % 3600) / 60;
-        long s = current % 60;
+        private void updateTimerLabels(long current) {
+            long d = current / 86400;
+            long h = (current % 86400) / 3600;
+            long m = (current % 3600) / 60;
+            long s = current % 60;
 
-        j_days.setText(String.format("%02d", d));
-        j_hours.setText(String.format("%02d", h));
-        j_mins.setText(String.format("%02d", m));
-        j_secs.setText(String.format("%02d", s));
-    }
+            j_days.setText(String.format("%02d", d));
+            j_hours.setText(String.format("%02d", h));
+            j_mins.setText(String.format("%02d", m));
+            j_secs.setText(String.format("%02d", s));
+        }
 
     @FXML
     private Label j_mins;
@@ -287,57 +364,52 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
-    private void startStatusEngine() {
-        cleanup();
-        finishHandled = false;
-        watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
-            if (status == null) {
-                j_status.setText("KHÔNG XÁC ĐỊNH");
-                j_apply.setDisable(true);
-                return;
-            }
-            if (this_Auction != null) {
-                this_Auction.setStatus(status);
-            }
-            updateTimerLabels(secondsToNextChange);
-            switch (status) {
-                case OPEN -> {
-                    j_status.setText("CHƯA DIỄN RA");
-                    j_apply.setDisable(true);
+        private void startStatusEngine() {
+            cleanup();
+            finishHandled = false;
+            watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
+                if (this_Auction != null) {
+                    this_Auction.setStatus(status);
                 }
-                case RUNNING -> {
-                    j_status.setText("ĐANG DIỄN RA");
-                    j_apply.setDisable(false);
-                }
-                case FINISHED -> {
-                    j_status.setText("ĐÃ KẾT THÚC");
-                    j_apply.setDisable(true);
-                    if (!finishHandled) {
-                        finishHandled = true;
-                        handleFinishedAuction();
+                updateTimerLabels(secondsToNextChange);
+                switch (status) {
+                    case OPEN -> {
+                        j_status.setText("CHƯA DIỄN RA");
+                        j_apply.setDisable(true);
+                    }
+                    case RUNNING -> {
+                        j_status.setText("ĐANG DIỄN RA");
+                        j_apply.setDisable(false);
+                    }
+                    case FINISHED -> {
+                        j_status.setText("ĐÃ KẾT THÚC");
+                        j_apply.setDisable(true);
+                        if (!finishHandled) {
+                            finishHandled = true;
+                            handleFinishedAuction();
+                        }
+                    }
+                    case PAID, CANCELLED -> {
+                        j_apply.setDisable(true);
+                        j_status.setText(status == AuctionStatus.PAID ? "ĐÃ THANH TOÁN" : "ĐÃ HỦY");
                     }
                 }
-                case PAID, CANCELED -> {
-                    j_apply.setDisable(true);
-                    j_status.setText(status == AuctionStatus.PAID ? "ĐÃ THANH TOÁN" : "ĐÃ HỦY");
-                }
-            }
-        }));
-    }
-
-    private void handleFinishedAuction() {
-        if (this_Auction != null && this_Auction.getLeadingBidder() != null
-                && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
-            j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
-            j_notified.setVisible(true);
-            PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "ViewPaid.fxml"));
-            delay.play();
-        } else {
-            j_notified.setText("Phiên đấu giá đã kết thúc.");
-            j_notified.setVisible(true);
+            }));
         }
-    }
+
+        private void handleFinishedAuction() {
+            if (this_Auction != null && this_Auction.getLeadingBidder() != null
+                    && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
+                j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
+                j_notified.setVisible(true);
+                PauseTransition delay = new PauseTransition(Duration.seconds(3));
+                delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "PayingView.fxml"));
+                delay.play();
+            } else {
+                j_notified.setText("Phiên đấu giá đã kết thúc.");
+                j_notified.setVisible(true);
+            }
+        }
 
     // 1. Đảm bảo khai báo đúng loại Axis
     @FXML
@@ -426,68 +498,84 @@ public class ControllerAuction implements ServerListener {
                 .format(instant);
     }
 
-    private void handleIncomingToastNotification(Object payload) {
-        DecimalFormat df = new DecimalFormat("#,###");
-        try {
-            // 1. Giải mã gói tin từ Server
-            Map<String, Object> notifData = (Map<String, Object>) payload;
-            double newPrice = (double) notifData.get("newPrice");
-            Item item =(Item) notifData.get("item");
-            Auction auction = (Auction) notifData.get("auction");
+        private void handleIncomingToastNotification(Object payload) {
+            DecimalFormat df = new DecimalFormat("#,###");
+            try {
+                // 1. Giải mã gói tin từ Server an toàn
+                Map<String, Object> notifData = (Map<String, Object>) payload;
 
-            // 2. BẮT BUỘC: Đẩy việc hiển thị lên UI Thread của JavaFX
-            Platform.runLater(() -> {
-                // 1. Tạo Layout HBox chứa nội dung thông báo
-                javafx.scene.layout.HBox customToast = new javafx.scene.layout.HBox();
-                customToast.setSpacing(12);
-                customToast.setAlignment(Pos.CENTER_LEFT);
+                double newPrice = 0;
+                Object priceObj = notifData.get("newPrice");
+                if (priceObj instanceof Number) {
+                    newPrice = ((Number) priceObj).doubleValue();
+                }
 
-                // ĐỔI STYLE NỀN: Đổ bóng nhẹ (Drop Shadow), bo góc và bo viền màu đỏ nhạt để cảnh báo bị vượt giá
-                customToast.setStyle(
-                        "-fx-background-color: #FFFFFF; " +
-                                "-fx-background-radius: 10px; " +
-                                "-fx-border-color: #FFCDD2; " +
-                                "-fx-border-radius: 10px; " +
-                                "-fx-border-width: 1px; " +
-                                "-fx-padding: 12px 16px; " +
-                                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 8, 0, 0, 4);"
-                );
+                Item item = (Item) notifData.get("item");
+                final double finalPrice = newPrice;
 
-                // 2. Icon chuông thông báo (Nền đỏ tròn, chuông trắng)
-                javafx.scene.shape.Circle iconBg = new javafx.scene.shape.Circle(16, javafx.scene.paint.Color.web("#E53935"));
-                Label icon = new Label("🔔");
-                icon.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
-                StackPane iconPane = new StackPane(iconBg, icon);
+                // 2. Đẩy việc hiển thị lên UI Thread của JavaFX
+                Platform.runLater(() -> {
 
-                // 3. Phần chữ hiển thị (Tiêu đề + Nội dung)
-                javafx.scene.layout.VBox textContainer = new javafx.scene.layout.VBox();
-                textContainer.setSpacing(3);
+                    // [THAY ĐỔI]: Tạo Layout chính ôm nội dung, bỏ viền và bóng đổ để hòa làm một với khung ngoài
+                    HBox customToast = new HBox();
+                    customToast.setAlignment(Pos.CENTER_LEFT);
+                    customToast.setPrefWidth(300); // Thu nhỏ lại một chút để vừa vặn với khung chứa của ControlsFX
+                    customToast.setStyle("-fx-background-color: #FFFFFF;"); // Chỉ cần nền trắng đơn giản
 
-                Label titleLabel = new Label("SẢN PHẨM BỊ VƯỢT GIÁ!");
-                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #B71C1C;");
+                    // 3. Khối Icon bên trái (Nền màu xanh dương đậm)
+                    StackPane iconBlock = new StackPane();
+                    iconBlock.setPrefSize(60, 70);
+                    iconBlock.setStyle("-fx-background-color: #1565C0;"); // Khung ngoài sẽ tự bo góc nên ở đây để vuông
 
-                Label messageLabel = new Label("Sản phẩm " + item.getName()+" : "+ df.format(newPrice) + " VNĐ"  ); // Đổ chuỗi tin nhắn từ Server vào
-                messageLabel.setStyle("-fx-text-fill: #424242; -fx-font-size: 12px; -fx-font-family: 'Segoe UI', Arial;");
-                messageLabel.setWrapText(true);
-                messageLabel.setMaxWidth(260); // Giới hạn chiều rộng chữ để tự động xuống dòng gọn gàng
+                    Label icon = new Label("🔔");
+                    icon.setStyle("-fx-text-fill: white; -fx-font-size: 22px;");
+                    iconBlock.getChildren().add(icon);
 
-                textContainer.getChildren().addAll(titleLabel, messageLabel);
-                customToast.getChildren().addAll(iconPane, textContainer);
+                    // 4. Phần chữ hiển thị (VBox) ở giữa
+                    VBox textContainer = new VBox();
+                    textContainer.setSpacing(4);
+                    textContainer.setAlignment(Pos.CENTER_LEFT);
+                    textContainer.setPadding(new Insets(10, 10, 10, 15));
+                    HBox.setHgrow(textContainer, Priority.ALWAYS);
 
-                // 4. Gọi hàm hiển thị ControlsFX lồng vào TRONG ỨNG DỤNG
-                Notifications.create()
-                        // ĐÂY LÀ ĐIỀU KIỆN TIÊN QUYẾT: Đưa Node neo vào để nó tính toán tọa độ theo CỬA SỔ APP
-                        .owner(j_textSoDu)
+                    Label titleLabel = new Label("SẢN PHẨM CÓ LƯỢT ĐẤU GIÁ MỚI!");
+                    titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
 
-                        .graphic(customToast)
-                        .hideAfter(Duration.seconds(4))
+                    Label messageLabel = new Label("Sản phẩm " + (item != null ? item.getName() : "") + " : " + df.format(finalPrice) + " VNĐ");
+                    messageLabel.setStyle("-fx-text-fill: #757575; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");
+                    messageLabel.setWrapText(true);
+                    messageLabel.setMaxWidth(200);
 
-                        // Định vị ở góc dưới bên phải CỦA ỨNG DỤNG
-                        .position(Pos.BOTTOM_RIGHT)
+                    textContainer.getChildren().addAll(titleLabel, messageLabel);
 
-                        // Dùng .show() thuần túy để loại bỏ hoàn toàn cái khung màu xám mặc định của Windows/Mac bên ngoài
-                        .show();
-            });
+                    // [THAY ĐỔI]: Chỉ thêm khối icon và khối chữ vào layout (Đã loại bỏ nút x tự chế)
+                    customToast.getChildren().addAll(iconBlock, textContainer);
+
+                    // 5. Khởi tạo ControlsFX và tận dụng hệ thống mặc định
+                    Notifications notificationBuilder = Notifications.create()
+                            .owner(j_textSoDu) // Neo theo ứng dụng của bạn
+                            .graphic(customToast) // Nhúng nội dung custom vào
+                            .hideAfter(Duration.seconds(4)) // Tự động ẩn sau 4 giây
+                            .position(Pos.BOTTOM_RIGHT); // Xuất hiện góc dưới bên phải
+
+                    // [MẸO ĐẸP]: Xóa bỏ padding thừa của khung ngoài để khối màu xanh sát rạt ra rìa trái
+                    customToast.sceneProperty().addListener((observable, oldScene, newScene) -> {
+                        if (newScene != null) {
+                            newScene.windowProperty().addListener((obsWin, oldWin, newWin) -> {
+                                if (newWin != null) {
+                                    javafx.scene.Node notificationPopup = newScene.getRoot().lookup(".notification-popup");
+                                    if (notificationPopup != null) {
+                                        // Ép padding về 0 để phần màu xanh bám sát viền trái ngoài cùng
+                                        notificationPopup.setStyle("-fx-padding: 0;");
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    // Hiển thị thông báo lên màn hình
+                    notificationBuilder.show();
+                });
 
         } catch (Exception e) {
             System.err.println("Lỗi khi hiển thị Toast Notification: " + e.getMessage());
@@ -495,11 +583,14 @@ public class ControllerAuction implements ServerListener {
     }
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        DecimalFormat df = new DecimalFormat("#,###");
+        Command command = response.command();
 
         if (Command.GET_AUCTION_RESULT.equals(command)) {
-            this_Auction = (Auction) response.getPayload();
+            this_Auction = (Auction) response.payload();
             onAuctionDataLoaded(this_Auction);
+            syncAuctionSnapshot(this_Auction);
+
             Platform.runLater(() -> {
                 if (this_Auction != null) {
                     updateBidChart(this_Auction.getBidHistory());
@@ -512,7 +603,7 @@ public class ControllerAuction implements ServerListener {
             });
         }
         if (Command.BID_UPDATE.equals(command)) {
-            Map<String, Object> update = (Map<String, Object>) response.getPayload();
+            Map<String, Object> update = (Map<String, Object>) response.payload();
             String itemId = String.valueOf(update.get("itemId"));
             if (item1 == null || !String.valueOf(item1.getDatabaseId()).equals(itemId)) {
                 return;
@@ -520,57 +611,100 @@ public class ControllerAuction implements ServerListener {
             this_Auction = (Auction) update.get("auction");
 
 
-            Platform.runLater(() -> {
-                if (this_Auction != null) {
-                    try{
-                    updateBidChart(this_Auction.getBidHistory());
-                    if(this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2)!= null){
-                    String oldBidder =this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getBidder();
-                    if(p1.getUsername().equals(oldBidder)){
-                        double oldPrice = this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getAmount();
-                        p1.setBalance(p1.getBalance() + oldPrice);
-                        DecimalFormat df = new DecimalFormat("#,###");
-                        j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
-            ;};
+                    Platform.runLater(() -> {
+                        Object newPriceObj = update.get("newPrice");
+                        if (newPriceObj instanceof Number) {
+                            item1.setCurrentHighestPrice(((Number) newPriceObj).doubleValue());
+                        }
+                        Object auctionObj = update.get("auction");
+                        if (auctionObj instanceof Auction) {
+                            this_Auction = (Auction) auctionObj;
+                        }
+                        // ✅ FIX: Đảm bảo leadingBidder được set từ bidderId trong BID_UPDATE
+                        String bidderId = String.valueOf(update.get("bidderId"));
+                        if (auctionObj instanceof Auction) {
+                            syncAuctionSnapshot((Auction) auctionObj);
+                        }
+                        syncAuctionEndTime(update.get("auctionEndTime"));
 
-                }}catch (Exception e){
+                        if (this_Auction != null && bidderId != null && !bidderId.isEmpty() && !bidderId.equals("null")) {
+                            this_Auction.setLeadingBidder(bidderId);
+                        }
+
+                        if (this_Auction != null) {
+                            try{
+                            updateBidChart(this_Auction.getBidHistory());
+                            int size = this_Auction.getBidHistory().size();
+                            String oldBidder;
+                            String newBidder = this_Auction.getLeadingBidder();
+                            if(p1.getUsername().equals(newBidder)){
+                                double newPrice = this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 1).getAmount();
+                                p1.setBalance(p1.getBalance() - newPrice);
+                            }
+                            else {
+                                j_notified.setText("Có lượt đặt giá mới trong phiên.");
+                                j_notified.setVisible(true);
+                                javax.swing.Timer timer = new javax.swing.Timer(4000, new java.awt.event.ActionListener() {
+                                    @Override
+                                    public void actionPerformed(java.awt.event.ActionEvent e) {
+                                        j_notified.setVisible(false);}});
+                                timer.setRepeats(false);
+                                timer.start();}
+                            if(size > 1){
+                                oldBidder = this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getBidder();
+                                if(p1.getUsername().equals(oldBidder)){
+                                    double oldPrice = this_Auction.getBidHistory().get(this_Auction.getBidHistory().size() - 2).getAmount();
+                                    p1.setBalance(p1.getBalance() + oldPrice);}
+                            }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        updatePriceAndLeader();
+                        j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+
+                    });
                 }
+
+
+            if (Command.BID_RESULT.equals(command)) {
+                if (response.payload() instanceof Map) {
+                    Map<String, Object> result = (Map<String, Object>) response.payload();
+                    boolean isSuccess = (boolean) result.get("success");
+                    String message = (String) result.get("message");
+                    Platform.runLater(() -> {
+                        if (isSuccess) {
+                            syncAuctionEndTime(result.get("auctionEndTime"));
+                            j_notified.setText("Đấu giá thành công");
+                        } else {
+                            j_notified.setText(message);
+                        }
+                        j_notified.setVisible(true);
+                        javax.swing.Timer timer = new javax.swing.Timer(4000, new java.awt.event.ActionListener() {
+                            @Override
+                            public void actionPerformed(java.awt.event.ActionEvent e) {
+                                j_notified.setVisible(false);}});
+                        timer.setRepeats(false);
+                        timer.start();
+                    });
                 }
-                Object newPriceObj = update.get("newPrice");
-                if (newPriceObj instanceof Number) {
-                    item1.setCurrentHighestPrice(((Number) newPriceObj).doubleValue());
+            }
+
+            if (Command.SET_AUCTION_RESULT.equals(command)) {
+                if (response.payload() instanceof Map) {
+                    Map<?, ?> responsePayload = (Map<?, ?>) response.payload();
+                    if (responsePayload.get("auction") instanceof Auction) {
+                        this_Auction = (Auction) responsePayload.get("auction");
+                        syncAuctionSnapshot(this_Auction);
+                    }
+                    Platform.runLater(() -> {
+                        if (this_Auction != null) {
+                            updateBidChart(this_Auction.getBidHistory());
+                        }
+                    });
                 }
-                Object auctionObj = update.get("auction");
-                if (auctionObj instanceof Auction) {
-                    this_Auction = (Auction) auctionObj;
-                }
-                // ✅ FIX: Đảm bảo leadingBidder được set từ bidderId trong BID_UPDATE
-                String bidderId = String.valueOf(update.get("bidderId"));
-                if (this_Auction != null && bidderId != null && !bidderId.isEmpty()) {
-                    this_Auction.setLeadingBidder(bidderId);
-                }
-                updatePriceAndLeader();
-                j_notified.setText("Có lượt đặt giá mới trong phiên.");
-                j_notified.setVisible(true);
-            });
-        }
-        if (Command.BID_RESULT.equals(command)) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
-            boolean isSuccess = (boolean) result.get("success");
-            String message = (String) result.get("message");
-            Platform.runLater(() -> {
-                if (isSuccess) {
-                    j_notified.setText("Đấu giá thành công");
-                    p1.setBalance(p1.getBalance() - Double.parseDouble(j_setPrice.getText()));
-                    DecimalFormat df = new DecimalFormat("#,###");
-                    j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
-                } else {
-                    j_notified.setText(message);
-                }
-                j_notified.setVisible(true);
-            });
-        }
-        if (Command.SET_ALLOW_RESULT.equals(command)) {
+            }
+            if (Command.SET_ALLOW_RESULT.equals(command)) {
             j_notified.setText("Phiên đấu đã tạm dừng");
             j_status.setText("CHƯA PHÊ DUYỆT");
         }
@@ -579,7 +713,7 @@ public class ControllerAuction implements ServerListener {
             j_status.setText("KHÔNG TỒN TẠI");
         }
         if(Command.NOTIFICATION.equals(command)){
-            handleIncomingToastNotification(response.getPayload());
+            handleIncomingToastNotification(response.payload());
         }
     }
-}
+    }

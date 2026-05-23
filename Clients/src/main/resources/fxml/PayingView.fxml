@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #F4F6F8;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Service_.ControllerPayment">
+
+   <top>
+      <HBox alignment="CENTER_LEFT" prefHeight="80.0" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets left="30.0" right="30.0" />
+         </padding>
+         <children>
+            <ImageView fx:id="j_image" fitHeight="50.0" fitWidth="50.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+               <image>
+                  <Image url="@../img/imgUSER.png" />
+               </image>
+               <cursor>
+                  <Cursor fx:constant="HAND" />
+               </cursor>
+            </ImageView>
+            <VBox alignment="CENTER_LEFT" prefHeight="80.0" prefWidth="200.0">
+               <padding>
+                  <Insets left="15.0" />
+               </padding>
+               <children>
+                  <Label fx:id="j_LabelName" text="Username" textFill="#2b3442">
+                     <font>
+                        <Font name="System Bold" size="16.0" />
+                     </font>
+                  </Label>
+                  <HBox alignment="CENTER_LEFT" spacing="5.0">
+                     <children>
+                        <Label text="Số dư ví:" textFill="#757575" />
+                        <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#4CAF50">
+                           <font>
+                              <Font name="System Bold" size="14.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS" />
+            <Label text="THANH TOÁN ĐƠN HÀNG" textFill="#2b3442">
+               <font>
+                  <Font name="System Bold" size="24.0" />
+               </font>
+            </Label>
+         </children>
+      </HBox>
+   </top>
+
+   <center>
+      <HBox alignment="CENTER" spacing="30.0" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+         </padding>
+         <children>
+
+            <VBox prefWidth="450.0" spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 5);">
+               <padding>
+                  <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+               </padding>
+               <children>
+                  <Label text="Thông tin sản phẩm trúng đấu giá" textFill="#757575">
+                     <font>
+                        <Font name="System Bold" size="14.0" />
+                     </font>
+                  </Label>
+                  <ImageView fx:id="j_img" fitHeight="250.0" fitWidth="410.0" pickOnBounds="true" preserveRatio="true" />
+                  <Label fx:id="j_name" text="Tên sản phẩm" textFill="#2b3442" wrapText="true">
+                     <font>
+                        <Font name="System Bold" size="20.0" />
+                     </font>
+                  </Label>
+                  <ScrollPane fitToWidth="true" hbarPolicy="NEVER" style="-fx-background-color: transparent; -fx-background: white;" VBox.vgrow="ALWAYS">
+                     <content>
+                        <Label fx:id="j_description" text="Mô tả chi tiết sản phẩm sẽ hiện ở đây..." textFill="#555555" wrapText="true">
+                           <font>
+                              <Font size="14.0" />
+                           </font>
+                           <padding>
+                              <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                           </padding>
+                        </Label>
+                     </content>
+                  </ScrollPane>
+               </children>
+            </VBox>
+
+            <VBox alignment="TOP_CENTER" prefWidth="320.0" spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 5);">
+               <padding>
+                  <Insets bottom="30.0" left="25.0" right="25.0" top="30.0" />
+               </padding>
+               <children>
+                  <Label text="Hóa Đơn Thanh Toán" textFill="#2b3442">
+                     <font>
+                        <Font name="System Bold" size="22.0" />
+                     </font>
+                  </Label>
+
+                  <Region prefHeight="10.0" />
+
+                  <VBox alignment="CENTER" prefHeight="100.0" prefWidth="100.0" spacing="10.0" style="-fx-background-color: #FFF3E0; -fx-background-radius: 8;">
+                     <children>
+                        <Label text="Số tiền cần thanh toán" textFill="#E65100">
+                           <font>
+                              <Font size="14.0" />
+                           </font>
+                        </Label>
+                        <Label fx:id="j_CurrentPrice" text="0 VNĐ" textFill="#E65100">
+                           <font>
+                              <Font name="System Bold" size="26.0" />
+                           </font>
+                        </Label>
+                     </children>
+                  </VBox>
+
+                  <Label fx:id="j_status" text="Trạng thái: Chờ thanh toán" textFill="#757575">
+                     <font>
+                        <Font name="System Italic" size="14.0" />
+                     </font>
+                  </Label>
+
+                  <Region VBox.vgrow="ALWAYS" />
+
+                  <Label fx:id="j_notified" textAlignment="CENTER" textFill="#E53935" visible="false" wrapText="true">
+                     <font>
+                        <Font size="13.0" />
+                     </font>
+                  </Label>
+
+                  <Button fx:id="j_apply" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_apply" prefHeight="45.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-background-radius: 5;" text="XÁC NHẬN THANH TOÁN">
+                     <cursor>
+                        <Cursor fx:constant="HAND" />
+                     </cursor>
+                  </Button>
+
+                  <Button fx:id="j_return" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #B0B8C4; -fx-border-radius: 5; -fx-text-fill: #555555; -fx-font-weight: bold;" text="Quay lại">
+                     <cursor>
+                        <Cursor fx:constant="HAND" />
+                     </cursor>
+                  </Button>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </center>
+</BorderPane>

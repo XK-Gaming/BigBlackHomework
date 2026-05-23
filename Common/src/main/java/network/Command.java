@@ -1,6 +1,5 @@
 package network;
 
-
 public enum Command {
     LOGIN,  // Đăng nhập
     LOGIN_RESULT,
@@ -21,11 +20,7 @@ public enum Command {
     GET_AUCTION_RESULT,
 
 
-    // Chức năng chính là khi có 1 client vào trang đấu giá thì sản phẩm
-    // thì sẽ tự động câp nhật thông tin trang thái của phien đấu giá đó trên client
-    // Ví dụ nếu không ấn vào thì phiên đấu giá sẽ ở trạng thái open
-    // Trức khi mỗi lần một người và phiên đấu giá thì ngời ấy sẽ tự động yêu cầu cập nhật status
-    // phiên đấu giá đó trên db với thời gian thực... từ đó mới xuất hiện trạng thái cua phiên.
+    // Thay đổi phiên đấu giá -- > Dùng để cập nhật thông tin phiên đấu giá trên client
     SET_AUCTION,
     SET_AUCTION_RESULT,
 
@@ -65,6 +60,18 @@ public enum Command {
 
     RECHARGE_AMOUNT,
     RECHARGE_AMOUNT_RESULT,
-    NOTIFICATION;
+    NOTIFICATION,
+    SELECT_ITEMS_ADMIN,
+    SELECT_ITEMS_ADMIN_RESULT,
+    BROADCAST_ITEM_UPDATE,
+
+    EDIT_ITEM,   // Thay thế cho việc Sửa/Edit item trực tiếp ở DAO
+    EDIT_ITEM_RESULT,
+
+    GET_SELLER_ITEMS,
+    GET_SELLER_ITEMS_RESULT,
+
+    GET_BIDDER_HISTORY,
+    GET_BIDDER_HISTORY_RESULT;
 
 }

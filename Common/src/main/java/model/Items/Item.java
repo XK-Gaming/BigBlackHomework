@@ -1,6 +1,5 @@
 package model.Items;
 
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import model.Entity.Entity;
@@ -8,11 +7,13 @@ import model.auction.AuctionStatus;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
-public class Item  implements Serializable {
+public class Item implements Serializable {
     private static final long serialVersionUID = 1L;
-    private int databaseId;  // Khi vào trong database thì sẽ tự cấp cho 1 id
+
+    private int databaseId;  // Tự động tăng khi lưu vào DB
     private String name;
     private String description;
     private double startingPrice;
@@ -22,6 +23,10 @@ public class Item  implements Serializable {
     private String sellerId;
     private ItemType itemType;
     private String img;
+
+    // Thêm biến để lưu trữ các thuộc tính động (JSON)
+    private Map<String, String> properties = new HashMap<>();
+
     private AuctionStatus auctionStatus;
     public Item(
             String name,
@@ -43,21 +48,29 @@ public class Item  implements Serializable {
         this.itemType = itemType;
         this.img = img;
     }
-    public Item(){};
 
-    public Item(String name, String description, double startingPrice, String sellerId, ItemType itemType, String imgData) {
+    public Item() {}
+
+    public Item(String name, String description, double startingPrice, String sellerId, String imgData, ItemType itemType) {
         this.name = name;
         this.description = description;
         this.startingPrice = startingPrice;
-        this.currentHighestPrice = startingPrice;
         this.sellerId = sellerId;
-        this.itemType = itemType;
         this.img = imgData;
+        this.itemType = itemType;
     }
 
+    public Map<String, String> getProperties() {
+        if (this.properties == null) {
+            this.properties = new HashMap<>();
+        }
+        return this.properties;
+    }
 
-    public Map<String,String> getProperties(){
-        return null;}
+    // ✅ Đã thêm: Giúp ControllerEditProduct nạp thông tin động khi bấm nút Save
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
+    }
 
     public void setDatabaseId(int id) {
         this.databaseId = id;
@@ -143,17 +156,27 @@ public class Item  implements Serializable {
         this.img = img;
     }
 
+    // Lấy đối tượng Enum gốc (Rất quan trọng cho việc kiểm tra logic)
+    public ItemType getRawItemType() {
+        return this.itemType;
+    }
+
+
+    // ✅ Giữ nguyên phục vụ TableView hiển thị Tiếng Việt
     public String getItemType() {
-            if(itemType.equals(ItemType.ART)){
-                return "Mỹ thuật";
-            }
-            if (itemType.equals(ItemType.ELECTRONICS)){
-                return "Điện tử";
-            }
-            if (itemType.equals(ItemType.VEHICLE)){
-                return "Phương tiện giao thông";
-            }
+        if (itemType == null) {
             return "";
+        }
+        if (itemType == ItemType.ART) {
+            return "Mỹ thuật";
+        }
+        if (itemType == ItemType.ELECTRONICS) {
+            return "Điện tử";
+        }
+        if (itemType == ItemType.VEHICLE) {
+            return "Phương tiện giao thông";
+        }
+        return itemType.toString();
     }
 
     // 1. Khai báo Property
@@ -171,7 +194,7 @@ public class Item  implements Serializable {
 
     // 4. Setter để cập nhật giá trị
     public void setDisplayStatus(String status) {
-        displayStatusProperty().set(status);
+        this.displayStatusProperty().set(status);
     }
 
 

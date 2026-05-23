@@ -9,10 +9,10 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public class ClientHandler implements Runnable {
-    private UserService userService = new UserService();
-    private ObjectOutputStream out;
-    private ObjectInputStream in;
-    private Socket socket;
+    private final UserService userService = new UserService();
+    private final ObjectOutputStream out;
+    private final ObjectInputStream in;
+    private final Socket socket;
     private User user;
 
     // Khởi tạo user, ViewingItemid cho từng Clienthandler
@@ -57,9 +57,14 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.GET_AUCTION, new GetAuctionHandler(this.userService, this));
         handlers.put(Command.SET_AUCTION, new SetAuctionHandler(this.userService, this));
         handlers.put(Command.BID, new BidHandler(this.userService));
+        handlers.put(Command.GET_ALL_AUCTIONS, new GetAllAuctionsHandler(this.userService));
         handlers.put(Command.UPDATE_USER, new UpdateUserHandler(this.userService));
         handlers.put(Command.CHANGE_PASSWORD, new ChangePasswordHandler(this.userService));
         handlers.put(Command.LOGOUT, new LogoutHandler(this.userService));
+        handlers.put(Command.EDIT_ITEM, new EditItemHandler(this.userService));
+        handlers.put(Command.DELETE_ITEM, new DeleteItemHandler());
+        handlers.put(Command.GET_SELLER_ITEMS,new GetSellerItemsHandler(this.userService));
+        handlers.put(Command.GET_BIDDER_HISTORY, new GetBidderHistoryHandler(this.userService));
         handlers.put(Command.SET_ALLOW,new SetAllowHandler(this.userService));
         handlers.put(Command.DELETE_ITEM,new DeleteItems(this.userService));
         handlers.put(Command.RECHARGE_AMOUNT,new RechargeAmountHandler(this.userService));
@@ -70,15 +75,20 @@ public class ClientHandler implements Runnable {
             while (true) {
                 // Đọc đối tượng từ luồng
                 Object obj = in.readObject();
-                if (!(obj instanceof DataPacket)) continue;
+                if (!(obj instanceof DataPacket request)) continue;
 
-                DataPacket request = (DataPacket) obj;
-                Command command = request.getCommand(); // Giả sử trả về Enum Command
+                Command command = request.command(); // Giả sử trả về Enum Command
 
                 // Tìm bộ xử lý trực tiếp bằng Enum Key
                 RequestHandler handler = handlers.get(command);
-                handler.handle(request.getPayload(), out);
-
+                if (handler != null) {
+                    try {
+                        handler.handle(request.payload(), out);
+                    } catch (Exception e) {
+                        System.err.println("Lỗi logic xử lý lệnh " + command + ": " + e.getMessage());
+                        e.printStackTrace();
+                        // Bạn có thể gửi một gói tin lỗi về Client tại đây nếu cần thiết
+                    }}
             }
         }
         catch (EOFException e) {System.out.println("Một Client đã ngắt kết nối (EOF).");}

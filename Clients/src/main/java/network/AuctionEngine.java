@@ -80,10 +80,7 @@ public class AuctionEngine {
         Instant now = Instant.now();
         AuctionStatus status;
         long secondsToNextChange;
-        if(item.getAuctionStatus() == null){
-            status = null;
-            secondsToNextChange = 0;
-        } else if (now.isBefore(item.getAuctionStartTime())) {
+        if (now.isBefore(item.getAuctionStartTime())) {
             status = AuctionStatus.OPEN;
             secondsToNextChange = Duration.between(now, item.getAuctionStartTime()).getSeconds();
         } else if (now.isBefore(item.getAuctionEndTime())) {

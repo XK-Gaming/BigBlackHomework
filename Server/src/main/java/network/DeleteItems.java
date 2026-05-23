@@ -13,7 +13,7 @@ public class DeleteItems extends BaseHandler implements RequestHandler {
     public void handle(Object payload, ObjectOutputStream out) {
     int item_id = (Integer) payload;
     int result = userService.DeleteItem(item_id);
-    AuctionServer.broadcastToSpecificAuction(item_id, Command.DELETE_ITEM_RESULT, result);
+    AuctionServer.broadcastToSpecificAuction(String.valueOf(item_id), Command.DELETE_ITEM_RESULT, result);
 
     sendResponse(out, Command.DELETE_ITEM_RESULT, result);}
 

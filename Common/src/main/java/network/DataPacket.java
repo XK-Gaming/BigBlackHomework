@@ -1,18 +1,13 @@
 package network;
 
+import java.io.Serial;
 import java.io.Serializable;
 
-public class DataPacket implements Serializable {
+/**
+ * @param command Sử dụng Enum thay vì String
+ */
+public record DataPacket(Command command, Object payload) implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
-    private Command command; // Sử dụng Enum thay vì String
-    private Object payload;
-
-    public DataPacket(Command command, Object payload) {
-        this.command = command;
-        this.payload = payload;
-    }
-
-    public Command getCommand() { return command; }
-    public Object getPayload() { return payload; }
 
 }

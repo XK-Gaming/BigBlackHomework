@@ -1,14 +1,13 @@
 package network;
+import network.Command;
 import dao.DAOUser;
 import model.User.User;
-import service.AuctionService;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,18 +44,30 @@ public class AuctionServer {
         finally {threadPool.shutdown();}
     }
 
-    public static void broadcastToSpecificAuction(long auctionId, Command command, Object payload) {
-        broadcastToSpecificAuction(Long.toString(auctionId), command, payload);
-    }
 
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
-        if (itemId == null) return;
+        if (command == null) return; // Nếu lệnh null thì không làm gì cả
+
         DataPacket packet = new DataPacket(command, payload);
 
-        onlineClients.values().stream()
-                .filter(handler -> Objects.equals(itemId, handler.getViewingItemId()))
-                .forEach(handler -> handler.sendPacket(packet));
+        // TRƯỜNG HỢP 1: Gửi cho những người KHÔNG xem item nào (itemId truyền vào trống/null)
+        if (itemId == null || itemId.isBlank()) {
+            for (ClientHandler handler : onlineClients.values()) {
+                // Không lọc viewingItemId nữa, cứ online là gửi hết!
+                    handler.sendPacket(packet);
+            }
+            return; // Sau khi chạy hết vòng lặp gửi cho mọi người mới return
+        }
+
+        // TRƯỜNG HỢP 2: Gửi đích danh cho những người ĐANG XEM item được chỉ định
+        String target = itemId.trim();
+        for (ClientHandler handler : onlineClients.values()) {
+            // Sử dụng Objects.equals hoặc so sánh chuỗi an toàn bằng cách đẩy biến chắc chắn khác null lên trước
+            if (target.equals(handler.getViewingItemId())) {
+                handler.sendPacket(packet);
+            }
+        }
     }
     // Mỗi client khi tạo kết nối sẽ tạo một ClientHandler riêng,
     // và ClientHandler đó sẽ quản lý luồng giao tiếp với client đó.

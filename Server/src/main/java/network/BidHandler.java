@@ -4,15 +4,17 @@ import model.Items.Item;
 import model.auction.BidTransaction;
 import service.UserService;
 import model.auction.Auction;
+import model.exception.AuctionException;
 
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class BidHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public BidHandler(UserService userService) {
         this.userService = userService;
@@ -25,14 +27,7 @@ public class BidHandler extends BaseHandler implements RequestHandler {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            Object rawItemId = bidInfo.get("itemId");
-            if (rawItemId == null) {
-                response.put("success", false);
-                response.put("message", "itemId không được để trống");
-                sendResponse(out, Command.BID_RESULT, response);
-                return;
-            }
-            String itemId = String.valueOf(rawItemId);
+            String itemId = String.valueOf(bidInfo.get("itemId"));
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
             Map<String,Object> result = userService.processBid(itemId, bidderId, amount);
@@ -46,17 +41,28 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 response.put("newPrice", newPrice);
                 response.put("itemId", itemId);
 
-                // Broadcast cho toàn bộ client đang cùng xem item này.
-                Map<String, Object> bidUpdate = new HashMap<>();
-                bidUpdate.put("success", true);
-                bidUpdate.put("itemId", itemId);
-                bidUpdate.put("bidderId", bidderId);
-                bidUpdate.put("newPrice", newPrice);
+            // Broadcast cho toàn bộ client đang cùng xem item này.
+            Map<String, Object> bidUpdate = new HashMap<>();
+            bidUpdate.put("success", true);
+            bidUpdate.put("itemId", itemId);
+            bidUpdate.put("bidderId", bidderId);
+            bidUpdate.put("newPrice", newPrice);
 
-                if (latestAuction != null) {
-                    bidUpdate.put("auction", latestAuction);
+            if (latestAuction != null) {
+                bidUpdate.put("auction", latestAuction);
+                Instant auctionEndTime = latestAuction.getItem() != null
+                        ? latestAuction.getItem().getAuctionEndTime()
+                        : null;
+                if (auctionEndTime != null) {
+                    response.put("auctionEndTime", auctionEndTime);
+                    bidUpdate.put("auctionEndTime", auctionEndTime);
                 }
-                String usernameOldBidder = bidHistory.get(bidHistory.size() - 2).getBidder(); // Lấy username của người đặt giá trước đó
+                String usernameOldBidder = null;
+                try {
+                usernameOldBidder = bidHistory.get(bidHistory.size() - 2).getBidder();}
+                catch (Exception e){
+                    usernameOldBidder = bidderId;
+                }// Lấy username của người đặt giá trước đó
                 Map<String, Object> notifPayload = new HashMap<>();
                 notifPayload.put("item", item);
                 notifPayload.put("auction", latestAuction);
@@ -65,13 +71,22 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 // Để cập nhật teeen toàn bộ các clients đang trong phiên đấu giá
                 AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
                 AuctionServer.sendToSpecificUser(usernameOldBidder, Command.NOTIFICATION, notifPayload);
+                AuctionServer.sendToSpecificUser(item.getSellerId(), Command.NOTIFICATION, notifPayload);
             } else {
-                response.put("success", false);
-                response.put("message", "Giá đặt phải cao hơn giá hiện tại");
+                System.err.println("[Server Lỗi] Không thể phát tín hiệu ITEMS_UPDATE vì không tìm thấy dữ liệu đấu giá hiện tại!");
             }
-        } catch (Exception e) {
+        }else {
+                response.put("success", false);
+                response.put("message", "Đấu giá thất bại");
+            }
+        } catch (AuctionException e) {
+            fillErrorResponse(response, e);
             response.put("success", false);
-            response.put("message", "Lỗi: " + e.getMessage());
+            response.put("message", "Đấu giá thất bại");
+        } catch (Exception e) {
+            fillErrorResponse(response, e);
+            response.put("success", false);
+            response.put("message", "Đấu giá thất bại");
         }
 
         sendResponse(out, Command.BID_RESULT, response);

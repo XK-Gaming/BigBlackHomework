@@ -40,7 +40,7 @@ public class ControllerRegister implements ServerListener {
     @FXML
     private Button jbuton_TrangChu;
     public void setJbutton_TrangChu() throws IOException {
-        SceneHelper.changeScene(jbuton_TrangChu, "View1.fxml");
+        SceneHelper.changeScene(jbuton_TrangChu, "/fxml/LoginView.fxml");
     }
     public void resetStyle(javafx.scene.input.KeyEvent keyEvent) {
         TextField field = (TextField) keyEvent.getSource();
@@ -85,10 +85,10 @@ public class ControllerRegister implements ServerListener {
     }
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.REGISTER_RESULT == command) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             String isSuccess = (String) result.get("success");
 
             Platform.runLater(() -> {
@@ -108,7 +108,7 @@ public class ControllerRegister implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "View1.fxml");
+        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
     @FXML
     private Button LogOut;

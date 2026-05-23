@@ -13,6 +13,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import model.User.User;
+import model.User.UserRole;
 import model.User.UserSession;
 import network.AuctionClient;
 import network.Command;
@@ -81,7 +82,13 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_event_return(ActionEvent event) {
-        SceneHelper.changeScene((Node) j_return, "View3.fxml");
+        if (p1.getRole().equals(UserRole.BIDDER)) {
+            SceneHelper.changeScene((Node) j_return, "/fxml/BidderView.fxml");
+        } else if (p1.getRole().equals(UserRole.SELLER)) {
+            SceneHelper.changeScene((Node) j_return, "/fxml/SellerView.fxml");
+        } else {
+            SceneHelper.changeScene((Node) j_return, "/fxml/AdminView.fxml");
+        }
     }
 
     // ----------------------------------------------------
@@ -177,6 +184,7 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_OnChangePassword(ActionEvent event) {
+        User p1 = UserSession.getLoggedInUser();
         String oldPassword = j_inputOldPassword.getText();
         String newPassword = j_inputNewPassword.getText();
         String confirmPassword = j_inputConfirmPassword.getText();
@@ -265,10 +273,10 @@ public class ControllerSetInf implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         if (Command.UPDATE_USER_RESULT.equals(command) || "UPDATE_USER_RESULT".equals(command.toString())) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
 
@@ -285,7 +293,7 @@ public class ControllerSetInf implements ServerListener {
             });
         }
         if (Command.CHANGE_PASSWORD_RESULT.equals(command) || "CHANGE_PASSWORD_RESULT".equals(command.toString())) {
-            Map<String, Object> result = (Map<String, Object>) response.getPayload();
+            Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
             String message = (String) result.get("message");
 
@@ -302,7 +310,7 @@ public class ControllerSetInf implements ServerListener {
             });
         }
         if(Command.RECHARGE_AMOUNT_RESULT.equals(command)){
-            boolean isSuccess = (boolean) response.getPayload();
+            boolean isSuccess = (boolean) response.payload();
             Platform.runLater(() -> {
                 if (isSuccess) {
                     j_labelMessagePayment.setTextFill(Color.GREEN);

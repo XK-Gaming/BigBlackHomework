@@ -31,6 +31,7 @@ import model.auction.BidTransaction;
 import network.*;
 
 import java.io.IOException;
+import java.net.URL;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -88,11 +89,11 @@ public class ControllerManagerItem implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
-        Command command = response.getCommand();
+        Command command = response.command();
 
         // TH1: Nhận danh sách tất cả sản phẩm (Lần đầu load)
         if (Command.SELECT_ITEMS_RESULT.equals(command)) {
-            List<Item> itemsFromServer = (List<Item>) response.getPayload();
+            List<Item> itemsFromServer = (List<Item>) response.payload();
             Platform.runLater(() -> {
                 allAssets.setAll(itemsFromServer);
 
@@ -115,7 +116,7 @@ public class ControllerManagerItem implements ServerListener {
                                 case RUNNING -> "RUNNING (" + timeFormatted + ")";
                                 case FINISHED -> "FINISHED";
                                 case PAID -> "PAID";
-                                case CANCELED -> "CANCELED";
+                                case CANCELLED -> "CANCELLED";
                             };
                             currentItem.setDisplayStatus(statusString);
                         });
@@ -126,13 +127,13 @@ public class ControllerManagerItem implements ServerListener {
 
         // TH2: Nhận sản phẩm mới hoặc cập nhật từ Server
         if (Command.ITEMS_UPDATE.equals(command)) {
-            Item newItem = (Item) response.getPayload();
+            Item newItem = (Item) response.payload();
             Platform.runLater(() -> allAssets.add(newItem));
         }
 
         // TH3: Nhận dữ liệu phiên đấu giá của Item được chọn
         if (Command.GET_AUCTION_RESULT.equals(command)) {
-            auction = (Auction) response.getPayload();
+            auction = (Auction) response.payload();
             Platform.runLater(() -> {
                 if (auction != null) {
                     updateBidChart(auction.getBidHistory());
@@ -143,7 +144,7 @@ public class ControllerManagerItem implements ServerListener {
 
         //Nhận kết quả sau khi Admin bấm phê duyệt/tạm dừng
         if (Command.SET_ALLOW_RESULT.equals(command)) {
-            Map<String, Object> responsePayload = (Map<String, Object>) response.getPayload();
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             Object auctionObj = responsePayload.get("auction");
             if (auctionObj instanceof Auction) {
                 auction = (Auction) auctionObj;
@@ -158,7 +159,7 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
         if(Command.DELETE_ITEM_RESULT.equals(command)){
-            int result = (Integer) response.getPayload();
+            int result = (Integer) response.payload();
             if(result > 0){
                 Platform.runLater(() -> {
                     tableProducts.getSelectionModel().clearSelection();
@@ -193,7 +194,7 @@ public class ControllerManagerItem implements ServerListener {
                     case RUNNING -> "RUNNING (" + timeFormatted + ")";
                     case FINISHED -> "FINISHED";
                     case PAID -> "PAID";
-                    case CANCELED -> "CANCELED";
+                    case CANCELLED -> "CANCELLED";
                 };
 
                 targetItem.setDisplayStatus(statusString);
@@ -231,7 +232,7 @@ public class ControllerManagerItem implements ServerListener {
                 detailImage.setImage(new Image(item.getImg(), true));
             } else {
                 String imgPath = "/controller/img/" + item.getImg();
-                java.net.URL imgUrl = getClass().getResource(imgPath);
+                URL imgUrl = getClass().getResource(imgPath);
                 if (imgUrl != null) {
                     detailImage.setImage(new Image(imgUrl.toExternalForm()));
                 }

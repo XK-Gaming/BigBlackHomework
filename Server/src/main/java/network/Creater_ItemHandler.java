@@ -2,11 +2,12 @@ package network;
 
 import service.UserService;
 import model.Items.Item;
+import model.exception.PersistenceException;
 
 import java.io.ObjectOutputStream;
 
 public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
-    private UserService userService;
+    private final UserService userService;
 
     public Creater_ItemHandler(UserService userService) {
         this.userService = userService;
@@ -16,11 +17,15 @@ public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
     public void handle(Object payload, ObjectOutputStream out) {
 
         // Kiểm tra và ép kiểu trực tiếp từ payload
-        if (payload instanceof Item) {
-            Item item = (Item) payload; // Ép kiểu về lớp cha
-            // Thực hiện lưu trữ thông qua service
-            boolean isSuccess = userService.creater_item(item);
-            sendResponse(out, Command.CREATE_ITEM_RESULT, isSuccess);
+        if (payload instanceof Item item) {
+            try {
+                userService.creater_item(item);
+                sendResponse(out, Command.CREATE_ITEM_RESULT, true);
+                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, item);
+            } catch (PersistenceException e) {
+                System.err.println("[Creater_ItemHandler] " + e.getMessage());
+                sendResponse(out, Command.CREATE_ITEM_RESULT, false);
+            }
 
         } else {
             sendResponse(out, Command.CREATE_ITEM_RESULT, false);
