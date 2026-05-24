@@ -12,47 +12,78 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        // Khởi tạo map phản hồi kết quả về cho Client
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 1. Ép kiểu payload nhận được từ Client (Client sẽ gửi đối tượng Item cần xóa lên)
+            // 1. Kiểm tra và ép kiểu đúng về đối tượng Item
             if (!(payload instanceof Item)) {
-                throw new IllegalArgumentException("Dữ liệu sản phẩm yêu cầu xóa không hợp lệ!");
+                throw new IllegalArgumentException("Dữ liệu yêu cầu xóa không hợp lệ! Mong đợi đối tượng Item.");
             }
+
+            // Ép kiểu về Item trước
             Item selectedItem = (Item) payload;
 
-            // 2. Kiểm tra lịch sử đặt giá (Bid History) trước khi xóa để đảm bảo an toàn dữ liệu
+            // Rút ID số nguyên ra để dùng
+            int itemId = selectedItem.getDatabaseId();
+
+            // 2. Kiểm tra xem sản phẩm đã có ai đặt giá chưa
             var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
             boolean hasBids = (auctionItem != null
                     && auctionItem.getBidHistory() != null
                     && !auctionItem.getBidHistory().isEmpty());
 
             if (hasBids) {
-                // Nếu đã có người đặt giá, từ chối xóa và gửi thông báo lỗi lý do về Client
                 response.put("success", false);
                 response.put("message", "Không thể xóa! Sản phẩm này đã có người tham gia đặt giá.");
-            } else {
-                // 3. Tiến hành xóa dữ liệu dưới CSDL nếu hợp lệ
-                if (auctionItem != null) {
-                    DAOAuction_Items.getInstance().Delete(selectedItem); // Xóa ở bảng cuộc đấu giá trước (khóa ngoại)
-                }
-                DAOItems.getInstance().Delete(selectedItem); // Xóa trực tiếp ở bảng sản phẩm
 
-                // Phản hồi thành công về cho Client
-                response.put("success", true);
-                response.put("message", "Xóa sản phẩm thành công!");
-                response.put("deletedItemId", selectedItem.getDatabaseId()); // Gửi kèm ID để Client dọn dẹp giao diện
+                // Gửi phản hồi thất bại về riêng cho Seller
+                sendResponse(out, Command.DELETE_ITEM_RESULT, response);
+            } else {
+                // Thực hiện xóa trong cơ sở dữ liệu
+                if (auctionItem != null) {
+                    DAOAuction_Items.getInstance().Delete(selectedItem);
+                }
+
+                int rowsAffected = DAOItems.getInstance().Delete(selectedItem);
+
+                if (rowsAffected > 0) {
+                    // Cấu hình phản hồi thành công trả về riêng cho Seller
+                    response.put("success", true);
+                    response.put("message", "Xóa sản phẩm thành công!");
+                    response.put("deletedItemId", itemId); // Gửi ID về lại cho Seller dọn giao diện riêng (nếu cần)
+
+                    // ------------------------------------------------------------------
+                    // LOGIC REALTIME: PHÁT TÍN HIỆU ĐẾN CÁC CLIENT KHÁC
+                    // ------------------------------------------------------------------
+                    // Tạo payload chứa thông tin xóa để gửi ra sảnh chính (Pagination công cộng)
+                    Map<String, Object> broadcastData = new HashMap<>();
+                    broadcastData.put("success", true);
+                    broadcastData.put("deletedItemId", itemId);
+
+                    System.out.println("[Server Realtime] Phát tín hiệu XÓA sản phẩm ra sảnh chính cho Item ID: " + itemId);
+
+                    // Gửi cập nhật ra sảnh chính (roomID = null) với Command là ITEMS_UPDATE
+                    // Khi nhận được gói tin này, ControllerBidder sẽ tự động kích hoạt hàm removeSingleItem(itemId)
+                    AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, broadcastData);
+                    // ------------------------------------------------------------------
+
+                } else {
+                    response.put("success", false);
+                    response.put("message", "Không tìm thấy sản phẩm trong cơ sở dữ liệu để xóa.");
+                }
+
+                // Gửi kết quả cuối cùng về cho Seller vừa gửi yêu cầu
+                sendResponse(out, Command.DELETE_ITEM_RESULT, response);
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            // Hàm dùng chung từ BaseHandler để gán thông tin lỗi hệ thống
             fillErrorResponse(response, e);
-        }
+            response.put("success", false);
+            response.put("message", "Xóa thất bại do lỗi hệ thống.");
 
-        // 4. Gửi gói tin kết quả về Client
-        // Giả định bạn đã thêm DELETE_ITEM_RESULT vào Enum Command
-        sendResponse(out, Command.DELETE_ITEM_RESULT, response);
+            // Đảm bảo luôn phản hồi về cho Seller khi có lỗi ngoại lệ xảy ra
+            sendResponse(out, Command.DELETE_ITEM_RESULT, response);
+        }
     }
 }

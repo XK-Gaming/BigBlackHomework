@@ -118,9 +118,20 @@ public class ControllerBidder implements ServerListener {
     }
 
     private void setupPagination() {
+        // 1. Lưu lại chỉ số trang mà người dùng hiện đang đứng xem
+        int currentPage = List_Items_Bid.getCurrentPageIndex();
+
+        // 2. Tính toán số lượng trang mới dựa trên danh sách allAssets vừa được thêm phần tử
         int pageCount = Math.max(1, (int) Math.ceil((double) allAssets.size() / itemsPerPage));
         List_Items_Bid.setPageCount(pageCount);
         List_Items_Bid.setPageFactory(this::createPage);
+
+        // 3. Đảm bảo trang hiện tại không vượt quá tổng số trang mới (đề phòng trường hợp đặc biệt)
+        if (currentPage < pageCount) {
+            List_Items_Bid.setCurrentPageIndex(currentPage);
+        } else {
+            List_Items_Bid.setCurrentPageIndex(pageCount - 1);
+        }
     }
 
     private Node createPage(int pageIndex) {
@@ -211,6 +222,15 @@ public class ControllerBidder implements ServerListener {
                 }
                 else if (payload instanceof Map<?, ?> mapPayload) {
                     try {
+                        // KIỂM TRA TRƯỜNG HỢP: ĐÂY LÀ LỆNH XÓA REALTIME TỪ SERVER
+                        if (mapPayload.containsKey("deletedItemId") && Boolean.TRUE.equals(mapPayload.get("success"))) {
+                            int deletedId = Integer.parseInt(mapPayload.get("deletedItemId").toString());
+
+                            // Gọi xử lý xóa ngầm trên giao diện
+                            Platform.runLater(() -> removeSingleItem(deletedId));
+                            return; // Kết thúc xử lý gói tin xóa tại đây
+                        }
+
                         if (mapPayload.get("item") instanceof Item item) {
                             singleItemToUpdate = item;
                             if (mapPayload.get("newPrice") != null) {
@@ -261,18 +281,29 @@ public class ControllerBidder implements ServerListener {
         if (updatedItem == null) return;
 
         int targetId = updatedItem.getDatabaseId();
+        boolean isExist = false;
 
-        // 1. Đồng bộ giá trị mới vào mảng dữ liệu gốc
+        // 1. Đồng bộ giá trị mới vào mảng dữ liệu gốc nếu đã có
         for (int i = 0; i < allAssets.size(); i++) {
             if (allAssets.get(i).getDatabaseId() == targetId) {
                 allAssets.set(i, updatedItem);
+                isExist = true;
                 break;
             }
         }
 
-        // 2. Lấy controller từ Map và cập nhật giao diện trực tiếp nếu thẻ đó đang được vẽ
-        ItemCardController controller = activeControllers.get(targetId);
+        // 2. NẾU LÀ ITEM MỚI (Chưa tồn tại trong list hiện tại)
+        if (!isExist) {
+            System.out.println("[UI Realtime] Phát hiện Item mới hoàn toàn! Thêm vào danh sách.");
+            allAssets.add(updatedItem); // Thêm vào cuối danh sách
 
+            // Vì số lượng item thay đổi, bắt buộc phải vẽ lại Pagination để sinh thêm Card/Trang mới
+            Platform.runLater(this::setupPagination);
+            return;
+        }
+
+        // 3. Nếu là item cũ thì chỉ cập nhật giá lên Card đang hiển thị như cũ
+        ItemCardController controller = activeControllers.get(targetId);
         if (controller != null) {
             try {
                 controller.updatePriceOnly(updatedItem);
@@ -281,8 +312,7 @@ public class ControllerBidder implements ServerListener {
                 System.err.println("Lỗi cập nhật giá lên Card: " + e.getMessage());
             }
         } else {
-            // Log này sẽ xuất hiện khi thẻ ở trang khác chưa được render, nhưng dữ liệu allAssets đã lưu thành công!
-            System.out.println("[UI Realtime] Item ID " + targetId + " đã cập nhật ngầm vào mảng dữ liệu (Thẻ đang ẩn ở trang khác).");
+            System.out.println("[UI Realtime] Item ID " + targetId + " đã cập nhật ngầm vào mảng dữ liệu (Thẻ đang ẩn).");
         }
     }
 
@@ -368,5 +398,21 @@ public class ControllerBidder implements ServerListener {
     }
 
     public void On_MyAuctions(ActionEvent event) {
+    }
+
+    private void removeSingleItem(int deletedId) {
+        System.out.println("[UI Realtime] Phát hiện Item ID " + deletedId + " bị xóa từ Server. Đang dọn dẹp...");
+
+        // 1. Tìm và xóa Item ra khỏi danh sách dữ liệu gốc
+        boolean isRemoved = allAssets.removeIf(item -> item.getDatabaseId() == deletedId);
+
+        // 2. Nếu thực sự xóa thành công trong list, tiến hành cập nhật lại giao diện
+        if (isRemoved) {
+            // Hủy controller của thẻ này trong map quản lý để giải phóng bộ nhớ
+            activeControllers.remove(deletedId);
+
+            // Gọi hàm setupPagination đã tối ưu giữ nguyên trang ở bước trước
+            setupPagination();
+        }
     }
 }
