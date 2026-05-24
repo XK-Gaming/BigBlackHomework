@@ -47,6 +47,7 @@ public class ControllerSeller implements ServerListener {
     @FXML private ComboBox<String> j_ItemType;
     @FXML private Label j_LabelName;
     @FXML private TextField j_StartingPrice;
+    @FXML private TextField j_MinBid;
     @FXML private TextArea j_description;
     @FXML private TextField j_name;
     @FXML private DatePicker j_DateEnd;
@@ -190,6 +191,11 @@ public class ControllerSeller implements ServerListener {
             j_StartingPrice.requestFocus();
             return;
         }
+        if (j_MinBid.getText().trim().isEmpty()) {
+            showError("Vui long nhap MinBid (*)");
+            j_MinBid.requestFocus();
+            return;
+        }
         // --- KẾT THÚC KIỂM TRA THÔNG TIN BẮT BUỘC ---
 
         j_ApplyItem.setDisable(true);
@@ -231,6 +237,7 @@ public class ControllerSeller implements ServerListener {
 
                 // Kiểm tra Logic giá tiền
                 double startingPrice;
+                double minBid;
                 try {
                     startingPrice = Double.parseDouble(j_StartingPrice.getText());
                     if (startingPrice <= 0) throw new NumberFormatException();
@@ -240,6 +247,18 @@ public class ControllerSeller implements ServerListener {
                 }
 
                 // Đóng gói extra fields dựa trên loại mặt hàng chọn
+                try {
+                    minBid = Double.parseDouble(j_MinBid.getText());
+                    if (minBid <= 0) throw new NumberFormatException();
+                    if (minBid > startingPrice * 0.2) {
+                        showErrorInUIThread("MinBid khong duoc vuot qua 20% gia khoi diem!");
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    showErrorInUIThread("MinBid phai la so duong hop le!");
+                    return;
+                }
+
                 String itemType = j_ItemType.getValue();
                 Map<String, String> extraFields = new HashMap<>();
                 extraFields.put("brand", j_brand.getText());
@@ -249,7 +268,7 @@ public class ControllerSeller implements ServerListener {
                 extraFields.put("artist", j_artist.getText());
 
                 Item item = ItemFactory.createItem(
-                        itemType, j_name.getText(), j_description.getText(), startingPrice,
+                        itemType, j_name.getText(), j_description.getText(), startingPrice, minBid,
                         start, end, user != null ? user.getUsername() : "Unknown",
                         extraFields, uploadedImageUrl
                 );

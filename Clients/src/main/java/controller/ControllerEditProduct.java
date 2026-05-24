@@ -54,6 +54,7 @@ public class ControllerEditProduct implements ServerListener {
     @FXML private DatePicker dpEndDate;
     @FXML private TextField txtTimeEnd;
     @FXML private TextField txtStartPrice;
+    @FXML private TextField txtMinBid;
     @FXML private TextArea txtDescription;
 
     @FXML private VBox vboxAppendNote;
@@ -132,6 +133,7 @@ public class ControllerEditProduct implements ServerListener {
         txtName.setText(item.getName());
         txtDescription.setText(item.getDescription());
         txtStartPrice.setText(String.format("%.0f", item.getStartingPrice()));
+        txtMinBid.setText(String.format("%.0f", item.getMinBid()));
 
         parseAndSetAuctionTime(item.getAuctionStartTime(), dpStartDate, txtTimeStart);
         parseAndSetAuctionTime(item.getAuctionEndTime(), dpEndDate, txtTimeEnd);
@@ -190,6 +192,7 @@ public class ControllerEditProduct implements ServerListener {
     private void setCoreFieldsDisabled(boolean disabled) {
         txtName.setDisable(disabled);
         txtStartPrice.setDisable(disabled);
+        txtMinBid.setDisable(disabled);
         j_ItemType.setDisable(disabled);
         dpStartDate.setDisable(disabled);
         txtTimeStart.setDisable(disabled);
@@ -213,9 +216,15 @@ public class ControllerEditProduct implements ServerListener {
             return;
         }
 
+        if (!txtMinBid.isDisabled() && txtMinBid.getText().trim().isEmpty()) {
+            showError("Vui long nhap MinBid (*)");
+            return;
+        }
+
         String nameText = txtName.getText().trim();
         String descText = txtDescription.getText().trim();
         String startPriceText = txtStartPrice.getText().trim();
+        String minBidText = txtMinBid.getText().trim();
         String itemTypeVal = j_ItemType.getValue();
         String appendNoteText = txtAppendNote.getText().trim();
 
@@ -279,8 +288,14 @@ public class ControllerEditProduct implements ServerListener {
                             double startingPrice = Double.parseDouble(startPriceText);
                             if (startingPrice <= 0) throw new NumberFormatException();
                             currentItem.setStartingPrice(startingPrice);
+                            double minBid = Double.parseDouble(minBidText);
+                            if (minBid <= 0 || minBid > startingPrice * 0.2) {
+                                showErrorInUIThread("MinBid phai lon hon 0 va khong vuot qua 20% gia khoi diem!");
+                                return;
+                            }
+                            currentItem.setMinBid(minBid);
                         } catch (NumberFormatException e) {
-                            showErrorInUIThread("Giá khởi điểm nhập vào phải là số dương hợp lệ!");
+                            showErrorInUIThread("Gia khoi diem va MinBid phai la so duong hop le!");
                             return;
                         }
 

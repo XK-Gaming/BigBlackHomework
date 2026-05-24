@@ -87,6 +87,7 @@ public class ControllerAuction implements ServerListener {
     @FXML private Button j_return;
     @FXML private Label j_textSoDu;
     @FXML private Label j_CurrentPrice;
+    @FXML private Label j_MinBid;
     @FXML private Label j_notified;
     @FXML private Label j_mins;
     @FXML private Label j_hours;
@@ -147,6 +148,7 @@ public class ControllerAuction implements ServerListener {
             j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
             renderImage();
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
+            updateMinBidLabel();
         }
         j_status.setText("Đang tải phiên đấu giá...");
         j_status.setTextFill(Color.web("#bdc3c7"));
@@ -214,7 +216,10 @@ public class ControllerAuction implements ServerListener {
             }
         } else if (item1 != null) {
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
+            updateMinBidLabel();
         }
+
+        updateMinBidLabel();
 
         if (this_Auction == null) {
             j_leadingBidder.setText("—");
@@ -229,6 +234,34 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    private void updateMinBidLabel() {
+        if (j_MinBid == null) {
+            return;
+        }
+        DecimalFormat df = new DecimalFormat("#,###");
+        double minBid = item1 != null ? item1.getMinBid() : 0;
+        j_MinBid.setText("MinBid: " + df.format(minBid) + " VNĐ");
+    }
+
+    private double minimumBidForCurrentState() {
+        double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
+        if (isFirstBid()) {
+            return Math.nextUp(currentPrice);
+        }
+        double minBid = item1 != null ? Math.max(0, item1.getMinBid()) : 0;
+        return currentPrice + minBid;
+    }
+
+    private boolean isFirstBid() {
+        if (this_Auction == null) {
+            return false;
+        }
+        String leadingBidder = this_Auction.getLeadingBidder();
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasHistory = this_Auction.getBidHistory() != null && !this_Auction.getBidHistory().isEmpty();
+        return !hasLeader && !hasHistory;
+    }
+
     private void syncAuctionSnapshot(Auction auction) {
         if (auction == null || item1 == null) return;
         this_Auction = auction;
@@ -236,6 +269,7 @@ public class ControllerAuction implements ServerListener {
         if (auctionItem == null) return;
 
         item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
+        item1.setMinBid(auctionItem.getMinBid());
         if (auctionItem.getAuctionStartTime() != null) {
             item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
         }
@@ -281,8 +315,14 @@ public class ControllerAuction implements ServerListener {
 
         try {
             long bidAmount = Long.parseLong(priceText);
+            double minAllowedBid = minimumBidForCurrentState();
+            double currentPrice = item1.getCurrentHighestPrice();
 
-            if (bidAmount <= item1.getCurrentHighestPrice()) {
+            if (!isFirstBid() && bidAmount < minAllowedBid) {
+                DecimalFormat df = new DecimalFormat("#,###");
+                j_notified.setText("Giá đặt tối thiểu là " + df.format(minAllowedBid) + " VNĐ (giá hiện tại + MinBid).");
+                j_notified.setVisible(true);
+            } else if (bidAmount <= currentPrice) {
                 j_notified.setText("Giá đặt phải lớn hơn giá hiện tại!");
                 j_notified.setVisible(true);
             } else if (bidAmount > p1.getBalance()) {
@@ -508,10 +548,14 @@ public class ControllerAuction implements ServerListener {
         double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
 
         if (maxBidAllow <= currentPrice) {
-            throw new IllegalArgumentException("MaxBidAllow must be greater than current price.");
+            throw new IllegalArgumentException("MaxBidAllow phải lớn hơn giá hiện tại.");
         }
         if (bidGap <= 0) {
-            throw new IllegalArgumentException("BidGap must be greater than 0.");
+            throw new IllegalArgumentException("BidGap phải lớn hơn 0.");
+        }
+        double minBid = item1 != null ? item1.getMinBid() : 0;
+        if (bidGap < minBid) {
+            throw new IllegalArgumentException("BidGap phải lớn hơn hoặc bằng MinBid.");
         }
         return new AutoBidSettings(maxBidAllow, bidGap);
     }
@@ -537,6 +581,11 @@ public class ControllerAuction implements ServerListener {
 
         if (enabled && autoBidSettings == null) {
             showTemporaryNotice("Please configure AutoBid first.");
+            setAutoBidToggleSelected(false);
+            return;
+        }
+        if (enabled && item1 != null && autoBidSettings.bidGap < item1.getMinBid()) {
+            showTemporaryNotice("BidGap phải lớn hơn hoặc bằng MinBid.");
             setAutoBidToggleSelected(false);
             return;
         }

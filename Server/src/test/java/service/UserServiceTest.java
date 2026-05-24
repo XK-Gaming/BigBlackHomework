@@ -9,6 +9,7 @@ import model.User.Bidder;
 import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.auction.BidTransaction;
 import model.exception.BidRejectedException;
 import model.exception.NotFoundException;
 import model.exception.UnauthorizedException;
@@ -24,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -101,6 +103,49 @@ class UserServiceTest {
                 () -> service.processBid("1", "bidder1", 100));
 
         assertEquals(BidRejectedException.Reason.PRICE_TOO_LOW, exception.getReason());
+    }
+
+    /**
+     * ## Test MinBid: bid dau tien chi can cao hon gia hien tai, chua bi ep current + MinBid.
+     */
+    @Test
+    void processBidAllowsFirstBidBelowMinBidIncrement() throws Exception {
+        Item item = item("seller", 100);
+        item.setMinBid(20);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 1_000));
+        UserService service = serviceWith(userDao, itemDao, auctionDao);
+
+        service.processBid("1", "bidder1", 110);
+
+        assertEquals(110, item.getCurrentHighestPrice(), 0.001);
+        assertEquals(1, itemDao.updateCalls);
+        assertEquals(1, auctionDao.updateCalls);
+    }
+
+    /**
+     * ## Test MinBid: tu bid thu hai tro di, gia phai dat toi thieu current price + MinBid.
+     */
+    @Test
+    void processBidRejectsSecondBidBelowCurrentPlusMinBid() throws Exception {
+        Item item = item("seller", 100);
+        item.setMinBid(20);
+        Auction auction = runningAuction(item);
+        auction.setLeadingBidder("bidder0");
+        auction.setBidHistory(List.of(new BidTransaction("bid-1", "bidder0", 100, Instant.now())));
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 1_000));
+        UserService service = serviceWith(userDao, new FakeItemDao(item), new FakeAuctionDao(auction));
+
+        BidRejectedException exception = assertThrows(BidRejectedException.class,
+                () -> service.processBid("1", "bidder1", 119));
+
+        assertEquals(BidRejectedException.Reason.PRICE_TOO_LOW, exception.getReason());
+        assertTrue(exception.getMessage().contains("MinBid"));
     }
 
     /**
