@@ -57,6 +57,8 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.GET_AUCTION, new GetAuctionHandler(this.userService, this));
         handlers.put(Command.SET_AUCTION, new SetAuctionHandler(this.userService, this));
         handlers.put(Command.BID, new BidHandler(this.userService));
+
+        // AutoBid: đăng ký handler nhận cấu hình bật/tắt từ client.
         handlers.put(Command.SET_AUTO_BID, new AutoBidHandler(this));
         handlers.put(Command.GET_ALL_AUCTIONS, new GetAllAuctionsHandler(this.userService));
         handlers.put(Command.UPDATE_USER, new UpdateUserHandler(this.userService));

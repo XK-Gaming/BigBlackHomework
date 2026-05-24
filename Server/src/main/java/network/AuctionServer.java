@@ -81,6 +81,7 @@ public class AuctionServer {
 
     // Gọi hàm này khi Client ngắt kết nối
     public static void removeOnlineClient(String username) {
+        // AutoBid: user offline thì dừng toàn bộ lịch đặt giá tự động của user đó.
         AutoBidManager.getInstance().disableAllForUser(username, "logout/disconnect");
         if (username != null) {
             onlineClients.remove(username);

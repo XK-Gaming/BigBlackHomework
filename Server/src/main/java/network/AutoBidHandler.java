@@ -6,6 +6,9 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * AutoBid: nhận yêu cầu bật/tắt từ client, validate payload cơ bản rồi chuyển cho AutoBidManager xử lý.
+ */
 public class AutoBidHandler extends BaseHandler implements RequestHandler {
     private final ClientHandler clientHandler;
 

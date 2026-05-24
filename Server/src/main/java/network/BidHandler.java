@@ -44,6 +44,7 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                     }
                 }
 
+                // Bid event: dùng helper chung để manual bid và AutoBid phát realtime giống nhau.
                 BidEventPublisher.publishSuccessfulBid(itemId, bidderId, result);
             } else {
                 response.put("success", false);

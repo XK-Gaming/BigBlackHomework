@@ -67,6 +67,7 @@ public class ControllerBidder implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
+        // Logout: báo server dừng AutoBid trước khi dọn session và về màn đăng nhập.
         try {
             if (p1 != null) {
                 client.sendCommand(Command.LOGOUT, Map.of("username", p1.getUsername()));

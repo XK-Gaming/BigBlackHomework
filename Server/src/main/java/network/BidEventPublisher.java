@@ -9,10 +9,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Bid event: gom phần broadcast realtime để manual bid và AutoBid dùng chung cùng một format payload.
+ */
 final class BidEventPublisher {
     private BidEventPublisher() {
     }
 
+    // Bid event: phát cập nhật giá, cập nhật danh sách và notification sau khi bid đã được DB chấp nhận.
     static void publishSuccessfulBid(String itemId, String bidderId, Map<String, Object> bidResult) {
         Auction latestAuction = (Auction) bidResult.get("latestAuction");
         Item item = (Item) bidResult.get("item");

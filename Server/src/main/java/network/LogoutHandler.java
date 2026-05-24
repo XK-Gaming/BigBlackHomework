@@ -17,6 +17,7 @@ public class LogoutHandler extends BaseHandler implements RequestHandler {
     public void handle(Object payload, ObjectOutputStream out) {
         String username = extractUsername(payload);
 
+        // Logout: gọi removeOnlineClient để vừa xóa online user vừa tắt AutoBid đang chạy.
         userService.logout(username);
         AuctionServer.removeOnlineClient(username);
 

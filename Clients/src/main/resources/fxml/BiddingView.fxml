@@ -183,6 +183,7 @@
                                  <font><Font name="System Bold" size="16.0" /></font>
                                  <cursor><Cursor fx:constant="HAND" /></cursor>
                               </Button>
+                              <!-- AutoBid controls: mở popup cấu hình và bật/tắt đặt giá tự động từ server. -->
                               <HBox spacing="10.0">
                                  <children>
                                     <Button fx:id="j_autoBidSettings" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_AutoBidSettings" prefHeight="42.0" style="-fx-background-color: #34495e; -fx-text-fill: white; -fx-background-radius: 5; -fx-font-weight: bold;" text="AUTO BID SETTING" HBox.hgrow="ALWAYS">

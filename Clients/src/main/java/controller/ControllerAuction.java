@@ -61,6 +61,8 @@ public class ControllerAuction implements ServerListener {
     static Auction this_Auction;
     private String watchToken;
     private boolean finishHandled;
+
+    // AutoBid UI state: lưu cấu hình/toggle theo user-item trong lúc client còn mở.
     private static final Map<String, AutoBidSettings> AUTO_BID_SETTINGS_BY_KEY = new HashMap<>();
     private static final Set<String> AUTO_BID_ENABLED_KEYS = new HashSet<>();
     private AutoBidSettings autoBidSettings;
@@ -68,6 +70,8 @@ public class ControllerAuction implements ServerListener {
 
     @FXML private TextField j_setPrice;
     @FXML private Button j_apply;
+
+    // AutoBid controls: setting mở popup nhập thông số, toggle gửi bật/tắt lên server.
     @FXML private Button j_autoBidSettings;
     @FXML private ToggleButton j_autoBidToggle;
     @FXML private Label j_leadingBidder;
@@ -257,6 +261,7 @@ public class ControllerAuction implements ServerListener {
 
     @FXML
     void On_AutoBidSettings(ActionEvent event) {
+        // AutoBid setting: mở popup để user nhập MaxBidAllow/BidGap và cập nhật lại server nếu toggle đang bật.
         boolean saved = showAutoBidSettingsDialog();
         if (saved && j_autoBidToggle != null && j_autoBidToggle.isSelected()) {
             sendAutoBidCommand(true);
@@ -265,6 +270,7 @@ public class ControllerAuction implements ServerListener {
 
     @FXML
     void On_AutoBidToggle(ActionEvent event) {
+        // AutoBid toggle: bật thì yêu cầu có settings hợp lệ, tắt thì gửi lệnh dừng cho server.
         if (updatingAutoBidToggle || j_autoBidToggle == null) {
             return;
         }
@@ -319,6 +325,7 @@ public class ControllerAuction implements ServerListener {
         setAutoBidAvailable(false);
     }
 
+    // AutoBid popup: dựng dialog cấu hình lớn hơn, bo góc và validate dữ liệu ngay trước khi lưu.
     private boolean showAutoBidSettingsDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("AutoBid");
@@ -467,6 +474,7 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    // AutoBid command: đóng gói cấu hình hiện tại và gửi yêu cầu bật/tắt tới server.
     private void sendAutoBidCommand(boolean enabled) {
         if (p1 == null || item1 == null) {
             showTemporaryNotice("Cannot update AutoBid because session is missing.");
@@ -505,6 +513,7 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    // AutoBid result: đồng bộ toggle UI theo phản hồi server hoặc khi server tự tắt AutoBid.
     private void handleAutoBidResult(Object payload) {
         if (!(payload instanceof Map<?, ?> result)) {
             return;
@@ -538,6 +547,7 @@ public class ControllerAuction implements ServerListener {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 
+    // AutoBid availability: chỉ cho bật/tắt khi phiên đang RUNNING.
     private void setAutoBidAvailable(boolean available) {
         if (j_autoBidToggle != null) {
             j_autoBidToggle.setDisable(!available);
@@ -882,6 +892,7 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    // AutoBid settings: object nhỏ giữ hai thông số user nhập trong popup.
     private static final class AutoBidSettings {
         private final double maxBidAllow;
         private final double bidGap;
