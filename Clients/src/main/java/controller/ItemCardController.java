@@ -1,6 +1,5 @@
 package controller;
 
-
 import javafx.fxml.FXML;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
@@ -14,7 +13,6 @@ import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-
 
 public class ItemCardController {
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
@@ -33,30 +31,38 @@ public class ItemCardController {
     @FXML
     private Label j_status;
 
+    // HÀM MỚI: Chỉ nhận lệnh cập nhật trực tiếp nhãn giá tiền hiển thị độc lập
+    public void updatePriceOnly(Item item) {
+        DecimalFormat df = new DecimalFormat("#,###");
+        double price = item.getCurrentHighestPrice();
+        Platform.runLater(() -> {
+            j_StartPrice.setText(df.format(price) + " VNĐ");
+        });
+    }
+
     public void setData(Item item) throws IOException, URISyntaxException {
         if (watchToken != null) {
             auctionEngine.unwatch(watchToken);
             watchToken = null;
         }
+
         j_name.setText(item.getName());
         DecimalFormat df = new DecimalFormat("#,###");
         double price = item.getCurrentHighestPrice();
         j_StartPrice.setText(df.format(price) + " VNĐ");
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
                 .withZone(ZoneId.systemDefault());
-        // Quan trọng: Phải có .withZone để máy biết dùng múi giờ nào
 
-        // 3. Chuyển đổi
         String formattedString_Start = formatter.format(item.getAuctionStartTime());
         String formattedString_End = formatter.format(item.getAuctionEndTime());
         j_StartTime.setText(formattedString_Start);
         j_EndTime.setText(formattedString_End);
-        // 1. Link ảnh từ Cloudinary
-        if(item.getImg() != null && !item.getImg().isEmpty()){
+
+        if (item.getImg() != null && !item.getImg().isEmpty()) {
             if (item.getImg().startsWith("http")) {
                 j_img.setImage(new Image(item.getImg(), true));
             } else {
-                // Thử load từ resource (đảm bảo ảnh được copy vào target khi build)
                 String imgPath = "/controller/img/" + item.getImg();
                 java.net.URL imgUrl = getClass().getResource(imgPath);
                 if (imgUrl != null) {
@@ -75,7 +81,7 @@ public class ItemCardController {
             }
         }));
 
-        j_name.sceneProperty().addListener((newScene) -> {
+        j_name.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (newScene == null && watchToken != null) {
                 auctionEngine.unwatch(watchToken);
                 watchToken = null;
@@ -92,5 +98,4 @@ public class ItemCardController {
         long seconds = totalSeconds % 60;
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
-
 }

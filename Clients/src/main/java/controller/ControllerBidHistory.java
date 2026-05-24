@@ -17,8 +17,8 @@ import javafx.scene.layout.VBox;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.BidHistoryDTO;
-import model.auction.Auction; // Import nếu cần thiết để ép kiểu payload
-import model.Items.Item;      // Import nếu cần thiết để ép kiểu payload
+import model.auction.Auction;
+import model.Items.Item;
 import network.AuctionClient;
 import network.Command;
 import network.DataPacket;
@@ -46,7 +46,7 @@ public class ControllerBidHistory implements ServerListener {
     private VBox containerCardList;
     private long targetItemId = -1;
 
-    // BỔ SUNG: Lưu danh sách lịch sử cục bộ để cập nhật realtime giống file ControllerBidder
+    // Lưu danh sách lịch sử cục bộ để cập nhật realtime
     private List<BidHistoryDTO> allHistoryData = new ArrayList<>();
 
     @FXML
@@ -85,18 +85,17 @@ public class ControllerBidHistory implements ServerListener {
         Command command = response.command();
         System.out.println("[Client Debug] Nhận phản hồi tại Lịch sử, Command: " + command);
 
-        // TRƯỜNG HỢP 1: Tải toàn bộ danh sách lịch sử ban đầu
+        // TRƯỜNG HỢP 1: Tải toàn bộ danh sách lịch sử ban đầu từ Server
         if (Command.GET_BIDDER_HISTORY_RESULT.equals(command)) {
             @SuppressWarnings("unchecked")
             List<BidHistoryDTO> historyList = (List<BidHistoryDTO>) response.payload();
             this.allHistoryData = historyList != null ? historyList : new ArrayList<>();
             Platform.runLater(() -> updateUIWithData(this.allHistoryData));
-            return; // Xử lý xong thì dừng lại luôn
+            return;
         }
 
-        // TRƯỜNG HỢP 2: Cập nhật Realtime từng item
+        // TRƯỜNG HỢP 2: Cập nhật biến động Realtime từng Item (Khi có người vừa đặt giá)
         if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command) || Command.BID_RESULT.equals(command)) {
-
             Object payload = response.payload();
             if (payload == null) return;
 
@@ -104,55 +103,61 @@ public class ControllerBidHistory implements ServerListener {
             double updatedPrice = 0.0;
             String highestBidder = "";
 
-            // 1. Nếu payload là cấu trúc phòng đấu giá (Auction)
+            // 1. Nhận dạng cấu trúc phòng đấu giá (Auction)
             if (payload instanceof Auction auction) {
                 updatedItemId = auction.getItem() != null ? auction.getItem().getDatabaseId() : -1;
                 updatedPrice = auction.getCurrentPrice();
                 highestBidder = auction.getLeadingBidder() != null ? auction.getLeadingBidder() : "";
             }
-            // 2. Nếu payload là Object sản phẩm đơn lẻ (Item)
+            // 2. Nhận dạng Object sản phẩm đơn lẻ (Item)
             else if (payload instanceof Item item) {
                 updatedItemId = item.getDatabaseId();
                 updatedPrice = item.getCurrentHighestPrice();
             }
-            // 3. Nếu payload là một Map (Cần kiểm tra null cực kỳ nghiêm ngặt ở đây)
+            // 3. Nhận dạng gói tin dạng Map (ĐẶC BIỆT LƯU Ý sửa đổi khớp với Server)
             else if (payload instanceof Map<?, ?> map) {
                 try {
-                    // Kiểm tra an toàn trước khi ép kiểu, tránh lỗi .toString() trên object null
-                    if (map.containsKey("itemId") && map.get("itemId") != null &&
-                            map.containsKey("amount") && map.get("amount") != null) {
-
+                    // ĐÃ SỬA: Kiểm tra key "newPrice" thay vì "amount" phát ra từ BidHandler
+                    if (map.containsKey("itemId") && map.get("itemId") != null) {
                         updatedItemId = Long.parseLong(map.get("itemId").toString());
-                        updatedPrice = Double.parseDouble(map.get("amount").toString());
+
+                        if (map.containsKey("newPrice") && map.get("newPrice") != null) {
+                            updatedPrice = Double.parseDouble(map.get("newPrice").toString());
+                        } else if (map.containsKey("amount") && map.get("amount") != null) {
+                            // Dự phòng nếu gói BID_RESULT trả về dùng key amount
+                            updatedPrice = Double.parseDouble(map.get("amount").toString());
+                        }
 
                         if (map.get("bidderId") != null) {
                             highestBidder = map.get("bidderId").toString();
                         }
                     } else {
-                        // Nếu nhận được BID_RESULT nhưng map không chứa dữ liệu cần thiết,
-                        // ta bỏ qua không xử lý để tránh ghi đè dữ liệu sai lệch ($0.0)
-                        System.out.println("[Client History] Nhận Map thông báo kết quả phụ, bỏ qua cập nhật UI.");
+                        System.out.println("[Client History] Map không chứa itemId, bỏ qua cập nhật.");
                         return;
                     }
                 } catch (Exception e) {
-                    System.err.println("Không thể bóc tách payload Map: " + e.getMessage());
+                    System.err.println("Không thể bóc tách payload Map lịch sử: " + e.getMessage());
                     return;
                 }
             }
 
-            // Chỉ tiến hành cập nhật giao diện nếu tìm thấy ID hợp lệ (> 0)
+            // Tiến hành cập nhật luồng UI an toàn
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
                 final String topBidder = highestBidder;
 
                 Platform.runLater(() -> {
-                    hideQuickBidModal();
+                    // ĐÃ SỬA: Chỉ đóng modal nếu hành động đặt giá thành công này thuộc về item đang thao tác
+                    if (Command.BID_RESULT.equals(command) && targetId == this.targetItemId) {
+                        hideQuickBidModal();
+                    }
                     updateSingleHistoryItem(targetId, targetPrice, topBidder);
                 });
             }
         }
     }
+
     /**
      * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp lên giao diện
      */
@@ -165,16 +170,17 @@ public class ControllerBidHistory implements ServerListener {
                 dto.setCurrentHighestPrice(newPrice);
 
                 // 2. Cập nhật lại trạng thái dựa trên việc ai đang dẫn đầu
-                if (!topBidder.isEmpty()) {
+                if (topBidder != null && !topBidder.isEmpty()) {
                     if (topBidder.equals(currentUsername)) {
                         dto.setStatus("WINNING");
-                        // Nếu mình là người vừa bid thành công, mức đặt của mình chính là mức giá này
-                        dto.setMyHighestBid(newPrice);
+                        dto.setMyHighestBid(newPrice); // Nếu mình dẫn đầu, cập nhật luôn mức giá đặt của mình
                     } else {
-                        dto.setStatus("OUTBID");
+                        // Nếu người khác dẫn đầu và mức giá mới vượt qua mức giá cũ cao nhất của mình
+                        if (newPrice > dto.getMyHighestBid()) {
+                            dto.setStatus("OUTBID");
+                        }
                     }
                 } else {
-                    // Nếu server không trả về tên người dẫn đầu, kiểm tra dựa trên giá tiền
                     if (dto.getMyHighestBid() >= newPrice) {
                         dto.setStatus("WINNING");
                     } else {
@@ -182,11 +188,11 @@ public class ControllerBidHistory implements ServerListener {
                     }
                 }
                 hasChanged = true;
-                System.out.println("[UI Realtime Lịch Sử] Đã cập nhật Item ID: " + itemId + " thành giá mới: $" + newPrice);
+                System.out.println("[UI Realtime Lịch Sử] Đồng bộ thành công sản phẩm ID: " + itemId + " -> Giá mới: $" + newPrice);
             }
         }
 
-        // Nếu có sự thay đổi, vẽ lại danh sách card ngay lập tức (Rất nhẹ và mượt vì không gọi mạng)
+        // Tạo lại danh sách card nếu phát hiện có sự thay đổi
         if (hasChanged) {
             updateUIWithData(allHistoryData);
         }
@@ -307,7 +313,7 @@ public class ControllerBidHistory implements ServerListener {
             bidPayload.put("bidderId", currentUsername);
             bidPayload.put("amount", amount);
 
-            System.out.println("[Client History] Bắn lệnh Command.BID lên Server qua Modal nhanh: " + bidPayload);
+            System.out.println("[Client History] Gửi lệnh BID từ lịch sử: " + bidPayload);
             client.sendCommand(Command.BID, bidPayload);
 
         } catch (NumberFormatException e) {
