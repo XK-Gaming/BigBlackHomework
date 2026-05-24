@@ -81,16 +81,20 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                     notifPayload.put("bidderId", bidderId);
                     notifPayload.put("newPrice", newPrice);
 
-                    // --- TIẾN HÀNH PHÁT TÍN HIỆU REALTIME ---
+// --- TIẾN HÀNH PHÁT TÍN HIỆU REALTIME ---
 
-                    // Phát tín hiệu cập nhật cho các client đang ở trong phòng đấu giá này
+// 1. Phát tín hiệu cập nhật cho các client đang mở chi tiết phòng đấu giá này
                     AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
 
-                    // Gửi cập nhật ra sảnh chính (itemId = null) để các client xem danh sách (Pagination) thấy giá mới
+// 2. Gửi cập nhật ra sảnh chính (itemId = null) để các client xem danh sách thấy giá mới
                     System.out.println("[Server Realtime] Phát tín hiệu cập nhật danh sách sảnh cho Item ID: " + itemId);
                     AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, latestAuction);
 
-                    // Gửi thông báo đến người bị vượt giá và chủ phòng (Người bán)
+// ✅ BỔ SUNG: Broadcast thêm gói gói bidUpdate dạng ITEMS_UPDATE (hoặc BID_UPDATE) ra sảnh chung (null)
+// để các màn hình nền như "Lịch sử đặt giá" (không ở trong phòng) cũng nghe được sự thay đổi giá.
+                    AuctionServer.broadcastToSpecificAuction(null, Command.BID_UPDATE, bidUpdate);
+
+// 3. Gửi thông báo đến người bị vượt giá và chủ phòng (Người bán)
                     AuctionServer.sendToSpecificUser(usernameOldBidder, Command.NOTIFICATION, notifPayload);
                     if (item != null && item.getSellerId() != null) {
                         AuctionServer.sendToSpecificUser(item.getSellerId(), Command.NOTIFICATION, notifPayload);

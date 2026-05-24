@@ -48,8 +48,11 @@ import java.util.Map;
 public class ControllerAuction implements ServerListener {
     private final AuctionClient client = AuctionClient.getInstance();
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
-    User p1 = UserSession.getLoggedInUser();
-    Item item1 = ItemSession.getLoggedInItem();
+
+    // Đã sửa: Không gán cứng ngay tại đây để tránh NPE khi session trống
+    private User p1;
+    private Item item1;
+
     static Auction this_Auction;
     private String watchToken;
     private boolean finishHandled;
@@ -76,21 +79,47 @@ public class ControllerAuction implements ServerListener {
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
 
+    @FXML
     public void initialize() throws IOException {
         client.setListener(this);
-        showSessionProductAndLoadingAuctionState();
-        client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
-        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
+
+        // Nạp dữ liệu tài khoản
+        p1 = UserSession.getLoggedInUser();
+        // Kiểm tra xem có sẵn session sản phẩm không (Trường hợp đi từ Danh sách sản phẩm thông thường)
+        item1 = ItemSession.getLoggedInItem();
+
+        if (item1 != null) {
+            // Nếu đi từ màn hình chính (đã có ItemSession), kích hoạt kết nối luôn
+            showSessionProductAndLoadingAuctionState();
+            client.sendCommand(Command.GET_AUCTION, item1.getDatabaseId());
+            client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
+        } else {
+            // Nếu đi từ Lịch sử (ItemSession null), thiết lập giao diện chờ cơ bản trước
+            if (p1 != null) {
+                j_LabelName.setText(p1.getName());
+                DecimalFormat df = new DecimalFormat("#,###");
+                j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+            }
+            j_status.setText("Đang tải cấu hình phòng...");
+            j_status.setTextFill(Color.web("#bdc3c7"));
+            j_leadingBidder.setText("—");
+            if (j_countdown != null) {
+                j_countdown.setVisible(false);
+            }
+            j_apply.setDisable(true);
+            j_notified.setVisible(false);
+        }
     }
 
     private void showSessionProductAndLoadingAuctionState() {
         if (p1 != null) {
             j_LabelName.setText(p1.getName());
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
         }
         if (item1 != null) {
             j_name.setText(item1.getName());
             DecimalFormat df = new DecimalFormat("#,###");
-            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
             j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
             renderImage();
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
@@ -110,10 +139,15 @@ public class ControllerAuction implements ServerListener {
         Platform.runLater(() -> {
             if (this_Auction == null) {
                 System.out.println("⚠ Cảnh báo: Không tìm thấy phiên đấu giá!");
-                j_LabelName.setText(p1.getName());
-                j_name.setText(item1.getName());
-                renderImage();
-                j_description.setText(item1.getDescription());
+                if (p1 != null) j_LabelName.setText(p1.getName());
+
+                // ĐÃ SỬA: Kiểm tra an toàn cho item1 tránh gây crash giao diện tại đây
+                if (item1 != null) {
+                    j_name.setText(item1.getName());
+                    j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+                    renderImage();
+                }
+
                 j_status.setText("CHƯA DIỄN RA");
                 j_apply.setDisable(true);
                 j_notified.setText("Sản phẩm này hiện chưa được mở bán.");
@@ -134,10 +168,12 @@ public class ControllerAuction implements ServerListener {
         if (j_countdown != null) {
             j_countdown.setVisible(true);
         }
-        j_LabelName.setText(p1.getName());
-        j_name.setText(item1.getName());
-        renderImage();
-        j_description.setText(item1.getDescription());
+        if (p1 != null) j_LabelName.setText(p1.getName());
+        if (item1 != null) {
+            j_name.setText(item1.getName());
+            j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+            renderImage();
+        }
         updatePriceAndLeader();
         startStatusEngine();
     }
@@ -192,7 +228,7 @@ public class ControllerAuction implements ServerListener {
     }
 
     private void renderImage() {
-        if (item1.getImg() != null && !item1.getImg().isEmpty()) {
+        if (item1 != null && item1.getImg() != null && !item1.getImg().isEmpty()) {
             if (item1.getImg().startsWith("http")) {
                 j_img.setImage(new Image(item1.getImg()));
             } else {
@@ -207,6 +243,7 @@ public class ControllerAuction implements ServerListener {
 
     @FXML
     void On_apply(ActionEvent event) throws IOException {
+        if (item1 == null || p1 == null) return;
         j_notified.setVisible(false);
         String priceText = j_setPrice.getText();
 
@@ -245,7 +282,9 @@ public class ControllerAuction implements ServerListener {
         cleanup();
         SceneHelper.changeScene(j_return, "/fxml/BidderView.fxml");
         ItemSession.cleanItemSession();
-        client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
+        if (p1 != null) {
+            client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", ""));
+        }
     }
 
     private void updateTimerLabels(long current) {
@@ -268,6 +307,7 @@ public class ControllerAuction implements ServerListener {
     }
 
     private void startStatusEngine() {
+        if (item1 == null) return;
         cleanup();
         finishHandled = false;
         watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
@@ -301,12 +341,12 @@ public class ControllerAuction implements ServerListener {
     }
 
     private void handleFinishedAuction() {
-        if (this_Auction != null && this_Auction.getLeadingBidder() != null
+        if (p1 != null && this_Auction != null && this_Auction.getLeadingBidder() != null
                 && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
             PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "PayingView.fxml"));
+            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "/fxml/PayingView.fxml"));
             delay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
@@ -488,7 +528,7 @@ public class ControllerAuction implements ServerListener {
                         updateBidChart(this_Auction.getBidHistory());
                         String newBidder = this_Auction.getLeadingBidder();
 
-                        if (!p1.getUsername().equals(newBidder)) {
+                        if (p1 != null && !p1.getUsername().equals(newBidder)) {
                             j_notified.setText("Có lượt đặt giá mới trong phiên.");
                             j_notified.setVisible(true);
 
@@ -501,7 +541,9 @@ public class ControllerAuction implements ServerListener {
                     }
                 }
                 updatePriceAndLeader();
-                j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+                if (p1 != null) {
+                    j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+                }
             });
         }
 
@@ -557,6 +599,43 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.NOTIFICATION.equals(command)) {
             handleIncomingToastNotification(response.payload());
+        }
+    }
+
+    // =========================================================================
+    // KHÔNG CÒN LỖI: Phương thức tiếp nhận dữ liệu chuyển hướng an toàn từ Lịch sử
+    // =========================================================================
+    public void initData(model.auction.BidHistoryDTO dto) {
+        if (dto == null) return;
+
+        // Tái tạo p1 và gán nóng đối tượng item1 cục bộ
+        this.p1 = UserSession.getLoggedInUser();
+        this.item1 = new model.Items.Item();
+
+        this.item1.setDatabaseId((int) dto.getItemId());
+        this.item1.setName(dto.getItemName());
+        this.item1.setCurrentHighestPrice(dto.getCurrentHighestPrice());
+
+        // Đồng bộ dữ liệu mới tạo này vào Session của hệ thống
+        model.Items.ItemSession.setLoggedInItem(this.item1);
+
+        // Hiển thị nhanh dữ liệu tĩnh lên màn hình
+        Platform.runLater(() -> {
+            j_name.setText(dto.getItemName());
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_CurrentPrice.setText(df.format(dto.getCurrentHighestPrice()) + " VNĐ");
+            j_status.setText("Đang kết nối Server...");
+        });
+
+        try {
+            // Đăng ký Listener và kích hoạt đẩy lệnh Socket đồng bộ lên Server
+            client.setListener(this);
+            client.sendCommand(Command.GET_AUCTION, dto.getItemId());
+            if (p1 != null) {
+                client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", dto.getItemId()));
+            }
+        } catch (IOException e) {
+            System.err.println("Lỗi đồng bộ phòng đấu giá từ lịch sử: " + e.getMessage());
         }
     }
 }
