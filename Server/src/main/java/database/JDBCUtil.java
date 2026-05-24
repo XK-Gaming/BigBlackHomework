@@ -105,21 +105,6 @@ public class JDBCUtil {
         return dataSource.getConnection();
     }
 
-    /**
-     * Đóng kết nối (trả về Pool).
-     * Khuyến khích dùng try-with-resources thay vì gọi hàm này thủ công.
-     */
-    public static void closeConnection(Connection c) {
-        if (c != null) {
-            try {
-                if (!c.isClosed()) {
-                    c.close();
-                }
-            } catch (SQLException e) {
-                logger.error("Lỗi khi đóng kết nối", e);
-            }
-        }
-    }
 
     /**
      * Giải phóng hoàn toàn Pool khi tắt ứng dụng.

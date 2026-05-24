@@ -44,14 +44,6 @@ public class DAOUser implements DaoInterface<User> {
             return 0;
         }
     }
-    // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
-    public void Update(User user) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            Update(con, user);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
 
     @Override
     public int Delete(User user) {
@@ -60,7 +52,7 @@ public class DAOUser implements DaoInterface<User> {
     public int UpdateBalance(String username, double newBalance) {
         // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)
         String sql = "UPDATE khach SET balance = ? WHERE username = ?";
-        int ketQua = 0;
+        int ketQua;
 
         // Đưa cả Connection và PreparedStatement vào try-with-resources để tự động đóng khi dùng xong
         try (Connection con = JDBCUtil.getConnection();
@@ -92,10 +84,6 @@ public class DAOUser implements DaoInterface<User> {
         return 0;
     }
 
-    @Override
-    public ArrayList<User> moreSelectByCondition(String condition) {
-        return null;
-    }
 
     @Override
     public int Update(Connection con, User user) throws SQLException {

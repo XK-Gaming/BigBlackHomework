@@ -1,6 +1,6 @@
 package model.Items;
 
-import java.io.File;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
@@ -10,6 +10,7 @@ import java.util.Map;
  * Item loại phương tiện giao thông.
  */
 public final class Vehicle extends Item implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
     /** Hãng sản xuất phương tiện. */
     private final String manufacturer;

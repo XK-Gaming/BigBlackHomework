@@ -21,5 +21,4 @@ interface DaoInterface <T> {
 
     int Update(Connection con, model.Items.Item item) throws SQLException;
 
-    ArrayList<T> moreSelectByCondition (String condition);
 }

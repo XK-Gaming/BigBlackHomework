@@ -1,8 +1,10 @@
 package service;
 
+import dao.DAOAuction_Items;
 import dao.DAOItems;
 import model.Items.Item;
 import model.auction.Auction;
+import model.auction.AuctionStatus;
 
 import java.util.List;
 import java.util.Objects;
@@ -88,8 +90,26 @@ public final class AuctionEngine implements AutoCloseable {
             }
             auction.setItem(item);
         }
-        /* updateStatusByTime được gọi từ getStatus(); đồng bộ OPEN/RUNNING/FINISHED vào DB khi có thay đổi */
-        auction.getStatus();
+        // --- ĐOẠN LOGIC THAY ĐỔI ĐỂ THAY THẾ CHO HÀM auction.getStatus() CŨ ---
+
+        // 1. Đọc trạng thái cũ hiện tại (Chưa qua tính toán thời gian mới)
+        AuctionStatus oldStatus = auction.getRawStatus();
+
+        // 2. Ép đối tượng tự tính toán lại trạng thái dựa vào mốc Instant.now() trên RAM
+        auction.updateStatusByTime();
+
+        // 3. Đọc trạng thái mới sau khi đã áp dụng quy tắc thời gian
+        AuctionStatus newStatus = auction.getRawStatus();
+
+        // 4. So sánh: Nếu có sự chuyển dịch trạng thái, thực hiện ghi xuống DB ngay lập tức
+        if (oldStatus != newStatus) {
+            DAOAuction_Items.getInstance().Update_Status(auction, item, newStatus);
+            System.out.printf("[AuctionEngine] Đã cập nhật trạng thái phiên id_item %d: %s -> %s%n",
+                    auction.getItemId(), oldStatus, newStatus);
+
+            // Mẹo mở rộng: Bạn có thể tích hợp bắn Event Notify cho Client từ đây qua Socket
+            // nếu trạng thái chuyển sang RUNNING hoặc FINISHED.
+        }
     }
 
     /** Dừng lịch; gọi khi tắt ứng dụng server (JavaFX). */

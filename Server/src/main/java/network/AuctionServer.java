@@ -1,5 +1,4 @@
 package network;
-import network.Command;
 import dao.DAOUser;
 import model.User.User;
 

@@ -2,15 +2,16 @@ package model.Items;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import model.Entity.Entity;
 import model.auction.AuctionStatus;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Item implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private int databaseId;  // Tự động tăng khi lưu vào DB
@@ -96,9 +97,6 @@ public class Item implements Serializable {
         return currentHighestPrice;
     }
 
-    public void updateCurrentHighestPrice(double currentHighestPrice) {
-        this.currentHighestPrice = currentHighestPrice;
-    }
 
     public Instant getAuctionStartTime() {
         return auctionStartTime;
@@ -108,9 +106,6 @@ public class Item implements Serializable {
         return auctionEndTime;
     }
 
-    public void updateAuctionEndTime(Instant auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
 
     public String getSellerId() {
         return sellerId;
@@ -186,10 +181,6 @@ public class Item implements Serializable {
             displayStatus = new SimpleStringProperty("");
         }
         return displayStatus;
-    }
-    // 2. Getter cho TableView (Dùng cho PropertyValueFactory)
-    public String getDisplayStatus() {
-        return displayStatusProperty().get();
     }
 
     // 4. Setter để cập nhật giá trị

@@ -1,6 +1,6 @@
 package model.Items;
 
-import java.io.File;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
@@ -10,6 +10,7 @@ import java.util.Map;
  * Item loại điện tử.
  */
 public final class Electronics extends Item implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
     /** Thương hiệu thiết bị. */
     private final String brand;

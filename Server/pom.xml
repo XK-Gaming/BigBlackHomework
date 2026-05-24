@@ -20,12 +20,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>33.1.0-jre</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.example</groupId>
             <artifactId>Common</artifactId>
             <version>1.0-SNAPSHOT</version>
@@ -52,10 +46,6 @@
             <artifactId>javafx-fxml</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-        </dependency>
         <dependency>
             <groupId>com.fatboyindustrial.gson-javatime-serialisers</groupId>
             <artifactId>gson-javatime-serialisers</artifactId>

@@ -1,12 +1,13 @@
 package model.auction;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 
 import model.Entity.Entity;
-import model.User.Bidder;
 
 public class BidTransaction extends Entity implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
     private final String Usernamebidder;
     private final double amount;

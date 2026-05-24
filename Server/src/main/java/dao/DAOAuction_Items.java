@@ -11,7 +11,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DAOAuction_Items{
+public class DAOAuction_Items {
     private static final DAOAuction_Items INSTANCE = new DAOAuction_Items();
 
     public static DAOAuction_Items getInstance() {
@@ -123,6 +123,27 @@ public class DAOAuction_Items{
         }
         return null;
     }
+
+    // --- THÊM HÀM OVERLOAD 4 THAM SỐ NÀY ĐỂ ĐỒNG BỘ TRANSACTION ---
+    /**
+     * Thực thi cập nhật Status dùng chung Connection (Transaction) từ Service ép xuống.
+     * Tự động đồng bộ ngược lại RAM của object đấu giá nếu lưu DB thành công.
+     */
+    public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
+        String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
+
+        // Sử dụng khối try-with-resources cho PreparedStatement nhưng KHÔNG đóng Connection 'con' truyền vào
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, gson.toJson(status));
+            pstmt.setLong(2, item1.getDatabaseId());
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                auction.setStatus(status);
+            }
+        }
+    }
+
     /**
      * Precondition: item1.databaseId xác định dòng auction_items và status là trạng thái đích.
      * Postcondition: Cập nhật auction_items.status và cập nhật cả status trong object auction
@@ -147,33 +168,6 @@ public class DAOAuction_Items{
         } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-    /**
-     * Precondition: item1.databaseId và sellerId đã có dữ liệu.
-     * Postcondition: Insert một dòng auction_items tối thiểu với currentPrice.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
-     * NOTE: Overload Insert(Auction, Item) là luồng đầy đủ hơn mà UserService.creater_item() dùng.
-     */
-    public int Insert(Item item) {
-        String sql = "INSERT INTO auction_items (id_item, sellerID, currentPrice) VALUES (?, ?, ?)";
-
-        // KHAI BÁO CẢ HAI TRONG TRY: con sẽ tự đóng, pstmt sẽ tự đóng.
-        // Không cần dùng biến con ở ngoài, không cần finally.
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-
-            pstmt.setLong(1, item.getDatabaseId());
-            pstmt.setString(2, item.getSellerId());
-            pstmt.setDouble(3, item.getCurrentHighestPrice());
-
-            return pstmt.executeUpdate();
-
-        } catch (SQLException e) {
-            System.err.println("Lỗi tại Insert: " + e.getMessage());
-            e.printStackTrace();
-            return 0;
-        }
-        // Không cần finally ở đây nữa!
     }
 
     /**

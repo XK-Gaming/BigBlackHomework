@@ -167,7 +167,7 @@ public class DAOItems implements DaoInterface<Item> {
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Item item = mapResultSetToItem(rs);
-                    if (item != null) list.add(item);
+                    list.add(item);
                 }
             }
         } catch (SQLException e) {
@@ -202,10 +202,6 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    @Override
-    public ArrayList<Item> moreSelectByCondition(String condition) {
-        return null;
-    }
 
     /**
      * Precondition: Có thể tạo kết nối database và bảng items tồn tại.
@@ -296,23 +292,6 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    private AuctionStatus parseAuctionStatus(String statusStr) {
-        if (statusStr == null) {
-            return null;
-        }
-
-        String cleanStatus = statusStr.replace("\"", "").trim().toUpperCase();
-        if (cleanStatus.isEmpty() || "NULL".equals(cleanStatus)) {
-            return null;
-        }
-
-        try {
-            return AuctionStatus.valueOf(cleanStatus);
-        } catch (IllegalArgumentException e) {
-            System.err.println("Status dau gia khong hop le trong DB: " + statusStr);
-            return null;
-        }
-    }
 
     /**
      * Precondition: itemId là chuỗi số không null, khớp với items.my_row_id.
@@ -322,18 +301,15 @@ public class DAOItems implements DaoInterface<Item> {
 
     public Item selectById(String itemId) {
 
-        try (Connection con = JDBCUtil.getConnection();) {
+        try (Connection con = JDBCUtil.getConnection()) {
             String sql = "SELECT * FROM items WHERE my_row_id = ?";
             try (PreparedStatement pstmt = con.prepareStatement(sql)) {
                 pstmt.setInt(1, Integer.parseInt(itemId));
                 ResultSet rs = pstmt.executeQuery();
                 if (rs.next()) {
-                    Item item = mapResultSetToItem(rs);
-                    return item;
+                    return mapResultSetToItem(rs);
                 }
-            } catch (NumberFormatException e) {
-                e.printStackTrace();
-            } catch (SQLException e) {
+            } catch (NumberFormatException | SQLException e) {
                 e.printStackTrace();
             }
             return null;
@@ -370,7 +346,7 @@ public class DAOItems implements DaoInterface<Item> {
                     typeEnum = ItemType.valueOf(itemType.trim().toUpperCase());
                 } catch (IllegalArgumentException ex) {
                     System.err.println("⚠️ Cảnh báo: Không thể map loại sản phẩm '" + itemType + "' sang Enum ItemType!");
-                    typeEnum = null; // Hoặc gán một giá trị mặc định tùy hệ thống của bạn
+                    // Hoặc gán một giá trị mặc định tùy hệ thống của bạn
                 }
             }
         }
