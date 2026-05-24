@@ -63,6 +63,14 @@ public class ControllerBidder implements ServerListener {
     @FXML
     private Label j_LabelName;
 
+    @FXML
+    private javafx.scene.shape.Circle connectionStatus;
+
+    @FXML
+    private Label connectionText;
+
+    private ConnectionStatusManager statusManager;
+
     private final int itemsPerPage = 4;
     private List<Item> allAssets = new ArrayList<>();
 
@@ -92,6 +100,10 @@ public class ControllerBidder implements ServerListener {
 
     public void initialize() throws IOException {
         client.setListener(this);
+        
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
+
         User p1 = UserSession.getLoggedInUser();
         if (p1 != null) {
             j_LabelName.setText(p1.getName());

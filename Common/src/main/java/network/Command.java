@@ -47,6 +47,7 @@ public enum Command {
 
     // Đăng cập nhật giá mới nhất trên toàn
     // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)
+
     BID_UPDATE,
 
     ITEMS_UPDATE,
@@ -72,6 +73,17 @@ public enum Command {
     GET_SELLER_ITEMS_RESULT,
 
     GET_BIDDER_HISTORY,
-    GET_BIDDER_HISTORY_RESULT;
+    GET_BIDDER_HISTORY_RESULT,
+
+    GET_PENDING_DEPOSITS,
+    GET_PENDING_DEPOSITS_RESULT,
+    APPROVE_DEPOSIT,
+    APPROVE_DEPOSIT_RESULT,
+    REJECT_DEPOSIT,
+    REJECT_DEPOSIT_RESULT,
+    DELETE_DEPOSIT_HISTORY,
+    DELETE_DEPOSIT_HISTORY_RESULT,
+    GET_USER_INFO,
+    GET_USER_INFO_RESULT;
 
 }

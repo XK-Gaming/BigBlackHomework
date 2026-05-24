@@ -100,6 +100,9 @@ import java.util.Map;
 
         public void initialize() throws IOException {
             client.setListener(this);
+            statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+            statusManager.startMonitoring();
+            
             showSessionProductAndLoadingAuctionState();
             client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
             client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
@@ -350,6 +353,14 @@ import java.util.Map;
 
     @FXML
     private Label j_secs;
+
+    @FXML
+    private javafx.scene.shape.Circle connectionStatus;
+
+    @FXML
+    private Label connectionText;
+
+    private ConnectionStatusManager statusManager;
 
     @FXML
     private Label j_status;

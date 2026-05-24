@@ -2,12 +2,17 @@ package dao;
 
 import database.JDBCUtil;
 import model.Items.Item;
+import model.DepositTransaction;
 import model.User.*;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class DAOUser implements DaoInterface<User> {
+    private final Gson gson = GsonUtils.createGson();
 
     public static DAOUser getInstance() {
         return new DAOUser();
@@ -172,17 +177,26 @@ public class DAOUser implements DaoInterface<User> {
                     String name = rs.getString("name");
                     String email = rs.getString("email");
                     double balance = rs.getDouble("balance");
+                    String depositJson = rs.getString("DepositHistory");
+
+                    User user = null;
+                    // Trả về đúng đối tượng theo Role
+                    if ("Người bán".equals(role)) {
+                        user = new Seller(username, dbPassword, name, email, balance);
+                    } else if ("Người đấu giá".equals(role)) {
+                        user = new Bidder(username, dbPassword, name, email, balance);
+                    } else if ("Admin".equals(role)) {
+                        user = new Admin(username, dbPassword, name, email);
+                    }
+
+                    if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                        List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                        user.setDepositHistory(history);
+                    }
 
                     // 3. Kiểm tra mật khẩu (Nên dùng equals để so sánh String)
-                    if (dbPassword.equals(password)) {
-                        // Trả về đúng đối tượng theo Role
-                        if ("Người bán".equals(role)) {
-                            return new Seller(username, dbPassword, name, email, balance);
-                        } else if ("Người đấu giá".equals(role)) {
-                            return new Bidder(username, dbPassword, name, email, balance);
-                        } else if ("Admin".equals(role)) {
-                            return new Admin(username, dbPassword, name, email);
-                        }
+                    if (user != null && dbPassword.equals(password)) {
+                        return user;
                     }
                 }
             }
@@ -214,19 +228,63 @@ public class DAOUser implements DaoInterface<User> {
                     String name = rs.getString("name");
                     String email = rs.getString("email");
                     double balance = rs.getDouble("balance");
+                    String depositJson = rs.getString("DepositHistory");
 
+                    User user = null;
                     // Trả về đúng đối tượng theo Role mà không kiểm tra mật khẩu
                     if ("Người bán".equals(role)) {
-                        return new Seller(username, dbPassword, name, email, balance);
+                        user = new Seller(username, dbPassword, name, email, balance);
                     } else if ("Người đấu giá".equals(role)) {
-                        return new Bidder(username, dbPassword, name, email, balance);
+                        user = new Bidder(username, dbPassword, name, email, balance);
                     } else if ("Admin".equals(role)) {
-                        return new Admin(username, dbPassword, name, email);
+                        user = new Admin(username, dbPassword, name, email);
                     }
+
+                    if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                        List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                        user.setDepositHistory(history);
+                    }
+                    return user;
                 }
             }
         } catch (SQLException e) { e.printStackTrace();}
         return null;
+    }
+
+    public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
+        String sql = "UPDATE khach SET DepositHistory = ? WHERE username = ?";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, gson.toJson(history));
+            pstmt.setString(2, username);
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public List<DepositTransaction> getAllPendingDeposits() {
+        List<DepositTransaction> pending = new ArrayList<>();
+        String sql = "SELECT username, DepositHistory FROM khach WHERE DepositHistory IS NOT NULL AND DepositHistory <> ''";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String depositJson = rs.getString("DepositHistory");
+                List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                if (history != null) {
+                    for (DepositTransaction dt : history) {
+                        if ("PENDING".equals(dt.getStatus())) {
+                            pending.add(dt);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return pending;
     }
 }
 

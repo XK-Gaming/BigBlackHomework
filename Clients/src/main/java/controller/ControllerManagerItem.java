@@ -29,6 +29,7 @@ import model.auction.Auction;
 import model.auction.AuctionStatus;
 import model.auction.BidTransaction;
 import network.*;
+import javafx.scene.shape.Circle;
 
 import java.io.IOException;
 import java.net.URL;
@@ -52,6 +53,8 @@ public class ControllerManagerItem implements ServerListener {
 
     public void initialize() throws IOException {
         client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
 
         // Kết nối cột TableView với dữ liệu model
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
@@ -361,6 +364,11 @@ public class ControllerManagerItem implements ServerListener {
     @FXML private Button j_ItemManager;
     @FXML private Label j_LabelName;
     @FXML private ImageView j_image;
+
+    @FXML private Circle connectionStatus;
+    @FXML private Label connectionText;
+    private ConnectionStatusManager statusManager;
+
     @FXML private Label detailDesc;
     @FXML private ImageView detailImage;
     @FXML private Label detailName;

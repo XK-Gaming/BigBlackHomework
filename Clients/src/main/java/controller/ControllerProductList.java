@@ -16,6 +16,7 @@ import model.User.User;
 import model.User.UserSession;
 import model.auction.AuctionStatus;
 import network.*;
+import javafx.scene.shape.Circle;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -38,6 +39,10 @@ public class ControllerProductList implements ServerListener {
     @FXML private Label j_LabelName;
     @FXML private Label j_textSoDu;
 
+    @FXML private Circle connectionStatus;
+    @FXML private Label connectionText;
+    private ConnectionStatusManager statusManager;
+
     private final AuctionClient client = AuctionClient.getInstance();
     private final ObservableList<Item> productList = FXCollections.observableArrayList();
     private FilteredList<Item> filteredData;
@@ -52,6 +57,8 @@ public class ControllerProductList implements ServerListener {
     public void initialize() {
         // Thiết lập lắng nghe phản hồi từ máy chủ hệ thống
         client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
 
         // 1. Thông tin user cá nhân
         User currentUser = UserSession.getLoggedInUser();

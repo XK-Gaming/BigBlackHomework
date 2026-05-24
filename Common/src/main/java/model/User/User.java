@@ -1,6 +1,9 @@
 package model.User;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import model.DepositTransaction;
 
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -10,6 +13,7 @@ public class User implements Serializable {
     private String email;
     private UserRole role;
     private double balance;
+    private List<DepositTransaction> depositHistory = new ArrayList<>();
 
     // ✅ Constructor no-arg cho Gson deserialization
     public User() {
@@ -75,5 +79,13 @@ public class User implements Serializable {
 
     public void setBalance(double balance) {
         this.balance = balance;
+    }
+
+    public List<DepositTransaction> getDepositHistory() {
+        return depositHistory;
+    }
+
+    public void setDepositHistory(List<DepositTransaction> depositHistory) {
+        this.depositHistory = depositHistory;
     }
 }

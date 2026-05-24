@@ -43,6 +43,10 @@ public class ControllerBidHistory implements ServerListener {
     @FXML private Label lblModalCurrentPrice;
     @FXML private TextField txtBidAmount;
 
+    @FXML private javafx.scene.shape.Circle connectionStatus;
+    @FXML private Label connectionText;
+    private ConnectionStatusManager statusManager;
+
     private VBox containerCardList;
     private long targetItemId = -1;
 
@@ -52,6 +56,8 @@ public class ControllerBidHistory implements ServerListener {
     @FXML
     public void initialize() {
         client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
 
         containerCardList = new VBox(15);
         containerCardList.setPadding(new Insets(15));

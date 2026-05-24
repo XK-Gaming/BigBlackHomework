@@ -68,6 +68,11 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.SET_ALLOW,new SetAllowHandler(this.userService));
         handlers.put(Command.DELETE_ITEM,new DeleteItems(this.userService));
         handlers.put(Command.RECHARGE_AMOUNT,new RechargeAmountHandler(this.userService));
+        handlers.put(Command.GET_PENDING_DEPOSITS, new DepositManagementHandler.GetPendingHandler(this.userService));
+        handlers.put(Command.APPROVE_DEPOSIT, new DepositManagementHandler.ApproveHandler(this.userService));
+        handlers.put(Command.REJECT_DEPOSIT, new DepositManagementHandler.RejectHandler(this.userService));
+        handlers.put(Command.DELETE_DEPOSIT_HISTORY, new DepositManagementHandler.DeleteHistoryHandler(this.userService));
+        handlers.put(Command.GET_USER_INFO, new GetUserInfoHandler(this.userService));
     }
     @Override
     public void run() {

@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import dao.DAOUser;
+import model.DepositTransaction;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserRole;import model.auction.Auction;
@@ -86,24 +87,32 @@ public class UserService {
         throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu.");
     }
 
+    public User getUserOnly(String username) {
+        return userDAO.selectByUsernameOnly(username);
+    }
+
     /**
      * ✅ SỬA LỖI #2: Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
      */
     public Map<String, Object> register(User user) {
-        try {
-            DAOUser.getInstance().Insert(user);
+        if (userDAO.selectByUsernameOnly(user.getUsername())!= null) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", "EXSITED");
+            response.put("message", "Tài khoản đã tồn tại");
+            return response;
+        }
+        else {
+
+            try {
+                userDAO.Insert(user);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
             Map<String, Object> response = new HashMap<>();
             response.put("success", "TRUE");
-            return response;
-        } catch (SQLException e) {
-            if (e.getMessage() != null &&
-                    (e.getMessage().contains("Duplicate entry") ||
-                            e.getMessage().contains("UNIQUE constraint"))) {
-                throw new ConflictException("Tên đăng nhập đã được sử dụng.");
-            }
-            throw new PersistenceException("Không thể tạo tài khoản: " + e.getMessage());
+            return response;}
         }
-    }
+
 
     public void creater_item(Item item) {
         int itemRows = itemDAO.Insert(item);
@@ -477,11 +486,58 @@ public class UserService {
 
     public boolean rechargeAmount(String username, double amount) {
         User user = userDAO.selectByUsernameOnly(username);
-        if (user == null) return false;
+        if (user != null) {
+            DepositTransaction dt = new DepositTransaction(username, amount);
+            user.getDepositHistory().add(dt);
+            return userDAO.UpdateDepositHistory(username, user.getDepositHistory()) > 0;
+        }
+        return false;
+    }
 
-        double newBalance = user.getBalance() + amount;
-        userDAO.UpdateBalance(username, newBalance);
-        return true;
+    public List<DepositTransaction> getPendingDeposits() {
+        return userDAO.getAllPendingDeposits();
+    }
+
+    public boolean approveDeposit(String username, String transactionId) {
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user != null) {
+            for (DepositTransaction dt : user.getDepositHistory()) {
+                if (dt.getId().equals(transactionId) && "PENDING".equals(dt.getStatus())) {
+                    dt.setStatus("APPROVED");
+                    double newBalance = user.getBalance() + dt.getAmount();
+                    user.setBalance(newBalance);
+                    userDAO.UpdateBalance(username, newBalance);
+                    userDAO.UpdateDepositHistory(username, user.getDepositHistory());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean rejectDeposit(String username, String transactionId) {
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user != null) {
+            for (DepositTransaction dt : user.getDepositHistory()) {
+                if (dt.getId().equals(transactionId) && "PENDING".equals(dt.getStatus())) {
+                    dt.setStatus("REJECTED");
+                    userDAO.UpdateDepositHistory(username, user.getDepositHistory());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean deleteDepositHistory(String username, String transactionId) {
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user != null) {
+            boolean removed = user.getDepositHistory().removeIf(dt -> dt.getId().equals(transactionId));
+            if (removed) {
+                return userDAO.UpdateDepositHistory(username, user.getDepositHistory()) > 0;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")

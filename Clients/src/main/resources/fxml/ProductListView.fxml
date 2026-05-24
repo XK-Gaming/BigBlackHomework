@@ -5,6 +5,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.*?>
 
 <AnchorPane prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #f4f7f6;" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerProductList">
@@ -86,6 +87,16 @@
                                         <Font name="System Bold" size="24.0" />
                                     </font>
                                 </Label>
+                                <HBox alignment="CENTER_LEFT" spacing="5.0">
+                                   <children>
+                                      <Label fx:id="connectionText" text="Offline" textFill="#666666">
+                                         <font>
+                                            <Font size="11.0" />
+                                         </font>
+                                      </Label>
+                                      <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="5.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+                                   </children>
+                                </HBox>
                                 <HBox HBox.hgrow="ALWAYS" /> <TextField fx:id="txtSearch" prefHeight="35.0" prefWidth="250.0" promptText="Tìm kiếm sản phẩm..." style="-fx-background-radius: 5;" />
                             </children>
                         </HBox>

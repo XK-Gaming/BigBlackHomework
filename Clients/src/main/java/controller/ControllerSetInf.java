@@ -19,11 +19,27 @@ import network.AuctionClient;
 import network.Command;
 import network.DataPacket;
 import network.ServerListener;
+import javafx.scene.shape.Circle;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TableColumn;
+import model.DepositTransaction;
 import java.util.Map;
+import java.util.List;
+
+import model.User.Admin;
+import model.User.Bidder;
+import model.User.Seller;
+import model.User.User;
+import model.User.UserSession;
+import network.AuctionClient;
+import network.Command;
+import network.DataPacket;
+import network.ServerListener;
 
 public class ControllerSetInf implements ServerListener {
     User p1 = UserSession.getLoggedInUser();
@@ -63,15 +79,38 @@ public class ControllerSetInf implements ServerListener {
     // FXML IDs: Thanh toán
     @FXML private TextField j_inputMoney;
     @FXML private Label j_labelMessagePayment;
+    @FXML private TableView<DepositTransaction> depositHistoryTable;
+    @FXML private TableColumn<DepositTransaction, Double> colDepositAmount;
+    @FXML private TableColumn<DepositTransaction, String> colDepositTime;
+    @FXML private TableColumn<DepositTransaction, String> colDepositStatus;
+    @FXML private Button btnDeleteHistory;
+
+    @FXML private Circle connectionStatus;
+    @FXML private Label connectionText;
+    private ConnectionStatusManager statusManager;
 
     public void initialize() {
         client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
 
         if (p1 != null) {
             // Set thông tin hiển thị ở Menu Trái
             show_userName.setText(p1.getUsername());
             show_Password.setText("********");
             j_LabelName.setText(p1.getName());
+
+            // Cấu hình TableView
+            colDepositAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
+            colDepositTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
+            colDepositStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
+            updateDepositTable();
+        }
+    }
+
+    private void updateDepositTable() {
+        if (p1 != null && p1.getDepositHistory() != null) {
+            depositHistoryTable.getItems().setAll(p1.getDepositHistory());
         }
     }
 
@@ -267,6 +306,21 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
+    @FXML
+    void handleDeleteDepositHistory(ActionEvent event) {
+        DepositTransaction selected = depositHistoryTable.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            try {
+                client.sendCommand(Command.DELETE_DEPOSIT_HISTORY, Map.of(
+                        "username", p1.getUsername(),
+                        "transactionId", selected.getId()
+                ));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     // ----------------------------------------------------
     // LẮNG NGHE PHẢN HỒI TỪ SERVER
     // ----------------------------------------------------
@@ -314,15 +368,48 @@ public class ControllerSetInf implements ServerListener {
             Platform.runLater(() -> {
                 if (isSuccess) {
                     j_labelMessagePayment.setTextFill(Color.GREEN);
-                    j_labelMessagePayment.setText("Nạp tiền thành công!");
-                    p1.setBalance(p1.getBalance() + Double.parseDouble(moneyStr));
+                    j_labelMessagePayment.setText("Gửi yêu cầu nạp tiền thành công, vui lòng chờ duyệt!");
+                    try {
+                         client.sendCommand(Command.GET_USER_INFO, p1.getUsername());
+                    } catch (java.io.IOException e) {
+                        e.printStackTrace();
+                    }
                 } else {
                     j_labelMessagePayment.setTextFill(Color.RED);
-                    j_labelMessagePayment.setText("Nạp tiền thất bại");
+                    j_labelMessagePayment.setText("Gửi yêu cầu thất bại");
                 }
                 j_labelMessagePayment.setVisible(true);
             });
         }
-        // Thêm bắt sự kiện phản hồi giao dịch tiền ở đây (VD: Command.RECHARGE_RESULT)
+        if(Command.DELETE_DEPOSIT_HISTORY_RESULT.equals(command)){
+            boolean isSuccess = (boolean) response.payload();
+            Platform.runLater(() -> {
+                if (isSuccess) {
+                    DepositTransaction selected = depositHistoryTable.getSelectionModel().getSelectedItem();
+                    if (selected != null) {
+                        p1.getDepositHistory().removeIf(dt -> dt.getId().equals(selected.getId()));
+                        updateDepositTable();
+                    }
+                }
+            });
+        }
+        if(Command.GET_USER_INFO_RESULT.equals(command)){
+            User updatedUser = (User) response.payload();
+            if (updatedUser != null) {
+                UserSession.setLoggedInUser(updatedUser);
+                this.p1 = updatedUser;
+                Platform.runLater(() -> {
+                    updateDepositTable();
+                });
+            }
+        }
+        if (Command.NOTIFICATION.equals(command)) {
+            String msg = (String) response.payload();
+            Platform.runLater(() -> {
+                j_labelMessagePayment.setTextFill(Color.BLUE);
+                j_labelMessagePayment.setText(msg);
+                j_labelMessagePayment.setVisible(true);
+            });
+        }
     }
 }

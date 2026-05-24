@@ -55,6 +55,10 @@ public class ControllerSeller implements ServerListener {
     @FXML private TextField j_TimeStart;
     @FXML private ImageView MyImgView;
 
+    @FXML private javafx.scene.shape.Circle connectionStatus;
+    @FXML private Label connectionText;
+    private ConnectionStatusManager statusManager;
+
     // Sửa kiểu dữ liệu từ Pane -> HBox cho khớp chuẩn với FXML
     @FXML private HBox j_paneArt;
     @FXML private HBox j_paneElectronics;
@@ -67,6 +71,10 @@ public class ControllerSeller implements ServerListener {
     @FXML private TextField j_brand;
 
     public void initialize() {
+        client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
+
         initCloudinary();
 
         // Ánh xạ phục vụ việc ẩn/hiện động

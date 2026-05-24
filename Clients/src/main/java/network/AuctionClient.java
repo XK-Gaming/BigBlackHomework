@@ -167,6 +167,12 @@ public class AuctionClient {
         }
     }
 
+    public boolean isConnected() {
+        synchronized (connectionLock) {
+            return socket != null && !socket.isClosed() && socket.isConnected();
+        }
+    }
+
     private void cleanUpVariables() {
         synchronized (connectionLock) {
             in = null;

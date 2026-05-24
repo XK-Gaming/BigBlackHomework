@@ -10,13 +10,15 @@
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.shape.Line?>
 <?import javafx.scene.text.Font?>
 
-<Pane prefHeight="450.0" prefWidth="642.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerSetInf">
+<AnchorPane prefHeight="450.0" prefWidth="642.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerSetInf">
    <children>
-      <AnchorPane prefHeight="450.0" prefWidth="185.0" style="-fx-background-color: #2C3E50;">
+
+      <AnchorPane prefWidth="185.0" style="-fx-background-color: #2C3E50;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <ImageView fx:id="j_image" fitHeight="80.0" fitWidth="80.0" layoutX="52.0" layoutY="25.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
                <image>
@@ -68,7 +70,16 @@
          </children>
       </AnchorPane>
 
-      <AnchorPane fx:id="Pane_ThongTinTaiKhoan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: #F8F9FA;" visible="true">
+      <HBox alignment="CENTER_RIGHT" prefHeight="25.0" prefWidth="150.0" spacing="8.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="15.0">
+         <children>
+            <Label fx:id="connectionText" text="Offline" textFill="#666666">
+               <font><Font name="System Bold" size="12.0" /></font>
+            </Label>
+            <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="6.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+         </children>
+      </HBox>
+
+      <AnchorPane fx:id="Pane_ThongTinTaiKhoan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="true" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <Label layoutX="40.0" layoutY="30.0" text="THÔNG TIN CÁ NHÂN" textFill="#2C3E50">
                <font><Font name="System Bold" size="20.0" /></font>
@@ -95,7 +106,7 @@
          </children>
       </AnchorPane>
 
-      <AnchorPane fx:id="Pane_DoiMatKhau" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: #F8F9FA;" visible="false">
+      <AnchorPane fx:id="Pane_DoiMatKhau" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <Label layoutX="40.0" layoutY="30.0" text="ĐỔI MẬT KHẨU" textFill="#2C3E50">
                <font><Font name="System Bold" size="20.0" /></font>
@@ -127,7 +138,7 @@
          </children>
       </AnchorPane>
 
-      <AnchorPane fx:id="Pane_ThanhToan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: #F8F9FA;" visible="false">
+      <AnchorPane fx:id="Pane_ThanhToan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <Label fx:id="Pane_ChuyenKhoan" layoutX="40.0" layoutY="30.0" text="THANH TOÁN GIAO DỊCH" textFill="#2C3E50">
                <font><Font name="System Bold" size="20.0" /></font>
@@ -147,16 +158,18 @@
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
 
-            <TableView layoutX="40.0" layoutY="220.0" prefHeight="200.0" prefWidth="380.0" style="-fx-border-color: #DCDDE1; -fx-border-radius: 5;">
+            <TableView fx:id="depositHistoryTable" layoutX="40.0" layoutY="220.0" prefHeight="170.0" prefWidth="380.0" style="-fx-border-color: #DCDDE1; -fx-border-radius: 5;">
                <columns>
-                  <TableColumn prefWidth="190.0" text="Số tiền nạp (VNĐ)" />
-                  <TableColumn prefWidth="188.0" text="Trạng thái" />
+                  <TableColumn fx:id="colDepositAmount" prefWidth="120.0" text="Số tiền (VNĐ)" />
+                  <TableColumn fx:id="colDepositTime" prefWidth="140.0" text="Thời gian" />
+                  <TableColumn fx:id="colDepositStatus" prefWidth="118.0" text="Trạng thái" />
                </columns>
             </TableView>
+            <Button fx:id="btnDeleteHistory" layoutX="40.0" layoutY="395.0" mnemonicParsing="false" onAction="#handleDeleteDepositHistory" prefHeight="30.0" prefWidth="100.0" style="-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="Xóa lịch sử" visible="true" />
          </children>
       </AnchorPane>
 
-      <AnchorPane fx:id="Pane_CaiDat" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: #F8F9FA;" visible="false">
+      <AnchorPane fx:id="Pane_CaiDat" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <Label layoutX="40.0" layoutY="30.0" text="CÀI ĐẶT HỆ THỐNG" textFill="#2C3E50">
                <font><Font name="System Bold" size="20.0" /></font>
@@ -165,4 +178,4 @@
          </children>
       </AnchorPane>
    </children>
-</Pane>
+</AnchorPane>
