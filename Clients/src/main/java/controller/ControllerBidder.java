@@ -27,23 +27,14 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ControllerBidder implements ServerListener {
     private final AuctionClient client = AuctionClient.getInstance();
     private boolean dataLoaded = false;
-    User p1 = UserSession.getLoggedInUser();
-
-
-    public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
-        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
-    }
-
-    @FXML
-    void On_LogOut(ActionEvent event) {
-        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
-    }
+    private final User p1 = UserSession.getLoggedInUser();
 
     @FXML
     private Button LogOut;
@@ -74,8 +65,20 @@ public class ControllerBidder implements ServerListener {
     private final int itemsPerPage = 4;
     private List<Item> allAssets = new ArrayList<>();
 
-    // Sử dụng bộ nhớ tạm cho các controller hiển thị trên trang HIỆN TẠI
-    private final List<ItemCardController> activeControllers = new ArrayList<>();
+    /**
+     * GIẢI PHÁP REALTIME: Quản lý các thẻ Card bằng Map động.
+     * Lưu trữ toàn bộ controller đang hoạt động để đảm bảo dù ở trang ẩn vẫn được cập nhật dữ liệu ngầm.
+     */
+    private final Map<Integer, ItemCardController> activeControllers = new HashMap<>();
+
+    public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
+        SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
+    }
+
+    @FXML
+    void On_LogOut(ActionEvent event) {
+        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
+    }
 
     @FXML
     void On_ResetItems(ActionEvent event) {
@@ -90,9 +93,12 @@ public class ControllerBidder implements ServerListener {
             return pane;
         });
 
-        // Gửi lệnh lên Server
         try {
-            client.sendCommand(Command.SELECT_ITEMS, "");
+            if (p1 != null) {
+                client.sendCommand(Command.SELECT_ITEMS, p1.getRole().toString());
+            } else {
+                client.sendCommand(Command.SELECT_ITEMS, "");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -100,16 +106,18 @@ public class ControllerBidder implements ServerListener {
 
     public void initialize() throws IOException {
         client.setListener(this);
-        
+
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
         User p1 = UserSession.getLoggedInUser();
+
         if (p1 != null) {
             j_LabelName.setText(p1.getName());
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
         }
-        DecimalFormat df = new DecimalFormat("#,###");
-        j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+
         List_Items_Bid.setPageCount(1);
         List_Items_Bid.setStyle("-fx-page-information-alignment: bottom; -fx-animate-on-change: false;");
         List_Items_Bid.setPageFactory(pageIndex -> {
@@ -120,19 +128,26 @@ public class ControllerBidder implements ServerListener {
             return pane;
         });
 
-        client.sendCommand(Command.SELECT_ITEMS, p1.getRole());
+        if (p1 != null) {
+            client.sendCommand(Command.SELECT_ITEMS, p1.getRole().toString());
+        }
     }
 
-    /**
-     * SỬA LỖI: Buộc vẽ lại toàn bộ danh sách mới khi Reset hoặc nạp dữ liệu hàng loạt
-     */
     private void setupPagination() {
-        // Nếu không có item nào, tối thiểu vẫn phải giữ 1 trang trống để tránh crash Pagination
+        // 1. Lưu lại chỉ số trang mà người dùng hiện đang đứng xem
+        int currentPage = List_Items_Bid.getCurrentPageIndex();
+
+        // 2. Tính toán số lượng trang mới dựa trên danh sách allAssets vừa được thêm phần tử
         int pageCount = Math.max(1, (int) Math.ceil((double) allAssets.size() / itemsPerPage));
         List_Items_Bid.setPageCount(pageCount);
-
-        // Luôn luôn thiết lập lại PageFactory để làm mới giao diện hoàn toàn, xóa bỏ label "Đang tải..."
         List_Items_Bid.setPageFactory(this::createPage);
+
+        // 3. Đảm bảo trang hiện tại không vượt quá tổng số trang mới (đề phòng trường hợp đặc biệt)
+        if (currentPage < pageCount) {
+            List_Items_Bid.setCurrentPageIndex(currentPage);
+        } else {
+            List_Items_Bid.setCurrentPageIndex(pageCount - 1);
+        }
     }
 
     private Node createPage(int pageIndex) {
@@ -151,9 +166,6 @@ public class ControllerBidder implements ServerListener {
         int start = pageIndex * itemsPerPage;
         int end = Math.min(start + itemsPerPage, allAssets.size());
 
-        // Xóa danh sách controller cũ của trang trước đó
-        activeControllers.clear();
-
         for (int i = start; i < end; i++) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AssetCard.fxml"));
@@ -163,8 +175,10 @@ public class ControllerBidder implements ServerListener {
                 ItemCardController controller = loader.getController();
                 controller.setData(data);
 
-                // Lưu lại các controller ĐANG HIỂN THỊ TRÊN MÀN HÌNH để cập nhật realtime đơn lẻ
-                activeControllers.add(controller);
+                int itemId = data.getDatabaseId();
+
+                // Đăng ký/Cập nhật đè controller mới nhất cho ID tương ứng
+                activeControllers.put(itemId, controller);
 
                 card.setOnMouseClicked(event -> {
                     ItemSession.setLoggedInItem(data);
@@ -176,111 +190,32 @@ public class ControllerBidder implements ServerListener {
                 e.printStackTrace();
             }
         }
+
+        // Thay vì retainAll dựa trên trang hiện tại (làm mất realtime trang cũ),
+        // ta dọn dẹp map dựa trên danh sách sản phẩm thực tế còn tồn tại từ Server.
+        List<Integer> allValidIds = allAssets.stream().map(Item::getDatabaseId).toList();
+        activeControllers.keySet().retainAll(allValidIds);
+
         return flowPane;
     }
-    private void handleIncomingToastNotification(Object payload) {
-        DecimalFormat df = new DecimalFormat("#,###");
-        try {
-            // 1. Giải mã gói tin từ Server an toàn
-            Map<String, Object> notifData = (Map<String, Object>) payload;
 
-            double newPrice = 0;
-            Object priceObj = notifData.get("newPrice");
-            if (priceObj instanceof Number) {
-                newPrice = ((Number) priceObj).doubleValue();
-            }
-
-            Item item = (Item) notifData.get("item");
-            final double finalPrice = newPrice;
-
-            // 2. Đẩy việc hiển thị lên UI Thread của JavaFX
-            Platform.runLater(() -> {
-
-                // [THAY ĐỔI]: Tạo Layout chính ôm nội dung, bỏ viền và bóng đổ để hòa làm một với khung ngoài
-                HBox customToast = new HBox();
-                customToast.setAlignment(Pos.CENTER_LEFT);
-                customToast.setPrefWidth(300); // Thu nhỏ lại một chút để vừa vặn với khung chứa của ControlsFX
-                customToast.setStyle("-fx-background-color: #FFFFFF;"); // Chỉ cần nền trắng đơn giản
-
-                // 3. Khối Icon bên trái (Nền màu xanh dương đậm)
-                StackPane iconBlock = new StackPane();
-                iconBlock.setPrefSize(60, 70);
-                iconBlock.setStyle("-fx-background-color: #1565C0;"); // Khung ngoài sẽ tự bo góc nên ở đây để vuông
-
-                Label icon = new Label("🔔");
-                icon.setStyle("-fx-text-fill: white; -fx-font-size: 22px;");
-                iconBlock.getChildren().add(icon);
-
-                // 4. Phần chữ hiển thị (VBox) ở giữa
-                VBox textContainer = new VBox();
-                textContainer.setSpacing(4);
-                textContainer.setAlignment(Pos.CENTER_LEFT);
-                textContainer.setPadding(new Insets(10, 10, 10, 15));
-                HBox.setHgrow(textContainer, Priority.ALWAYS);
-
-                Label titleLabel = new Label("SẢN PHẨM CÓ LƯỢT ĐẤU GIÁ MỚI!");
-                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
-
-                Label messageLabel = new Label("Sản phẩm " + (item != null ? item.getName() : "") + " : " + df.format(finalPrice) + " VNĐ");
-                messageLabel.setStyle("-fx-text-fill: #757575; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");
-                messageLabel.setWrapText(true);
-                messageLabel.setMaxWidth(200);
-
-                textContainer.getChildren().addAll(titleLabel, messageLabel);
-
-                // [THAY ĐỔI]: Chỉ thêm khối icon và khối chữ vào layout (Đã loại bỏ nút x tự chế)
-                customToast.getChildren().addAll(iconBlock, textContainer);
-
-                // 5. Khởi tạo ControlsFX và tận dụng hệ thống mặc định
-                Notifications notificationBuilder = Notifications.create()
-                        .owner(j_textSoDu) // Neo theo ứng dụng của bạn
-                        .graphic(customToast) // Nhúng nội dung custom vào
-                        .hideAfter(Duration.seconds(4)) // Tự động ẩn sau 4 giây
-                        .position(Pos.BOTTOM_RIGHT); // Xuất hiện góc dưới bên phải
-                customToast.setOnMouseClicked(event -> {
-                    // Gọi hàm xử lý chuyển trang của bạn ở đây
-                    // Ví dụ: chuyenDenTrangChiTietSanPham(item.getId());
-                    ItemSession.setLoggedInItem(item);
-                    System.out.println(item.getAuctionEndTime());
-                    System.out.println(item.getAuctionStartTime());
-                    System.out.println(item.getAuctionStatus());
-                    SceneHelper.changeScene(j_textSoDu, "/fxml/BiddingView.fxml");
-                });
-
-                // [MẸO ĐẸP]: Xóa bỏ padding thừa của khung ngoài để khối màu xanh sát rạt ra rìa trái
-                customToast.sceneProperty().addListener((observable, oldScene, newScene) -> {
-                    if (newScene != null) {
-                        newScene.windowProperty().addListener((obsWin, oldWin, newWin) -> {
-                            if (newWin != null) {
-                                javafx.scene.Node notificationPopup = newScene.getRoot().lookup(".notification-popup");
-                                if (notificationPopup != null) {
-                                    // Ép padding về 0 để phần màu xanh bám sát viền trái ngoài cùng
-                                    notificationPopup.setStyle("-fx-padding: 0;");
-                                }
-                            }
-                        });
-                    }
-                });
-
-                // Hiển thị thông báo lên màn hình
-                notificationBuilder.show();
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
-        if (Command.SELECT_ITEMS_RESULT.equals(command) || Command.ITEMS_UPDATE.equals(command)) {
-            System.out.println("[Client Debug] Nhận tín hiệu làm mới danh sách. Command: " + command);
+
+        if (Command.SELECT_ITEMS_RESULT.equals(command) ||
+                Command.ITEMS_UPDATE.equals(command) ||
+                Command.BID_UPDATE.equals(command)) {
+
+            System.out.println("[Client Debug] Nhận tín hiệu từ Server. Command: " + command);
 
             Object payload = response.payload();
             if (payload == null) {
                 System.err.println("[Client Lỗi] Payload từ Server trả về bị null!");
                 return;
             }
-            // TRƯỜNG HỢP 1: Nhận toàn bộ danh sách (Khi mới vào app hoặc khi bấm RESET)
+
+            // Trường hợp 1: Tải mới/Làm mới toàn bộ danh sách
             if (payload instanceof List<?> rawList) {
                 List<Item> updatedItems = new ArrayList<>();
                 for (Object obj : rawList) {
@@ -291,7 +226,7 @@ public class ControllerBidder implements ServerListener {
 
                 Platform.runLater(this::setupPagination);
             }
-            // TRƯỜNG HỢP 2: Cập nhật Realtime cho một item đơn lẻ (Ai đó vừa đặt giá)
+            // Trường hợp 2: Cập nhật biến động đơn lẻ Realtime từ các client khác đặt giá
             else {
                 Item singleItemToUpdate = null;
 
@@ -301,17 +236,50 @@ public class ControllerBidder implements ServerListener {
                     auction.getItem().setCurrentHighestPrice(auction.getCurrentPrice());
                     singleItemToUpdate = auction.getItem();
                 }
+                else if (payload instanceof Map<?, ?> mapPayload) {
+                    try {
+                        // KIỂM TRA TRƯỜNG HỢP: ĐÂY LÀ LỆNH XÓA REALTIME TỪ SERVER
+                        if (mapPayload.containsKey("deletedItemId") && Boolean.TRUE.equals(mapPayload.get("success"))) {
+                            int deletedId = Integer.parseInt(mapPayload.get("deletedItemId").toString());
+
+                            // Gọi xử lý xóa ngầm trên giao diện
+                            Platform.runLater(() -> removeSingleItem(deletedId));
+                            return; // Kết thúc xử lý gói tin xóa tại đây
+                        }
+
+                        if (mapPayload.get("item") instanceof Item item) {
+                            singleItemToUpdate = item;
+                            if (mapPayload.get("newPrice") != null) {
+                                double price = Double.parseDouble(mapPayload.get("newPrice").toString());
+                                singleItemToUpdate.setCurrentHighestPrice(price);
+                            }
+                        }
+                        // Dự phòng bóc tách sâu bằng itemId từ Server gửi về
+                        else if (mapPayload.get("itemId") != null && mapPayload.get("newPrice") != null) {
+                            int targetId = Integer.parseInt(mapPayload.get("itemId").toString());
+                            double price = Double.parseDouble(mapPayload.get("newPrice").toString());
+
+                            for (Item existingItem : allAssets) {
+                                if (existingItem.getDatabaseId() == targetId) {
+                                    existingItem.setCurrentHighestPrice(price);
+                                    singleItemToUpdate = existingItem;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[Client Lỗi] Lỗi bóc tách Map payload: " + e.getMessage());
+                    }
+                }
 
                 if (singleItemToUpdate != null) {
                     Item finalItem = singleItemToUpdate;
                     Platform.runLater(() -> updateSingleItem(finalItem));
                 }
             }
-            Platform.runLater(() -> {
-                setupPagination();
-            });
         }
-        if(Command.NOTIFICATION.equals(command)){
+
+        if (Command.NOTIFICATION.equals(command)) {
             handleIncomingToastNotification(response.payload());
         }
     }
@@ -328,43 +296,139 @@ public class ControllerBidder implements ServerListener {
     private void updateSingleItem(Item updatedItem) {
         if (updatedItem == null) return;
 
-        int targetIndex = -1;
+        int targetId = updatedItem.getDatabaseId();
+        boolean isExist = false;
+
+        // 1. Đồng bộ giá trị mới vào mảng dữ liệu gốc nếu đã có
         for (int i = 0; i < allAssets.size(); i++) {
-            if (allAssets.get(i).getDatabaseId() == updatedItem.getDatabaseId()) {
-                allAssets.set(i, updatedItem); // Cập nhật ngầm trong Database local (allAssets)
-                targetIndex = i;
+            if (allAssets.get(i).getDatabaseId() == targetId) {
+                allAssets.set(i, updatedItem);
+                isExist = true;
                 break;
             }
         }
 
-        if (targetIndex == -1) return;
+        // 2. NẾU LÀ ITEM MỚI (Chưa tồn tại trong list hiện tại)
+        if (!isExist) {
+            System.out.println("[UI Realtime] Phát hiện Item mới hoàn toàn! Thêm vào danh sách.");
+            allAssets.add(updatedItem); // Thêm vào cuối danh sách
 
-        // Tính toán xem Item vừa thay đổi giá có nằm trong TRANG HIỆN TẠI đang hiển thị không
-        int currentPage = List_Items_Bid.getCurrentPageIndex();
-        int start = currentPage * itemsPerPage;
-        int end = Math.min(start + itemsPerPage, allAssets.size());
+            // Vì số lượng item thay đổi, bắt buộc phải vẽ lại Pagination để sinh thêm Card/Trang mới
+            Platform.runLater(this::setupPagination);
+            return;
+        }
 
-        if (targetIndex >= start && targetIndex < end) {
-            int controllerIndex = targetIndex - start;
-
-            // Kiểm tra an toàn xem controller có khớp và tồn tại trên UI không
-            if (controllerIndex >= 0 && controllerIndex < activeControllers.size()) {
-                ItemCardController controller = activeControllers.get(controllerIndex);
-                try {
-                    controller.setData(updatedItem);
-                    System.out.println("[UI Realtime] Đã cập nhật nhanh Item ID: " + updatedItem.getDatabaseId());
-                } catch (Exception e) {
-                    System.err.println("Lỗi cập nhật nhanh Card tại vị trí " + controllerIndex + ": " + e.getMessage());
-                }
+        // 3. Nếu là item cũ thì chỉ cập nhật giá lên Card đang hiển thị như cũ
+        ItemCardController controller = activeControllers.get(targetId);
+        if (controller != null) {
+            try {
+                controller.updatePriceOnly(updatedItem);
+                System.out.println("[UI Realtime] Đã đổi giá thành công cho Item ID: " + targetId);
+            } catch (Exception e) {
+                System.err.println("Lỗi cập nhật giá lên Card: " + e.getMessage());
             }
+        } else {
+            System.out.println("[UI Realtime] Item ID " + targetId + " đã cập nhật ngầm vào mảng dữ liệu (Thẻ đang ẩn).");
+        }
+    }
+
+    private void handleIncomingToastNotification(Object payload) {
+        DecimalFormat df = new DecimalFormat("#,###");
+        try {
+            Map<String, Object> notifData = (Map<String, Object>) payload;
+
+            double newPrice = 0;
+            Object priceObj = notifData.get("newPrice");
+            if (priceObj instanceof Number) {
+                newPrice = ((Number) priceObj).doubleValue();
+            }
+
+            Item item = (Item) notifData.get("item");
+            final double finalPrice = newPrice;
+
+            Platform.runLater(() -> {
+                HBox customToast = new HBox();
+                customToast.setAlignment(Pos.CENTER_LEFT);
+                customToast.setPrefWidth(300);
+                customToast.setStyle("-fx-background-color: #FFFFFF;");
+
+                StackPane iconBlock = new StackPane();
+                iconBlock.setPrefSize(60, 70);
+                iconBlock.setStyle("-fx-background-color: #1565C0;");
+
+                Label icon = new Label("🔔");
+                icon.setStyle("-fx-text-fill: white; -fx-font-size: 22px;");
+                iconBlock.getChildren().add(icon);
+
+                VBox textContainer = new VBox();
+                textContainer.setSpacing(4);
+                textContainer.setAlignment(Pos.CENTER_LEFT);
+                textContainer.setPadding(new Insets(10, 10, 10, 15));
+                HBox.setHgrow(textContainer, Priority.ALWAYS);
+
+                Label titleLabel = new Label("SẢN PHẨM CÓ LƯỢT ĐẤU GIÁ MỚI!");
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
+
+                Label messageLabel = new Label("Sản phẩm " + (item != null ? item.getName() : "") + " : " + df.format(finalPrice) + " VNĐ");
+                messageLabel.setStyle("-fx-text-fill: #757575; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");
+                messageLabel.setWrapText(true);
+                messageLabel.setMaxWidth(200);
+
+                textContainer.getChildren().addAll(titleLabel, messageLabel);
+                customToast.getChildren().addAll(iconBlock, textContainer);
+
+                Notifications notificationBuilder = Notifications.create()
+                        .owner(j_textSoDu)
+                        .graphic(customToast)
+                        .hideAfter(Duration.seconds(4))
+                        .position(Pos.BOTTOM_RIGHT);
+
+                customToast.setOnMouseClicked(event -> {
+                    ItemSession.setLoggedInItem(item);
+                    SceneHelper.changeScene(j_textSoDu, "/fxml/BiddingView.fxml");
+                });
+
+                customToast.sceneProperty().addListener((observable, oldScene, newScene) -> {
+                    if (newScene != null) {
+                        newScene.windowProperty().addListener((obsWin, oldWin, newWin) -> {
+                            if (newWin != null) {
+                                javafx.scene.Node notificationPopup = newScene.getRoot().lookup(".notification-popup");
+                                if (notificationPopup != null) {
+                                    notificationPopup.setStyle("-fx-padding: 0;");
+                                }
+                            }
+                        });
+                    }
+                });
+
+                notificationBuilder.show();
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     public void On_BidHistory(ActionEvent event) {
-        client.setListener(null); // Gỡ listener cũ để tránh rò rỉ bộ nhớ (Memory Leak)
+        client.setListener(null);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/BidHistoryView.fxml");
     }
 
     public void On_MyAuctions(ActionEvent event) {
+    }
+
+    private void removeSingleItem(int deletedId) {
+        System.out.println("[UI Realtime] Phát hiện Item ID " + deletedId + " bị xóa từ Server. Đang dọn dẹp...");
+
+        // 1. Tìm và xóa Item ra khỏi danh sách dữ liệu gốc
+        boolean isRemoved = allAssets.removeIf(item -> item.getDatabaseId() == deletedId);
+
+        // 2. Nếu thực sự xóa thành công trong list, tiến hành cập nhật lại giao diện
+        if (isRemoved) {
+            // Hủy controller của thẻ này trong map quản lý để giải phóng bộ nhớ
+            activeControllers.remove(deletedId);
+
+            // Gọi hàm setupPagination đã tối ưu giữ nguyên trang ở bước trước
+            setupPagination();
+        }
     }
 }

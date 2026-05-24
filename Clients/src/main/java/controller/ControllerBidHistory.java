@@ -17,8 +17,8 @@ import javafx.scene.layout.VBox;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.BidHistoryDTO;
-import model.auction.Auction; // Import nếu cần thiết để ép kiểu payload
-import model.Items.Item;      // Import nếu cần thiết để ép kiểu payload
+import model.auction.Auction;
+import model.Items.Item;
 import network.AuctionClient;
 import network.Command;
 import network.DataPacket;
@@ -42,6 +42,7 @@ public class ControllerBidHistory implements ServerListener {
     @FXML private Label lblModalItemName;
     @FXML private Label lblModalCurrentPrice;
     @FXML private TextField txtBidAmount;
+    @FXML private Button btnConfirmBid;
 
     @FXML private javafx.scene.shape.Circle connectionStatus;
     @FXML private Label connectionText;
@@ -50,11 +51,12 @@ public class ControllerBidHistory implements ServerListener {
     private VBox containerCardList;
     private long targetItemId = -1;
 
-    // BỔ SUNG: Lưu danh sách lịch sử cục bộ để cập nhật realtime giống file ControllerBidder
+    // Lưu danh sách lịch sử cục bộ để cập nhật realtime
     private List<BidHistoryDTO> allHistoryData = new ArrayList<>();
 
     @FXML
     public void initialize() {
+        // Đảm bảo đăng ký listener với client khi vào màn hình này
         client.setListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
@@ -71,6 +73,11 @@ public class ControllerBidHistory implements ServerListener {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             this.currentUsername = currentUser.getUsername();
+        }
+
+        if (paneModalOverlay != null) {
+            paneModalOverlay.setVisible(false);
+            paneModalOverlay.setDisable(true);
         }
 
         Platform.runLater(this::requestDataFromServer);
@@ -91,18 +98,17 @@ public class ControllerBidHistory implements ServerListener {
         Command command = response.command();
         System.out.println("[Client Debug] Nhận phản hồi tại Lịch sử, Command: " + command);
 
-        // TRƯỜNG HỢP 1: Tải toàn bộ danh sách lịch sử ban đầu
+        // TRƯỜNG HỢP 1: Tải toàn bộ danh sách lịch sử ban đầu từ Server
         if (Command.GET_BIDDER_HISTORY_RESULT.equals(command)) {
             @SuppressWarnings("unchecked")
             List<BidHistoryDTO> historyList = (List<BidHistoryDTO>) response.payload();
             this.allHistoryData = historyList != null ? historyList : new ArrayList<>();
             Platform.runLater(() -> updateUIWithData(this.allHistoryData));
-            return; // Xử lý xong thì dừng lại luôn
+            return;
         }
 
-        // TRƯỜNG HỢP 2: Cập nhật Realtime từng item
+        // TRƯỜNG HỢP 2: Cập nhật biến động Realtime từng Item từ sảnh hoặc kết quả Bid cá nhân
         if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command) || Command.BID_RESULT.equals(command)) {
-
             Object payload = response.payload();
             if (payload == null) return;
 
@@ -110,89 +116,133 @@ public class ControllerBidHistory implements ServerListener {
             double updatedPrice = 0.0;
             String highestBidder = "";
 
-            // 1. Nếu payload là cấu trúc phòng đấu giá (Auction)
+            // 1. Nhận dạng cấu trúc phòng đấu giá (ITEMS_UPDATE được broadcast toàn hệ thống)
             if (payload instanceof Auction auction) {
                 updatedItemId = auction.getItem() != null ? auction.getItem().getDatabaseId() : -1;
                 updatedPrice = auction.getCurrentPrice();
                 highestBidder = auction.getLeadingBidder() != null ? auction.getLeadingBidder() : "";
             }
-            // 2. Nếu payload là Object sản phẩm đơn lẻ (Item)
+            // 2. Nhận dạng Object sản phẩm đơn lẻ (Item)
             else if (payload instanceof Item item) {
                 updatedItemId = item.getDatabaseId();
                 updatedPrice = item.getCurrentHighestPrice();
             }
-            // 3. Nếu payload là một Map (Cần kiểm tra null cực kỳ nghiêm ngặt ở đây)
+            // 3. ✅ SỬA ĐỔI: Gia cố bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
             else if (payload instanceof Map<?, ?> map) {
                 try {
-                    // Kiểm tra an toàn trước khi ép kiểu, tránh lỗi .toString() trên object null
-                    if (map.containsKey("itemId") && map.get("itemId") != null &&
-                            map.containsKey("amount") && map.get("amount") != null) {
+                    if (map.containsKey("itemId") && map.get("itemId") != null) {
+                        String itemIdStr = map.get("itemId").toString();
+                        // Chống lỗi nếu itemId trả về là dạng số thực "12.0" hoặc chuỗi thuần "12"
+                        if (itemIdStr.contains(".")) {
+                            updatedItemId = Double.valueOf(itemIdStr).longValue();
+                        } else {
+                            updatedItemId = Long.parseLong(itemIdStr);
+                        }
 
-                        updatedItemId = Long.parseLong(map.get("itemId").toString());
-                        updatedPrice = Double.parseDouble(map.get("amount").toString());
+                        if (map.containsKey("newPrice") && map.get("newPrice") != null) {
+                            updatedPrice = Double.parseDouble(map.get("newPrice").toString());
+                        } else if (map.containsKey("amount") && map.get("amount") != null) {
+                            updatedPrice = Double.parseDouble(map.get("amount").toString());
+                        }
 
                         if (map.get("bidderId") != null) {
                             highestBidder = map.get("bidderId").toString();
+                        } else if (map.get("username") != null) {
+                            highestBidder = map.get("username").toString();
                         }
-                    } else {
-                        // Nếu nhận được BID_RESULT nhưng map không chứa dữ liệu cần thiết,
-                        // ta bỏ qua không xử lý để tránh ghi đè dữ liệu sai lệch ($0.0)
-                        System.out.println("[Client History] Nhận Map thông báo kết quả phụ, bỏ qua cập nhật UI.");
-                        return;
                     }
                 } catch (Exception e) {
-                    System.err.println("Không thể bóc tách payload Map: " + e.getMessage());
+                    System.err.println("Không thể bóc tách payload Map lịch sử: " + e.getMessage());
+                    e.printStackTrace();
                     return;
                 }
             }
 
-            // Chỉ tiến hành cập nhật giao diện nếu tìm thấy ID hợp lệ (> 0)
+            // Tiến hành cập nhật luồng UI an toàn
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
                 final String topBidder = highestBidder;
 
+                // ✅ SỬA ĐỔI: Chạy toàn bộ khối logic tính toán dữ liệu cục bộ vào luồng JavaFX
                 Platform.runLater(() -> {
-                    hideQuickBidModal();
-                    updateSingleHistoryItem(targetId, targetPrice, topBidder);
+                    updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder);
+
+                    if (Command.BID_RESULT.equals(command)) {
+                        hideQuickBidModal();
+                        System.out.println("[Client History] Đã cập nhật xong kết quả BID_RESULT cho Item: " + targetId);
+                    }
                 });
             }
         }
     }
+
     /**
      * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp lên giao diện
+     */
+    /**
+     * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp cả GIÁ và TRẠNG THÁI
      */
     private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder) {
         boolean hasChanged = false;
 
+        String currentTimeStr = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                .withZone(java.time.ZoneId.systemDefault())
+                .format(java.time.Instant.now());
+
+        // Chuẩn hóa tên người dùng hiện tại để so sánh chính xác
+        String safeCurrentUsername = (currentUsername != null) ? currentUsername.trim() : "";
+
         for (BidHistoryDTO dto : allHistoryData) {
             if (dto.getItemId() == itemId) {
-                // 1. Cập nhật lại giá cao nhất hiện tại của sản phẩm
-                dto.setCurrentHighestPrice(newPrice);
 
-                // 2. Cập nhật lại trạng thái dựa trên việc ai đang dẫn đầu
-                if (!topBidder.isEmpty()) {
-                    if (topBidder.equals(currentUsername)) {
+                // 1. Cập nhật lại giá cao nhất trên thị trường hiện tại
+                dto.setCurrentHighestPrice(newPrice);
+                dto.setLastBidTime(currentTimeStr);
+
+                // Chuẩn hóa tên người người vừa đặt giá cao nhất từ server gửi về
+                String safeTopBidder = (topBidder != null) ? topBidder.trim() : "";
+
+                // 2. BIỆN PHÁP ĐỊNH ĐOẠT TRẠNG THÁI CHÍNH XÁC
+                if (!safeTopBidder.isEmpty()) {
+                    // TRƯỜNG HỢP A: Nếu chính bạn là người vừa dẫn đầu (vừa bid thành công hoặc hệ thống ghi nhận bạn giữ top)
+                    if (safeTopBidder.equalsIgnoreCase(safeCurrentUsername)) {
                         dto.setStatus("WINNING");
-                        // Nếu mình là người vừa bid thành công, mức đặt của mình chính là mức giá này
-                        dto.setMyHighestBid(newPrice);
-                    } else {
-                        dto.setStatus("OUTBID");
+
+                        // Cập nhật lại mức giá cao nhất của riêng bạn cho khớp với thị trường
+                        if (newPrice > dto.getMyHighestBid()) {
+                            dto.setMyHighestBid(newPrice);
+                        }
+                    }
+                    // TRƯỜNG HỢP B: Nếu người dẫn đầu là người khác
+                    else {
+                        // Nếu giá thị trường đã vượt qua mức trả cao nhất của bạn -> Chắc chắn bị vượt mặt
+                        if (newPrice > dto.getMyHighestBid()) {
+                            dto.setStatus("OUTBID");
+                        }
+                        // Dự phòng: Nếu giá bằng nhau nhưng người giữ top không phải mình -> Vẫn tính là bị vượt mặt
+                        else if (newPrice == dto.getMyHighestBid()) {
+                            dto.setStatus("OUTBID");
+                        }
                     }
                 } else {
-                    // Nếu server không trả về tên người dẫn đầu, kiểm tra dựa trên giá tiền
+                    // TRƯỜNG HỢP C: Server không trả về tên người giữ top (Cơ chế tính toán dự phòng dựa trên giá tiền)
                     if (dto.getMyHighestBid() >= newPrice) {
                         dto.setStatus("WINNING");
                     } else {
                         dto.setStatus("OUTBID");
                     }
                 }
+
                 hasChanged = true;
-                System.out.println("[UI Realtime Lịch Sử] Đã cập nhật Item ID: " + itemId + " thành giá mới: $" + newPrice);
+                System.out.println("🔄 [UI Realtime] Đã đồng bộ Item ID: " + itemId
+                        + " | Giá mới: $" + newPrice
+                        + " | Người giữ top: " + (safeTopBidder.isEmpty() ? "Ẩn danh" : safeTopBidder)
+                        + " | Trạng thái mới: " + dto.getStatus());
             }
         }
 
-        // Nếu có sự thay đổi, vẽ lại danh sách card ngay lập tức (Rất nhẹ và mượt vì không gọi mạng)
+        // Vẽ lại toàn bộ danh sách card lên giao diện JavaFX ngay khi trạng thái đổi
         if (hasChanged) {
             updateUIWithData(allHistoryData);
         }
@@ -209,8 +259,12 @@ public class ControllerBidHistory implements ServerListener {
         }
 
         for (BidHistoryDTO dto : historyList) {
-            containerCardList.getChildren().add(createSmartCard(dto));
+            HBox smartCard = createSmartCard(dto);
+            containerCardList.getChildren().add(smartCard);
         }
+
+        containerCardList.requestLayout();
+        scrollPane.requestLayout();
     }
 
     private HBox createSmartCard(BidHistoryDTO dto) {
@@ -274,19 +328,43 @@ public class ControllerBidHistory implements ServerListener {
             actionSection.getChildren().add(rebidBtn);
         }
 
+        Button btnGoToAuction = new Button("Vào phòng ĐG");
+        btnGoToAuction.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
+        btnGoToAuction.setPadding(new Insets(5, 10, 5, 10));
+
+        btnGoToAuction.setOnAction(e -> {
+            client.setListener(null);
+            ControllerAuction targetController = SceneHelper.changeSceneAndGetController(btnGoToAuction, "/fxml/BiddingView.fxml");
+            if (targetController != null) {
+                targetController.initData(dto);
+                System.out.println("[Chuyển hướng] Đã chuyển tới phòng đấu giá cho Item ID: " + dto.getItemId());
+            }
+        });
+        actionSection.getChildren().add(btnGoToAuction);
+
         card.getChildren().addAll(txtSection, priceSection, actionSection);
         return card;
     }
 
     private void showQuickBidModal(BidHistoryDTO dto) {
+        System.out.println("[Debug Modal] Hiển thị modal cho Item ID: " + dto.getItemId());
+
         this.targetItemId = dto.getItemId();
         lblModalItemName.setText(dto.getItemName());
         lblModalCurrentPrice.setText("$" + dto.getCurrentHighestPrice());
 
         double suggestedPrice = dto.getCurrentHighestPrice() + 10.0;
-        txtBidAmount.setText(String.valueOf(suggestedPrice));
 
+        txtBidAmount.clear();
+        txtBidAmount.setText(String.valueOf(suggestedPrice));
+        txtBidAmount.requestFocus();
+        txtBidAmount.selectAll();
+
+        paneModalOverlay.setDisable(false);
         paneModalOverlay.setVisible(true);
+        paneModalOverlay.toFront();
+
+        System.out.println("[Debug Modal] Modal hiển thị thành công, targetItemId = " + this.targetItemId);
     }
 
     @FXML
@@ -296,35 +374,58 @@ public class ControllerBidHistory implements ServerListener {
 
     private void hideQuickBidModal() {
         paneModalOverlay.setVisible(false);
+        paneModalOverlay.setDisable(true);
         txtBidAmount.clear();
         targetItemId = -1;
+        System.out.println("[Debug Modal] Modal đã đóng");
     }
 
     @FXML
     private void handleConfirmQuickBid(ActionEvent event) {
+        System.out.println("[Debug Bid] handleConfirmQuickBid được gọi!");
+
         String amountText = txtBidAmount.getText().trim();
-        if (amountText.isEmpty() || targetItemId == -1) return;
+
+        if (targetItemId == -1) {
+            System.err.println("[Lỗi] Không xác định được sản phẩm cần Re-bid! targetItemId = " + targetItemId);
+            return;
+        }
+
+        if (amountText.isEmpty()) {
+            System.err.println("[Lỗi] Số tiền đặt giá không được để trống!");
+            return;
+        }
 
         try {
             double amount = Double.parseDouble(amountText);
 
+            System.out.println("[Debug Bid] Chuẩn bị BID: itemId=" + targetItemId + ", amount=" + amount + ", bidder=" + currentUsername);
+
             Map<String, Object> bidPayload = new HashMap<>();
-            bidPayload.put("itemId", String.valueOf(targetItemId));
+            bidPayload.put("itemId", targetItemId);
             bidPayload.put("bidderId", currentUsername);
             bidPayload.put("amount", amount);
 
-            System.out.println("[Client History] Bắn lệnh Command.BID lên Server qua Modal nhanh: " + bidPayload);
-            client.sendCommand(Command.BID, bidPayload);
+            System.out.println("[Client History] Đang chuẩn bị gửi lệnh BID: " + bidPayload);
+
+            new Thread(() -> {
+                try {
+                    client.sendCommand(Command.BID, bidPayload);
+                    System.out.println("[Client History] Gửi lệnh BID thành công qua Socket.");
+                } catch (IOException e) {
+                    System.err.println("[Lỗi Mạng] Không thể gửi lệnh Re-bid: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }).start();
 
         } catch (NumberFormatException e) {
-            System.err.println("Giá tiền nhập vào không đúng định dạng!");
-        } catch (IOException e) {
-            System.err.println("Lỗi kết nối Socket: " + e.getMessage());
+            System.err.println("[Lỗi Nhập Liệu] Mức giá nhập vào không đúng định dạng số thực! Input: " + amountText);
         }
     }
 
     @FXML
     private void handleBackAction(ActionEvent event) {
         client.setListener(null);
+        SceneHelper.changeScene(btnBack, "/fxml/BidderView.fxml");
     }
 }

@@ -357,17 +357,39 @@ public class DAOItems implements DaoInterface<Item> {
         Timestamp endTime = rs.getTimestamp("auctionEndTime");
         String imgData = rs.getString("imgdata");
         double currentHighestPrice = rs.getDouble("currentHighestBid");
-        Item item = new Item(name, description, startingPrice, sellerId, imgData, ItemType.valueOf(itemType));
+
+        // 🌟 SỬA TẠI ĐÂY: Ép kiểu Enum an toàn, chống crash luồng khi đọc dữ liệu từ DB
+        ItemType typeEnum = null;
+        if (itemType != null && !itemType.trim().isEmpty()) {
+            try {
+                // Ưu tiên dùng hàm tự chế từ chuỗi tiếng Việt của bạn (nếu có trong ItemType)
+                typeEnum = ItemType.fromString(itemType);
+            } catch (Exception e) {
+                try {
+                    // Phương án dự phòng 2: Khớp theo tên Enum chuẩn (Chuyển hoa để tránh lệch định dạng)
+                    typeEnum = ItemType.valueOf(itemType.trim().toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                    System.err.println("⚠️ Cảnh báo: Không thể map loại sản phẩm '" + itemType + "' sang Enum ItemType!");
+                    typeEnum = null; // Hoặc gán một giá trị mặc định tùy hệ thống của bạn
+                }
+            }
+        }
+
+        // Khởi tạo Item với typeEnum an toàn đã được xử lý
+        Item item = new Item(name, description, startingPrice, sellerId, imgData, typeEnum);
+
+        // Gán ID từ cột my_row_id
         item.setDatabaseId(rs.getInt("my_row_id"));
+
         if (startTime != null) {
             item.setAuctionStartTime(startTime.toInstant());
         }
         if (endTime != null) {
             item.setAuctionEndTime(endTime.toInstant());
         }
+
         item.setCurrentHighestPrice(currentHighestPrice);
         return item;
     }
-
 
 }
