@@ -1,7 +1,6 @@
 package controller;
 
 import model.Items.Item;
-
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -60,15 +59,18 @@ public class ControllerBidder implements ServerListener {
     @FXML
     private Label connectionText;
 
+    // --- THÊM Ô TÌM KIẾM ---
+    @FXML
+    private TextField txtSearch;
+
     private ConnectionStatusManager statusManager;
 
     private final int itemsPerPage = 4;
     private List<Item> allAssets = new ArrayList<>();
 
-    /**
-     * GIẢI PHÁP REALTIME: Quản lý các thẻ Card bằng Map động.
-     * Lưu trữ toàn bộ controller đang hoạt động để đảm bảo dù ở trang ẩn vẫn được cập nhật dữ liệu ngầm.
-     */
+    // --- THÊM LIST ĐÃ LỌC ĐỂ PHỤC VỤ SEARCH ---
+    private List<Item> filteredAssets = new ArrayList<>();
+
     private final Map<Integer, ItemCardController> activeControllers = new HashMap<>();
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
@@ -84,7 +86,11 @@ public class ControllerBidder implements ServerListener {
     void On_ResetItems(ActionEvent event) {
         System.out.println("[Client] Người dùng yêu cầu làm mới danh sách...");
 
-        // Hiện thông báo tạm thời trên Pagination trong lúc đợi Server phản hồi
+        // Xóa text tìm kiếm khi reset dữ liệu
+        if (txtSearch != null) {
+            txtSearch.clear();
+        }
+
         List_Items_Bid.setPageFactory(pageIndex -> {
             Label msg = new Label("Đang tải lại danh sách sản phẩm mới nhất...");
             StackPane pane = new StackPane(msg);
@@ -128,21 +134,43 @@ public class ControllerBidder implements ServerListener {
             return pane;
         });
 
+        // --- LẮNG NGHE SỰ KIỆN THAY ĐỔI TEXT TRÊN Ô TÌM KIẾM ---
+        if (txtSearch != null) {
+            txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
+                handleSearch(newValue);
+            });
+        }
+
         if (p1 != null) {
             client.sendCommand(Command.SELECT_ITEMS, p1.getRole().toString());
         }
     }
 
+    /**
+     * Logic thực hiện lọc sản phẩm dựa theo từ khóa nhập vào
+     */
+    private void handleSearch(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            // Nếu không nhập gì, hiển thị lại toàn bộ
+            filteredAssets = new ArrayList<>(allAssets);
+        } else {
+            String lowerKey = keyword.toLowerCase().trim();
+            filteredAssets = allAssets.stream()
+                    .filter(item -> item.getName() != null && item.getName().toLowerCase().contains(lowerKey))
+                    .toList();
+        }
+        // Vẽ lại Pagination dựa trên danh sách đã lọc
+        setupPagination();
+    }
+
     private void setupPagination() {
-        // 1. Lưu lại chỉ số trang mà người dùng hiện đang đứng xem
         int currentPage = List_Items_Bid.getCurrentPageIndex();
 
-        // 2. Tính toán số lượng trang mới dựa trên danh sách allAssets vừa được thêm phần tử
-        int pageCount = Math.max(1, (int) Math.ceil((double) allAssets.size() / itemsPerPage));
+        // Sử dụng dữ liệu từ "filteredAssets" thay vì "allAssets"
+        int pageCount = Math.max(1, (int) Math.ceil((double) filteredAssets.size() / itemsPerPage));
         List_Items_Bid.setPageCount(pageCount);
         List_Items_Bid.setPageFactory(this::createPage);
 
-        // 3. Đảm bảo trang hiện tại không vượt quá tổng số trang mới (đề phòng trường hợp đặc biệt)
         if (currentPage < pageCount) {
             List_Items_Bid.setCurrentPageIndex(currentPage);
         } else {
@@ -151,8 +179,9 @@ public class ControllerBidder implements ServerListener {
     }
 
     private Node createPage(int pageIndex) {
-        if (allAssets == null || allAssets.isEmpty()) {
-            Label noItemLabel = new Label("Hiện không có sản phẩm nào đang đấu giá.");
+        // Sử dụng filteredAssets để hiển thị dữ liệu
+        if (filteredAssets == null || filteredAssets.isEmpty()) {
+            Label noItemLabel = new Label("Không tìm thấy sản phẩm nào phù hợp.");
             StackPane pane = new StackPane(noItemLabel);
             pane.setPrefHeight(400);
             return pane;
@@ -164,20 +193,18 @@ public class ControllerBidder implements ServerListener {
         flowPane.setPadding(new Insets(20));
 
         int start = pageIndex * itemsPerPage;
-        int end = Math.min(start + itemsPerPage, allAssets.size());
+        int end = Math.min(start + itemsPerPage, filteredAssets.size());
 
         for (int i = start; i < end; i++) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AssetCard.fxml"));
                 Node card = loader.load();
-                Item data = allAssets.get(i);
+                Item data = filteredAssets.get(i);
 
                 ItemCardController controller = loader.getController();
                 controller.setData(data);
 
                 int itemId = data.getDatabaseId();
-
-                // Đăng ký/Cập nhật đè controller mới nhất cho ID tương ứng
                 activeControllers.put(itemId, controller);
 
                 card.setOnMouseClicked(event -> {
@@ -191,9 +218,7 @@ public class ControllerBidder implements ServerListener {
             }
         }
 
-        // Thay vì retainAll dựa trên trang hiện tại (làm mất realtime trang cũ),
-        // ta dọn dẹp map dựa trên danh sách sản phẩm thực tế còn tồn tại từ Server.
-        List<Integer> allValidIds = allAssets.stream().map(Item::getDatabaseId).toList();
+        List<Integer> allValidIds = filteredAssets.stream().map(Item::getDatabaseId).toList();
         activeControllers.keySet().retainAll(allValidIds);
 
         return flowPane;
@@ -215,7 +240,6 @@ public class ControllerBidder implements ServerListener {
                 return;
             }
 
-            // Trường hợp 1: Tải mới/Làm mới toàn bộ danh sách
             if (payload instanceof List<?> rawList) {
                 List<Item> updatedItems = new ArrayList<>();
                 for (Object obj : rawList) {
@@ -224,9 +248,9 @@ public class ControllerBidder implements ServerListener {
                 this.allAssets = updatedItems;
                 this.dataLoaded = true;
 
-                Platform.runLater(this::setupPagination);
+                // Đồng bộ lại bộ lọc tìm kiếm khi dữ liệu tổng thay đổi
+                Platform.runLater(() -> handleSearch(txtSearch != null ? txtSearch.getText() : ""));
             }
-            // Trường hợp 2: Cập nhật biến động đơn lẻ Realtime từ các client khác đặt giá
             else {
                 Item singleItemToUpdate = null;
 
@@ -238,13 +262,10 @@ public class ControllerBidder implements ServerListener {
                 }
                 else if (payload instanceof Map<?, ?> mapPayload) {
                     try {
-                        // KIỂM TRA TRƯỜNG HỢP: ĐÂY LÀ LỆNH XÓA REALTIME TỪ SERVER
                         if (mapPayload.containsKey("deletedItemId") && Boolean.TRUE.equals(mapPayload.get("success"))) {
                             int deletedId = Integer.parseInt(mapPayload.get("deletedItemId").toString());
-
-                            // Gọi xử lý xóa ngầm trên giao diện
                             Platform.runLater(() -> removeSingleItem(deletedId));
-                            return; // Kết thúc xử lý gói tin xóa tại đây
+                            return;
                         }
 
                         if (mapPayload.get("item") instanceof Item item) {
@@ -254,7 +275,6 @@ public class ControllerBidder implements ServerListener {
                                 singleItemToUpdate.setCurrentHighestPrice(price);
                             }
                         }
-                        // Dự phòng bóc tách sâu bằng itemId từ Server gửi về
                         else if (mapPayload.get("itemId") != null && mapPayload.get("newPrice") != null) {
                             int targetId = Integer.parseInt(mapPayload.get("itemId").toString());
                             double price = Double.parseDouble(mapPayload.get("newPrice").toString());
@@ -299,7 +319,6 @@ public class ControllerBidder implements ServerListener {
         int targetId = updatedItem.getDatabaseId();
         boolean isExist = false;
 
-        // 1. Đồng bộ giá trị mới vào mảng dữ liệu gốc nếu đã có
         for (int i = 0; i < allAssets.size(); i++) {
             if (allAssets.get(i).getDatabaseId() == targetId) {
                 allAssets.set(i, updatedItem);
@@ -308,28 +327,13 @@ public class ControllerBidder implements ServerListener {
             }
         }
 
-        // 2. NẾU LÀ ITEM MỚI (Chưa tồn tại trong list hiện tại)
         if (!isExist) {
             System.out.println("[UI Realtime] Phát hiện Item mới hoàn toàn! Thêm vào danh sách.");
-            allAssets.add(updatedItem); // Thêm vào cuối danh sách
-
-            // Vì số lượng item thay đổi, bắt buộc phải vẽ lại Pagination để sinh thêm Card/Trang mới
-            Platform.runLater(this::setupPagination);
-            return;
+            allAssets.add(updatedItem);
         }
 
-        // 3. Nếu là item cũ thì chỉ cập nhật giá lên Card đang hiển thị như cũ
-        ItemCardController controller = activeControllers.get(targetId);
-        if (controller != null) {
-            try {
-                controller.updatePriceOnly(updatedItem);
-                System.out.println("[UI Realtime] Đã đổi giá thành công cho Item ID: " + targetId);
-            } catch (Exception e) {
-                System.err.println("Lỗi cập nhật giá lên Card: " + e.getMessage());
-            }
-        } else {
-            System.out.println("[UI Realtime] Item ID " + targetId + " đã cập nhật ngầm vào mảng dữ liệu (Thẻ đang ẩn).");
-        }
+        // Cập nhật lại giao diện dựa trên bộ lọc hiện hành
+        handleSearch(txtSearch != null ? txtSearch.getText() : "");
     }
 
     private void handleIncomingToastNotification(Object payload) {
@@ -419,16 +423,12 @@ public class ControllerBidder implements ServerListener {
     private void removeSingleItem(int deletedId) {
         System.out.println("[UI Realtime] Phát hiện Item ID " + deletedId + " bị xóa từ Server. Đang dọn dẹp...");
 
-        // 1. Tìm và xóa Item ra khỏi danh sách dữ liệu gốc
         boolean isRemoved = allAssets.removeIf(item -> item.getDatabaseId() == deletedId);
 
-        // 2. Nếu thực sự xóa thành công trong list, tiến hành cập nhật lại giao diện
         if (isRemoved) {
-            // Hủy controller của thẻ này trong map quản lý để giải phóng bộ nhớ
             activeControllers.remove(deletedId);
-
-            // Gọi hàm setupPagination đã tối ưu giữ nguyên trang ở bước trước
-            setupPagination();
+            // Cập nhật lại list lọc sau khi xóa phần tử khỏi mảng chính
+            handleSearch(txtSearch != null ? txtSearch.getText() : "");
         }
     }
 }
