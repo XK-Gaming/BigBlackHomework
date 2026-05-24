@@ -35,6 +35,7 @@ interface ConnectionProvider {
 public class UserService {
     static final long ANTI_SNIPING_WINDOW_SECONDS = 60;
     static final long ANTI_SNIPING_EXTENSION_SECONDS = 90;
+    private static final double MAX_MIN_BID_RATIO = 0.20;
 
     // ✅ SỬA LỖI #1: Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
     private static final Cache<String, ReentrantLock> itemLocks = CacheBuilder.newBuilder()
@@ -116,6 +117,7 @@ public class UserService {
 
 
     public void creater_item(Item item) {
+        validateMinBidForSave(item, true);
         int itemRows = itemDAO.Insert(item);
         if (itemRows <= 0) {
             throw new PersistenceException("Không thể lưu sản phẩm.");
@@ -184,6 +186,12 @@ public class UserService {
             if (txAuction.getStatus() != AuctionStatus.RUNNING) {
                 throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
                         "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
+            }
+
+            double minAllowedBid = minAllowedBid(txItem, txAuction);
+            if (amount < minAllowedBid) {
+                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                        "Gia dat phai toi thieu la " + minAllowedBid + ".");
             }
 
             User user = userDAO.selectByUsernameOnly(bidderId);
@@ -381,6 +389,7 @@ public class UserService {
 
     public void updateItem(Item item) throws PersistenceException {
         try {
+            validateMinBidForSave(item, false);
             int rowsAffected = DAOItems.getInstance().Update(item);
             if (rowsAffected == 0) {
                 throw new PersistenceException("Cập nhật thất bại. Không tìm thấy sản phẩm hoặc dữ liệu không thay đổi.");
@@ -551,5 +560,40 @@ public class UserService {
             return new ArrayList<>(auction.getBidHistory());
         }
         return null;
+    }
+
+    private static void validateMinBidForSave(Item item, boolean requireMinBid) {
+        if (item == null) {
+            throw new PersistenceException("San pham khong hop le.");
+        }
+        double startingPrice = item.getStartingPrice();
+        double minBid = item.getMinBid();
+        if (startingPrice <= 0) {
+            throw new PersistenceException("Gia khoi diem phai lon hon 0.");
+        }
+        if (requireMinBid && minBid <= 0) {
+            throw new PersistenceException("MinBid phai lon hon 0.");
+        }
+        if (minBid < 0) {
+            throw new PersistenceException("MinBid khong duoc am.");
+        }
+        if (minBid > startingPrice * MAX_MIN_BID_RATIO) {
+            throw new PersistenceException("MinBid khong duoc vuot qua 20% gia khoi diem.");
+        }
+    }
+
+    private static double minAllowedBid(Item item, Auction auction) {
+        double currentPrice = item.getCurrentHighestPrice();
+        if (isFirstBid(auction)) {
+            return Math.nextUp(currentPrice);
+        }
+        return currentPrice + Math.max(0, item.getMinBid());
+    }
+
+    private static boolean isFirstBid(Auction auction) {
+        String leadingBidder = auction.getLeadingBidder();
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasHistory = auction.getBidHistory() != null && !auction.getBidHistory().isEmpty();
+        return !hasLeader && !hasHistory;
     }
 }

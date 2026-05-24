@@ -16,18 +16,24 @@ public class ItemFactory {
     public static Item createItem(String type, String name, String desc, double price,
                                   Instant start, Instant end, String owner,
                                   Map<String, String> extraFields, String fileName) {
+        return createItem(type, name, desc, price, 0, start, end, owner, extraFields, fileName);
+    }
+
+    public static Item createItem(String type, String name, String desc, double price, double minBid,
+                                  Instant start, Instant end, String owner,
+                                  Map<String, String> extraFields, String fileName) {
 
         switch (type) {
             case "Điện tử":
-                return new Electronics(name, desc, price, start, end, owner,
+                return new Electronics(name, desc, price, minBid, start, end, owner,
                         extraFields.get("brand"), extraFields.get("model"), fileName);
 
             case "Phương tiện giao thông":
-                return new Vehicle(name, desc, price, start, end, owner,
+                return new Vehicle(name, desc, price, minBid, start, end, owner,
                         extraFields.get("manufacturer"), extraFields.get("year"), fileName);
 
             case "Mỹ thuật":
-                return new Art(name, desc, price, start, end, owner,
+                return new Art(name, desc, price, minBid, start, end, owner,
                         extraFields.get("artist"), fileName);
 
             default:

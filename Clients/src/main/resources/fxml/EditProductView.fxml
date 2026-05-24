@@ -139,6 +139,12 @@
                             </font>
                         </Label>
                         <TextField fx:id="txtStartPrice" prefHeight="40.0" promptText="Ví dụ: 200000"/>
+                        <Label text="MinBid (VNĐ) - tối đa 20% giá khởi điểm" textFill="#2c3e50">
+                            <font>
+                                <Font name="System Bold" size="13.0"/>
+                            </font>
+                        </Label>
+                        <TextField fx:id="txtMinBid" prefHeight="40.0" promptText="MinBid - không quá 20% giá khởi điểm"/>
                     </VBox>
 
                     <VBox spacing="5.0">

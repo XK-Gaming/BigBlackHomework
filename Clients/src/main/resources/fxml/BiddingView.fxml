@@ -166,6 +166,9 @@
                               <Label fx:id="j_CurrentPrice" text="1.000.000 VNĐ" textFill="#e74c3c">
                                  <font><Font name="System Bold" size="28.0" /></font>
                               </Label>
+                              <Label fx:id="j_MinBid" text="MinBid: 0 VNĐ" textFill="#7f8c8d">
+                                 <font><Font name="System Bold" size="12.0" /></font>
+                              </Label>
                            </children>
                         </VBox>
                         <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #f1f2f6; -fx-padding: 10; -fx-background-radius: 5;">

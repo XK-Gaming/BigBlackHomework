@@ -57,6 +57,9 @@ public final class AutoBidManager {
         if (currentPrice >= config.maxBidAllow()) {
             return errorResponse(config, "MaxBidAllow phai lon hon gia hien tai.");
         }
+        if (config.bidGap() < minBid(auction)) {
+            return errorResponse(config, "BidGap phai lon hon hoac bang MinBid cua san pham.");
+        }
 
         AutoBidKey key = config.key();
         AutoBidRegistration registration = new AutoBidRegistration(config);
@@ -157,10 +160,20 @@ public final class AutoBidManager {
             return AutoBidAttempt.disabled("Gia hien tai da dat toi MaxBidAllow. AutoBid da tat.", true);
         }
 
+        double minAllowedBid = minAllowedBid(auction, currentPrice);
+        if (config.maxBidAllow() < minAllowedBid) {
+            disable(key);
+            return AutoBidAttempt.disabled("MaxBidAllow khong du de dat gia toi thieu. AutoBid da tat.", true);
+        }
+
         double bidAmount = Math.min(currentPrice + config.bidGap(), config.maxBidAllow());
         if (bidAmount <= currentPrice) {
             disable(key);
             return AutoBidAttempt.disabled("Gia AutoBid khong hop le. AutoBid da tat.", true);
+        }
+        if (bidAmount < minAllowedBid) {
+            disable(key);
+            return AutoBidAttempt.disabled("Gia AutoBid thap hon buoc MinBid. AutoBid da tat.", true);
         }
 
         try {
@@ -206,6 +219,25 @@ public final class AutoBidManager {
     private static double currentPrice(Auction auction) {
         Item item = auction.getItem();
         return item != null ? item.getCurrentHighestPrice() : auction.getCurrentPrice();
+    }
+
+    private static double minBid(Auction auction) {
+        Item item = auction.getItem();
+        return item == null ? 0 : Math.max(0, item.getMinBid());
+    }
+
+    private static double minAllowedBid(Auction auction, double currentPrice) {
+        if (isFirstBid(auction)) {
+            return Math.nextUp(currentPrice);
+        }
+        return currentPrice + minBid(auction);
+    }
+
+    private static boolean isFirstBid(Auction auction) {
+        String leadingBidder = auction.getLeadingBidder();
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasHistory = auction.getBidHistory() != null && !auction.getBidHistory().isEmpty();
+        return !hasLeader && !hasHistory;
     }
 
     private static String normalize(String value) {
