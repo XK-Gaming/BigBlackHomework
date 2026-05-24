@@ -348,25 +348,70 @@ public class ControllerBidder implements ServerListener {
     private void handleIncomingToastNotification(Object payload) {
         DecimalFormat df = new DecimalFormat("#,###");
         try {
-            Map<String, Object> notifData = (Map<String, Object>) payload;
+            if (!(payload instanceof Map<?, ?>)) {
+                System.err.println("[Client Lỗi] Payload notification không phải là Map!");
+                return;
+            }
 
+            Map<?, ?> notifData = (Map<?, ?>) payload;
+
+            // 1. Lấy giá mới
             double newPrice = 0;
             Object priceObj = notifData.get("newPrice");
             if (priceObj instanceof Number) {
                 newPrice = ((Number) priceObj).doubleValue();
             }
 
-            Item item = (Item) notifData.get("item");
+            // 2. Bóc tách thông tin Item (Xử lý cả khi nó là Object Item hoặc là Map)
+            String itemName = "Sản phẩm";
+            StringBuilder details = new StringBuilder();
+            Item item = null;
+            Object itemObj = notifData.get("item");
+
+            if (itemObj instanceof Item) {
+                item = (Item) itemObj;
+                itemName = item.getName();
+                // Nếu là Object Item, bạn có thể gọi getter hoặc để trống phần chi tiết nếu class Item không giữ các thuộc tính động này
+                if (item.getDescription() != null) {
+                    details.append(item.getDescription());
+                }
+            }
+            else if (itemObj instanceof Map<?, ?> itemMap) {
+                // TRƯỜNG HỢP LÀ MAP: Bóc tách động theo từng ItemType dựa vào các Key bạn cung cấp
+                Object nameField = itemMap.get("name");
+                if (nameField != null) itemName = nameField.toString();
+
+                // Kiểm tra các key đặc trưng để build chuỗi Description đẹp mắt
+                if (itemMap.containsKey("artist") && itemMap.get("artist") != null) {
+                    details.append("\nTác giả: ").append(itemMap.get("artist"));
+                }
+                if (itemMap.containsKey("brand") && itemMap.get("brand") != null) {
+                    details.append("\nThương hiệu: ").append(itemMap.get("brand"));
+                }
+                if (itemMap.containsKey("model") && itemMap.get("model") != null) {
+                    details.append("\nDòng máy: ").append(itemMap.get("model"));
+                }
+                if (itemMap.containsKey("manufacturer") && itemMap.get("manufacturer") != null) {
+                    details.append("\nHãng SX: ").append(itemMap.get("manufacturer"));
+                }
+                if (itemMap.containsKey("year") && itemMap.get("year") != null) {
+                    details.append("\nNăm sản xuất: ").append(itemMap.get("year"));
+                }
+            }
+
             final double finalPrice = newPrice;
+            final String finalItemName = itemName;
+            final String finalDetails = details.toString(); // Chuỗi thông tin phụ đã lọc sạch map
+            final Item finalItemObj = item;
 
             Platform.runLater(() -> {
                 HBox customToast = new HBox();
                 customToast.setAlignment(Pos.CENTER_LEFT);
-                customToast.setPrefWidth(300);
+                customToast.setPrefWidth(320); // Tăng nhẹ độ rộng để hiển thị đủ thông tin
                 customToast.setStyle("-fx-background-color: #FFFFFF;");
 
                 StackPane iconBlock = new StackPane();
-                iconBlock.setPrefSize(60, 70);
+                iconBlock.setPrefSize(60, 85); // Tăng chiều cao block icon phù hợp với text nhiều dòng
                 iconBlock.setStyle("-fx-background-color: #1565C0;");
 
                 Label icon = new Label("🔔");
@@ -380,12 +425,15 @@ public class ControllerBidder implements ServerListener {
                 HBox.setHgrow(textContainer, Priority.ALWAYS);
 
                 Label titleLabel = new Label("SẢN PHẨM CÓ LƯỢT ĐẤU GIÁ MỚI!");
-                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
+                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
 
-                Label messageLabel = new Label("Sản phẩm " + (item != null ? item.getName() : "") + " : " + df.format(finalPrice) + " VNĐ");
-                messageLabel.setStyle("-fx-text-fill: #757575; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");
+                // --- HIỂN THỊ THÔNG TIN ĐÃ ĐƯỢC LỌC SẠCH KEY MAP ---
+                String messageText = "Tên: " + finalItemName + finalDetails + "\nGiá hiện tại: " + df.format(finalPrice) + " VNĐ";
+
+                Label messageLabel = new Label(messageText);
+                messageLabel.setStyle("-fx-text-fill: #555555; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");
                 messageLabel.setWrapText(true);
-                messageLabel.setMaxWidth(200);
+                messageLabel.setMaxWidth(220);
 
                 textContainer.getChildren().addAll(titleLabel, messageLabel);
                 customToast.getChildren().addAll(iconBlock, textContainer);
@@ -393,12 +441,14 @@ public class ControllerBidder implements ServerListener {
                 Notifications notificationBuilder = Notifications.create()
                         .owner(j_textSoDu)
                         .graphic(customToast)
-                        .hideAfter(Duration.seconds(4))
+                        .hideAfter(Duration.seconds(5)) // Tăng thời gian hiển thị lên 5s để người dùng kịp đọc
                         .position(Pos.BOTTOM_RIGHT);
 
                 customToast.setOnMouseClicked(event -> {
-                    ItemSession.setLoggedInItem(item);
-                    SceneHelper.changeScene(j_textSoDu, "/fxml/BiddingView.fxml");
+                    if (finalItemObj != null) {
+                        ItemSession.setLoggedInItem(finalItemObj);
+                        SceneHelper.changeScene(j_textSoDu, "/fxml/BiddingView.fxml");
+                    }
                 });
 
                 customToast.sceneProperty().addListener((observable, oldScene, newScene) -> {
@@ -417,6 +467,7 @@ public class ControllerBidder implements ServerListener {
                 notificationBuilder.show();
             });
         } catch (Exception e) {
+            System.err.println("Lỗi hiển thị thông báo Toast: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -29,6 +29,7 @@ import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.Items.Item;
 import model.Items.ItemSession;
+import model.Items.ItemType;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.Auction;
@@ -145,7 +146,7 @@ public class ControllerAuction implements ServerListener {
         if (item1 != null) {
             j_name.setText(item1.getName());
             DecimalFormat df = new DecimalFormat("#,###");
-            j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+            j_description.setText(getCustomDescription(item1));
             renderImage();
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
             updateMinBidLabel();
@@ -172,7 +173,7 @@ public class ControllerAuction implements ServerListener {
                 // ĐÃ SỬA: Kiểm tra an toàn cho item1 tránh gây crash giao diện tại đây
                 if (item1 != null) {
                     j_name.setText(item1.getName());
-                    j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+                    j_description.setText(getCustomDescription(item1));
                     renderImage();
                 }
 
@@ -199,11 +200,89 @@ public class ControllerAuction implements ServerListener {
         if (p1 != null) j_LabelName.setText(p1.getName());
         if (item1 != null) {
             j_name.setText(item1.getName());
-            j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+            j_description.setText(getCustomDescription(item1));
             renderImage();
         }
         updatePriceAndLeader();
         startStatusEngine();
+    }
+    private String getCustomDescription(Item item) {
+        if (item == null || item.getDescription() == null) {
+            return "Không có mô tả cho sản phẩm này.";
+        }
+
+        String rawDesc = item.getDescription().trim();
+        if (rawDesc.isEmpty()) {
+            return "Không có mô tả cho sản phẩm này.";
+        }
+
+        // Nếu không bọc trong ngoặc nhọn JSON, hiển thị như text thường
+        if (!rawDesc.startsWith("{") || !rawDesc.endsWith("}")) {
+            return rawDesc;
+        }
+
+        try {
+            // Tạo Map để chứa dữ liệu sau khi bóc tách từ JSON
+            Map<String, String> map = new HashMap<>();
+
+            // Loại bỏ dấu ngoặc nhọn { và } ở hai đầu
+            String cleanDesc = rawDesc.substring(1, rawDesc.length() - 1);
+
+            // Tách các cặp thuộc tính bằng dấu phẩy
+            String[] pairs = cleanDesc.split(",");
+            for (String pair : pairs) {
+                String[] keyValue = pair.split(":");
+                if (keyValue.length >= 2) {
+                    // Lấy phần Key và loại bỏ toàn bộ dấu ngoặc kép '"' cũng như khoảng trắng
+                    String key = keyValue[0].replace("\"", "").trim().toLowerCase();
+
+                    // Lấy phần Value (gộp lại phòng trường hợp nội dung chứa dấu hai chấm ':')
+                    StringBuilder valueBuilder = new StringBuilder();
+                    for (int i = 1; i < keyValue.length; i++) {
+                        if (i > 1) valueBuilder.append(":");
+                        valueBuilder.append(keyValue[i]);
+                    }
+                    String value = valueBuilder.toString().replace("\"", "").trim();
+
+                    map.put(key, value);
+                }
+            }
+
+            // Lấy Loại sản phẩm chuẩn từ Enum có sẵn trong Model
+            ItemType type = item.getRawItemType();
+
+            // Hiển thị thông tin chính xác theo từng danh mục sản phẩm
+            if (type != null) {
+                switch (type) {
+                    case ART:
+                        String artDesc = map.getOrDefault("description", "Không có mô tả");
+                        String artist = map.getOrDefault("artist", "Không rõ");
+                        return "Mô tả: " + artDesc + "\nHọa sĩ: " + artist;
+
+                    case ELECTRONICS:
+                        String brand = map.getOrDefault("brand", "Không rõ");
+                        String model = map.getOrDefault("model", "Không rõ");
+                        return "Thương hiệu: " + brand + "\nModel: " + model;
+
+                    case VEHICLE:
+                        String year = map.getOrDefault("year", "Không rõ");
+                        String manufacturer = map.getOrDefault("manufacturer", "Không rõ");
+                        return "Năm sản xuất: " + year + "\nNhà sản xuất: " + manufacturer;
+                }
+            }
+
+            // Phương án dự phòng cuối cùng nếu không nhận diện được Type
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, String> entry : map.entrySet()) {
+                String keyFormatted = entry.getKey().substring(0, 1).toUpperCase() + entry.getKey().substring(1);
+                sb.append(keyFormatted).append(": ").append(entry.getValue()).append("\n");
+            }
+            return sb.toString().trim();
+
+        } catch (Exception e) {
+            System.err.println("Lỗi xử lý cú pháp JSON mô tả: " + e.getMessage());
+            return rawDesc; // Trả về chuỗi gốc từ DB để giao diện không bị trống
+        }
     }
 
     private void updatePriceAndLeader() {
