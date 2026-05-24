@@ -18,10 +18,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * AutoBid: lưu cấu hình đang bật trong bộ nhớ server và tự kiểm tra đặt giá mỗi 10 giây.
+ * AutoBid: lưu cấu hình đang bật trong bộ nhớ server và tự kiểm tra đặt giá mỗi 5 giây.
  */
 public final class AutoBidManager {
-    private static final long CHECK_INTERVAL_SECONDS = 10;
+    private static final long CHECK_INTERVAL_SECONDS = 5;
     private static final AutoBidManager INSTANCE = new AutoBidManager(new UserService());
     private static final AtomicInteger THREAD_SEQ = new AtomicInteger();
 
@@ -38,7 +38,7 @@ public final class AutoBidManager {
         return INSTANCE;
     }
 
-    // AutoBid: đăng ký cấu hình mới, tạo lịch kiểm tra 10 giây và chạy kiểm tra đầu tiên ngay.
+    // AutoBid: đăng ký cấu hình mới, tạo lịch kiểm tra 5 giây và chạy kiểm tra đầu tiên ngay.
     public Map<String, Object> enable(String itemId, String username, double maxBidAllow, double bidGap) {
         AutoBidConfig config = new AutoBidConfig(
                 normalize(itemId),

@@ -145,6 +145,7 @@ class UserServiceTest {
                 () -> service.processBid("1", "bidder1", 119));
 
         assertEquals(BidRejectedException.Reason.PRICE_TOO_LOW, exception.getReason());
+        assertTrue(exception.getMessage().contains("MinBid"));
     }
 
     /**

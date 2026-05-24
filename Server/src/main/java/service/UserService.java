@@ -172,13 +172,12 @@ public class UserService {
                         "Người bán không thể đặt giá cho sản phẩm của mình.");
             }
 
-            if (amount <= txItem.getCurrentHighestPrice()) {
-                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
-            }
-
             Auction txAuction = auctionDAO.selectByItemId(con, txItem);
             if (txAuction == null) {
+                if (amount <= txItem.getCurrentHighestPrice()) {
+                    throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                            "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
+                }
                 throw new NotFoundException("auction", "Không tìm thấy phiên đấu giá.");
             }
             txAuction.setItem(txItem);
@@ -188,8 +187,13 @@ public class UserService {
                         "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
             }
 
+            boolean firstBid = isFirstBid(txAuction);
             double minAllowedBid = minAllowedBid(txItem, txAuction);
-            if (amount < minAllowedBid) {
+            if (firstBid && amount <= txItem.getCurrentHighestPrice()) {
+                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                        "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
+            }
+            if (!firstBid && amount < minAllowedBid) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
                         "Giá đặt tối thiểu là " + String.format("%,.0f", minAllowedBid)
                                 + " (giá hiện tại + MinBid).");
