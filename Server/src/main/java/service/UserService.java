@@ -191,7 +191,8 @@ public class UserService {
             double minAllowedBid = minAllowedBid(txItem, txAuction);
             if (amount < minAllowedBid) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Gia dat phai toi thieu la " + minAllowedBid + ".");
+                        "Giá đặt tối thiểu là " + String.format("%,.0f", minAllowedBid)
+                                + " (giá hiện tại + MinBid).");
             }
 
             User user = userDAO.selectByUsernameOnly(bidderId);

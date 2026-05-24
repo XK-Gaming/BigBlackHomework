@@ -58,7 +58,7 @@ public final class AutoBidManager {
             return errorResponse(config, "MaxBidAllow phai lon hon gia hien tai.");
         }
         if (config.bidGap() < minBid(auction)) {
-            return errorResponse(config, "BidGap phai lon hon hoac bang MinBid cua san pham.");
+            return errorResponse(config, "BidGap phải lớn hơn hoặc bằng MinBid của sản phẩm.");
         }
 
         AutoBidKey key = config.key();
@@ -163,7 +163,7 @@ public final class AutoBidManager {
         double minAllowedBid = minAllowedBid(auction, currentPrice);
         if (config.maxBidAllow() < minAllowedBid) {
             disable(key);
-            return AutoBidAttempt.disabled("MaxBidAllow khong du de dat gia toi thieu. AutoBid da tat.", true);
+            return AutoBidAttempt.disabled("MaxBidAllow không đủ để đặt giá tối thiểu (giá hiện tại + MinBid). AutoBid đã tắt.", true);
         }
 
         double bidAmount = Math.min(currentPrice + config.bidGap(), config.maxBidAllow());
@@ -173,7 +173,7 @@ public final class AutoBidManager {
         }
         if (bidAmount < minAllowedBid) {
             disable(key);
-            return AutoBidAttempt.disabled("Gia AutoBid thap hon buoc MinBid. AutoBid da tat.", true);
+            return AutoBidAttempt.disabled("Giá AutoBid thấp hơn bước MinBid. AutoBid đã tắt.", true);
         }
 
         try {

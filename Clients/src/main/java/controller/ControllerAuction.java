@@ -316,13 +316,14 @@ public class ControllerAuction implements ServerListener {
         try {
             long bidAmount = Long.parseLong(priceText);
             double minAllowedBid = minimumBidForCurrentState();
+            double currentPrice = item1.getCurrentHighestPrice();
 
-            if (bidAmount <= item1.getCurrentHighestPrice()) {
-                j_notified.setText("Giá đặt phải lớn hơn giá hiện tại!");
-                j_notified.setVisible(true);
-            } else if (bidAmount < minAllowedBid) {
+            if (!isFirstBid() && bidAmount < minAllowedBid) {
                 DecimalFormat df = new DecimalFormat("#,###");
-                j_notified.setText("Gia dat toi thieu: " + df.format(minAllowedBid) + " VNĐ");
+                j_notified.setText("Giá đặt tối thiểu là " + df.format(minAllowedBid) + " VNĐ (giá hiện tại + MinBid).");
+                j_notified.setVisible(true);
+            } else if (bidAmount <= currentPrice) {
+                j_notified.setText("Giá đặt phải lớn hơn giá hiện tại!");
                 j_notified.setVisible(true);
             } else if (bidAmount > p1.getBalance()) {
                 j_notified.setText("Số dư không đủ để đấu giá");
@@ -547,14 +548,14 @@ public class ControllerAuction implements ServerListener {
         double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
 
         if (maxBidAllow <= currentPrice) {
-            throw new IllegalArgumentException("MaxBidAllow must be greater than current price.");
+            throw new IllegalArgumentException("MaxBidAllow phải lớn hơn giá hiện tại.");
         }
         if (bidGap <= 0) {
-            throw new IllegalArgumentException("BidGap must be greater than 0.");
+            throw new IllegalArgumentException("BidGap phải lớn hơn 0.");
         }
         double minBid = item1 != null ? item1.getMinBid() : 0;
         if (bidGap < minBid) {
-            throw new IllegalArgumentException("BidGap must be greater than or equal to MinBid.");
+            throw new IllegalArgumentException("BidGap phải lớn hơn hoặc bằng MinBid.");
         }
         return new AutoBidSettings(maxBidAllow, bidGap);
     }
@@ -584,7 +585,7 @@ public class ControllerAuction implements ServerListener {
             return;
         }
         if (enabled && item1 != null && autoBidSettings.bidGap < item1.getMinBid()) {
-            showTemporaryNotice("BidGap must be greater than or equal to MinBid.");
+            showTemporaryNotice("BidGap phải lớn hơn hoặc bằng MinBid.");
             setAutoBidToggleSelected(false);
             return;
         }
