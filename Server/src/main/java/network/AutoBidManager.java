@@ -1,0 +1,304 @@
+package network;
+
+import model.Items.Item;
+import model.auction.Auction;
+import model.auction.AuctionStatus;
+import service.UserService;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public final class AutoBidManager {
+    private static final long CHECK_INTERVAL_SECONDS = 10;
+    private static final AutoBidManager INSTANCE = new AutoBidManager(new UserService());
+    private static final AtomicInteger THREAD_SEQ = new AtomicInteger();
+
+    private final UserService userService;
+    private final ScheduledExecutorService scheduler;
+    private final ConcurrentMap<AutoBidKey, AutoBidRegistration> registrations = new ConcurrentHashMap<>();
+
+    private AutoBidManager(UserService userService) {
+        this.userService = Objects.requireNonNull(userService);
+        this.scheduler = Executors.newScheduledThreadPool(2, daemonFactory());
+    }
+
+    public static AutoBidManager getInstance() {
+        return INSTANCE;
+    }
+
+    public Map<String, Object> enable(String itemId, String username, double maxBidAllow, double bidGap) {
+        AutoBidConfig config = new AutoBidConfig(
+                normalize(itemId),
+                normalize(username),
+                maxBidAllow,
+                bidGap);
+
+        validateConfig(config);
+
+        Auction auction = userService.getAuctionByItemId(config.itemId());
+        if (auction == null || auction.getItem() == null) {
+            return errorResponse(config, "Khong tim thay phien dau gia.");
+        }
+
+        double currentPrice = currentPrice(auction);
+        if (currentPrice >= config.maxBidAllow()) {
+            return errorResponse(config, "MaxBidAllow phai lon hon gia hien tai.");
+        }
+
+        AutoBidKey key = config.key();
+        AutoBidRegistration registration = new AutoBidRegistration(config);
+        AutoBidRegistration oldRegistration = registrations.put(key, registration);
+        if (oldRegistration != null) {
+            oldRegistration.cancel();
+        }
+
+        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(
+                () -> safeEvaluateAndNotify(key),
+                CHECK_INTERVAL_SECONDS,
+                CHECK_INTERVAL_SECONDS,
+                TimeUnit.SECONDS);
+        registration.setFuture(future);
+
+        AutoBidAttempt attempt = evaluate(key);
+        return response(config, attempt);
+    }
+
+    public Map<String, Object> disable(String itemId, String username, String message) {
+        AutoBidConfig config = new AutoBidConfig(
+                normalize(itemId),
+                normalize(username),
+                0,
+                0);
+        disable(config.key());
+        Map<String, Object> response = baseResponse(config);
+        response.put("success", true);
+        response.put("enabled", false);
+        response.put("message", message == null || message.isBlank() ? "AutoBid da tat." : message);
+        return response;
+    }
+
+    public void disableAllForUser(String username, String reason) {
+        String normalizedUsername = normalize(username);
+        registrations.forEach((key, registration) -> {
+            if (key.username().equals(normalizedUsername)) {
+                disable(key);
+            }
+        });
+        System.out.println("[AutoBid] Disabled all configs for user " + normalizedUsername + ": " + reason);
+    }
+
+    private void safeEvaluateAndNotify(AutoBidKey key) {
+        AutoBidRegistration registration = registrations.get(key);
+        if (registration == null) {
+            return;
+        }
+
+        try {
+            AutoBidAttempt attempt = evaluate(key);
+            if (attempt.shouldNotifyUser()) {
+                AuctionServer.sendToSpecificUser(
+                        registration.config().username(),
+                        Command.SET_AUTO_BID_RESULT,
+                        response(registration.config(), attempt));
+            }
+        } catch (Exception e) {
+            disable(key);
+            AuctionServer.sendToSpecificUser(
+                    registration.config().username(),
+                    Command.SET_AUTO_BID_RESULT,
+                    disabledResponse(registration.config(), "AutoBid da dung do loi he thong: " + e.getMessage(), false));
+        }
+    }
+
+    private AutoBidAttempt evaluate(AutoBidKey key) {
+        AutoBidRegistration registration = registrations.get(key);
+        if (registration == null) {
+            return AutoBidAttempt.disabled("AutoBid da tat.", false);
+        }
+
+        AutoBidConfig config = registration.config();
+        Auction auction = userService.getAuctionByItemId(config.itemId());
+        if (auction == null || auction.getItem() == null) {
+            disable(key);
+            return AutoBidAttempt.disabled("Khong tim thay phien dau gia. AutoBid da tat.", true);
+        }
+
+        AuctionStatus status = auction.getStatus();
+        if (status != AuctionStatus.RUNNING) {
+            disable(key);
+            return AutoBidAttempt.disabled("Phien dau gia khong con dang dien ra. AutoBid da tat.", true);
+        }
+
+        String leadingBidder = auction.getLeadingBidder();
+        if (config.username().equals(leadingBidder)) {
+            return AutoBidAttempt.skipped("Ban dang la nguoi dan dau.");
+        }
+
+        double currentPrice = currentPrice(auction);
+        if (currentPrice >= config.maxBidAllow()) {
+            disable(key);
+            return AutoBidAttempt.disabled("Gia hien tai da dat toi MaxBidAllow. AutoBid da tat.", true);
+        }
+
+        double bidAmount = Math.min(currentPrice + config.bidGap(), config.maxBidAllow());
+        if (bidAmount <= currentPrice) {
+            disable(key);
+            return AutoBidAttempt.disabled("Gia AutoBid khong hop le. AutoBid da tat.", true);
+        }
+
+        try {
+            Map<String, Object> bidResult = userService.processBid(config.itemId(), config.username(), bidAmount);
+            BidEventPublisher.publishSuccessfulBid(config.itemId(), config.username(), bidResult);
+            return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount);
+        } catch (Exception e) {
+            disable(key);
+            return AutoBidAttempt.disabled("AutoBid dat gia that bai: " + e.getMessage(), true, false);
+        }
+    }
+
+    private void disable(AutoBidKey key) {
+        AutoBidRegistration removed = registrations.remove(key);
+        if (removed != null) {
+            removed.cancel();
+        }
+    }
+
+    private static ThreadFactory daemonFactory() {
+        return task -> {
+            Thread thread = new Thread(task, "auto-bid-check-" + THREAD_SEQ.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
+    }
+
+    private static void validateConfig(AutoBidConfig config) {
+        if (config.itemId().isBlank()) {
+            throw new IllegalArgumentException("itemId khong hop le.");
+        }
+        if (config.username().isBlank()) {
+            throw new IllegalArgumentException("user khong hop le.");
+        }
+        if (config.maxBidAllow() <= 0) {
+            throw new IllegalArgumentException("MaxBidAllow phai lon hon 0.");
+        }
+        if (config.bidGap() <= 0) {
+            throw new IllegalArgumentException("BidGap phai lon hon 0.");
+        }
+    }
+
+    private static double currentPrice(Auction auction) {
+        Item item = auction.getItem();
+        return item != null ? item.getCurrentHighestPrice() : auction.getCurrentPrice();
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static Map<String, Object> errorResponse(AutoBidConfig config, String message) {
+        Map<String, Object> response = baseResponse(config);
+        response.put("success", false);
+        response.put("enabled", false);
+        response.put("message", message);
+        return response;
+    }
+
+    private static Map<String, Object> disabledResponse(AutoBidConfig config, String message, boolean success) {
+        Map<String, Object> response = baseResponse(config);
+        response.put("success", success);
+        response.put("enabled", false);
+        response.put("message", message);
+        return response;
+    }
+
+    private boolean isEnabled(AutoBidConfig config) {
+        return registrations.containsKey(config.key());
+    }
+
+    private Map<String, Object> response(AutoBidConfig config, AutoBidAttempt attempt) {
+        Map<String, Object> response = baseResponse(config);
+        response.put("success", attempt.success());
+        response.put("enabled", isEnabled(config));
+        response.put("message", attempt.message());
+        response.put("bidPlaced", attempt.bidPlaced());
+        if (attempt.bidAmount() > 0) {
+            response.put("bidAmount", attempt.bidAmount());
+        }
+        return response;
+    }
+
+    private static Map<String, Object> baseResponse(AutoBidConfig config) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("itemId", config.itemId());
+        response.put("username", config.username());
+        response.put("maxBidAllow", config.maxBidAllow());
+        response.put("bidGap", config.bidGap());
+        return response;
+    }
+
+    private record AutoBidKey(String itemId, String username) {
+    }
+
+    private record AutoBidConfig(String itemId, String username, double maxBidAllow, double bidGap) {
+        AutoBidKey key() {
+            return new AutoBidKey(itemId, username);
+        }
+    }
+
+    private static final class AutoBidRegistration {
+        private final AutoBidConfig config;
+        private volatile ScheduledFuture<?> future;
+
+        private AutoBidRegistration(AutoBidConfig config) {
+            this.config = config;
+        }
+
+        private AutoBidConfig config() {
+            return config;
+        }
+
+        private void setFuture(ScheduledFuture<?> future) {
+            this.future = future;
+        }
+
+        private void cancel() {
+            ScheduledFuture<?> currentFuture = future;
+            if (currentFuture != null) {
+                currentFuture.cancel(false);
+            }
+        }
+    }
+
+    private record AutoBidAttempt(
+            boolean success,
+            boolean bidPlaced,
+            double bidAmount,
+            String message,
+            boolean shouldNotifyUser) {
+
+        static AutoBidAttempt placed(String message, double bidAmount) {
+            return new AutoBidAttempt(true, true, bidAmount, message, true);
+        }
+
+        static AutoBidAttempt skipped(String message) {
+            return new AutoBidAttempt(true, false, 0, message, false);
+        }
+
+        static AutoBidAttempt disabled(String message, boolean shouldNotifyUser) {
+            return disabled(message, shouldNotifyUser, true);
+        }
+
+        static AutoBidAttempt disabled(String message, boolean shouldNotifyUser, boolean success) {
+            return new AutoBidAttempt(success, false, 0, message, shouldNotifyUser);
+        }
+    }
+}

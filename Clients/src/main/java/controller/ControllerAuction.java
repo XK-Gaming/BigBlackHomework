@@ -14,9 +14,13 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
@@ -44,6 +48,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
 public class ControllerAuction implements ServerListener {
     private final AuctionClient client = AuctionClient.getInstance();
@@ -53,9 +61,15 @@ public class ControllerAuction implements ServerListener {
     static Auction this_Auction;
     private String watchToken;
     private boolean finishHandled;
+    private static final Map<String, AutoBidSettings> AUTO_BID_SETTINGS_BY_KEY = new HashMap<>();
+    private static final Set<String> AUTO_BID_ENABLED_KEYS = new HashSet<>();
+    private AutoBidSettings autoBidSettings;
+    private boolean updatingAutoBidToggle;
 
     @FXML private TextField j_setPrice;
     @FXML private Button j_apply;
+    @FXML private Button j_autoBidSettings;
+    @FXML private ToggleButton j_autoBidToggle;
     @FXML private Label j_leadingBidder;
     @FXML private Label j_LabelName;
     @FXML private Label j_days;
@@ -79,6 +93,7 @@ public class ControllerAuction implements ServerListener {
     public void initialize() throws IOException {
         client.setListener(this);
         showSessionProductAndLoadingAuctionState();
+        restoreAutoBidState();
         client.sendCommand(Command.GET_AUCTION, item1 != null ? item1.getDatabaseId() : null);
         client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", item1.getDatabaseId()));
     }
@@ -102,6 +117,8 @@ public class ControllerAuction implements ServerListener {
             j_countdown.setVisible(false);
         }
         j_apply.setDisable(true);
+        setAutoBidAvailable(false);
+        setAutoBidToggleSelected(false);
         j_notified.setVisible(false);
     }
 
@@ -238,6 +255,34 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    @FXML
+    void On_AutoBidSettings(ActionEvent event) {
+        boolean saved = showAutoBidSettingsDialog();
+        if (saved && j_autoBidToggle != null && j_autoBidToggle.isSelected()) {
+            sendAutoBidCommand(true);
+        }
+    }
+
+    @FXML
+    void On_AutoBidToggle(ActionEvent event) {
+        if (updatingAutoBidToggle || j_autoBidToggle == null) {
+            return;
+        }
+
+        if (j_autoBidToggle.isSelected()) {
+            if (autoBidSettings == null) {
+                boolean saved = showAutoBidSettingsDialog();
+                if (!saved) {
+                    setAutoBidToggleSelected(false);
+                    return;
+                }
+            }
+            sendAutoBidCommand(true);
+        } else {
+            sendAutoBidCommand(false);
+        }
+    }
+
     @FXML void On_MouseClickImg(MouseEvent event) {}
 
     @FXML
@@ -267,6 +312,198 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    private void restoreAutoBidState() {
+        String key = autoBidKey();
+        autoBidSettings = AUTO_BID_SETTINGS_BY_KEY.get(key);
+        setAutoBidToggleSelected(AUTO_BID_ENABLED_KEYS.contains(key));
+        setAutoBidAvailable(false);
+    }
+
+    private boolean showAutoBidSettingsDialog() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("AutoBid");
+        dialog.setHeaderText("AutoBid settings");
+
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        TextField maxBidField = new TextField(autoBidSettings != null ? plainNumber(autoBidSettings.maxBidAllow) : "");
+        maxBidField.setPromptText("MaxBidAllow");
+        TextField bidGapField = new TextField(autoBidSettings != null ? plainNumber(autoBidSettings.bidGap) : "");
+        bidGapField.setPromptText("BidGap");
+        Label validation = new Label();
+        validation.setTextFill(Color.web("#e74c3c"));
+
+        GridPane grid = new GridPane();
+        grid.setHgap(12);
+        grid.setVgap(10);
+        grid.add(new Label("MaxBidAllow"), 0, 0);
+        grid.add(maxBidField, 1, 0);
+        grid.add(new Label("BidGap"), 0, 1);
+        grid.add(bidGapField, 1, 1);
+        grid.add(validation, 0, 2, 2, 1);
+        dialog.getDialogPane().setContent(grid);
+
+        Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.addEventFilter(ActionEvent.ACTION, event -> {
+            try {
+                parseAutoBidSettings(maxBidField.getText(), bidGapField.getText());
+                validation.setText("");
+            } catch (IllegalArgumentException ex) {
+                validation.setText(ex.getMessage());
+                event.consume();
+            }
+        });
+
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isPresent() && result.get() == saveButtonType) {
+            autoBidSettings = parseAutoBidSettings(maxBidField.getText(), bidGapField.getText());
+            AUTO_BID_SETTINGS_BY_KEY.put(autoBidKey(), autoBidSettings);
+            showTemporaryNotice("AutoBid settings saved.");
+            return true;
+        }
+        return false;
+    }
+
+    private AutoBidSettings parseAutoBidSettings(String maxBidText, String bidGapText) {
+        double maxBidAllow = parseMoney(maxBidText, "MaxBidAllow");
+        double bidGap = parseMoney(bidGapText, "BidGap");
+        double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
+
+        if (maxBidAllow <= currentPrice) {
+            throw new IllegalArgumentException("MaxBidAllow must be greater than current price.");
+        }
+        if (bidGap <= 0) {
+            throw new IllegalArgumentException("BidGap must be greater than 0.");
+        }
+        return new AutoBidSettings(maxBidAllow, bidGap);
+    }
+
+    private double parseMoney(String value, String fieldName) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is required.");
+        }
+        try {
+            return Double.parseDouble(value.replace(",", "").replace(" ", "").trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(fieldName + " must be a valid number.");
+        }
+    }
+
+    private void sendAutoBidCommand(boolean enabled) {
+        if (p1 == null || item1 == null) {
+            showTemporaryNotice("Cannot update AutoBid because session is missing.");
+            setAutoBidToggleSelected(false);
+            return;
+        }
+
+        if (enabled && autoBidSettings == null) {
+            showTemporaryNotice("Please configure AutoBid first.");
+            setAutoBidToggleSelected(false);
+            return;
+        }
+
+        try {
+            if (enabled) {
+                setAutoBidToggleSelected(true);
+                client.sendCommand(Command.SET_AUTO_BID, Map.of(
+                        "itemId", item1.getDatabaseId(),
+                        "userId", p1.getUsername(),
+                        "enabled", true,
+                        "maxBidAllow", autoBidSettings.maxBidAllow,
+                        "bidGap", autoBidSettings.bidGap
+                ));
+            } else {
+                setAutoBidToggleSelected(false);
+                AUTO_BID_ENABLED_KEYS.remove(autoBidKey());
+                client.sendCommand(Command.SET_AUTO_BID, Map.of(
+                        "itemId", item1.getDatabaseId(),
+                        "userId", p1.getUsername(),
+                        "enabled", false
+                ));
+            }
+        } catch (IOException e) {
+            showTemporaryNotice("Cannot send AutoBid request: " + e.getMessage());
+            setAutoBidToggleSelected(false);
+        }
+    }
+
+    private void handleAutoBidResult(Object payload) {
+        if (!(payload instanceof Map<?, ?> result)) {
+            return;
+        }
+
+        String itemId = String.valueOf(result.get("itemId"));
+        if (item1 != null && !String.valueOf(item1.getDatabaseId()).equals(itemId)) {
+            return;
+        }
+
+        boolean success = booleanValue(result.get("success"));
+        boolean enabled = booleanValue(result.get("enabled"));
+        String message = result.get("message") != null ? String.valueOf(result.get("message")) : "";
+
+        Platform.runLater(() -> {
+            if (enabled) {
+                AUTO_BID_ENABLED_KEYS.add(autoBidKey());
+            } else {
+                AUTO_BID_ENABLED_KEYS.remove(autoBidKey());
+            }
+            setAutoBidToggleSelected(enabled);
+            if (!success && message.isBlank()) {
+                showTemporaryNotice("AutoBid failed.");
+            } else if (!message.isBlank()) {
+                showTemporaryNotice(message);
+            }
+        });
+    }
+
+    private boolean booleanValue(Object value) {
+        return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+
+    private void setAutoBidAvailable(boolean available) {
+        if (j_autoBidToggle != null) {
+            j_autoBidToggle.setDisable(!available);
+        }
+        if (j_autoBidSettings != null) {
+            j_autoBidSettings.setDisable(false);
+        }
+    }
+
+    private void setAutoBidToggleSelected(boolean selected) {
+        if (j_autoBidToggle == null) {
+            return;
+        }
+        updatingAutoBidToggle = true;
+        j_autoBidToggle.setSelected(selected);
+        j_autoBidToggle.setText(selected ? "AUTOBID ON" : "AUTOBID OFF");
+        j_autoBidToggle.setStyle(selected
+                ? "-fx-background-color: #2980b9; -fx-text-fill: white; -fx-background-radius: 5; -fx-font-weight: bold;"
+                : "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; -fx-background-radius: 5; -fx-font-weight: bold;");
+        updatingAutoBidToggle = false;
+    }
+
+    private String autoBidKey() {
+        String username = p1 != null ? p1.getUsername() : "";
+        String itemId = item1 != null ? String.valueOf(item1.getDatabaseId()) : "";
+        return username + ":" + itemId;
+    }
+
+    private String plainNumber(double value) {
+        return String.format("%.0f", value);
+    }
+
+    private void showTemporaryNotice(String message) {
+        if (j_notified == null) {
+            return;
+        }
+        j_notified.setText(message);
+        j_notified.setVisible(true);
+        PauseTransition hideDelay = new PauseTransition(Duration.seconds(4));
+        hideDelay.setOnFinished(e -> j_notified.setVisible(false));
+        hideDelay.play();
+    }
+
     private void startStatusEngine() {
         cleanup();
         finishHandled = false;
@@ -279,14 +516,17 @@ public class ControllerAuction implements ServerListener {
                 case OPEN -> {
                     j_status.setText("CHƯA DIỄN RA");
                     j_apply.setDisable(true);
+                    setAutoBidAvailable(false);
                 }
                 case RUNNING -> {
                     j_status.setText("ĐANG DIỄN RA");
                     j_apply.setDisable(false);
+                    setAutoBidAvailable(true);
                 }
                 case FINISHED -> {
                     j_status.setText("ĐÃ KẾT THÚC");
                     j_apply.setDisable(true);
+                    setAutoBidAvailable(false);
                     if (!finishHandled) {
                         finishHandled = true;
                         handleFinishedAuction();
@@ -294,6 +534,7 @@ public class ControllerAuction implements ServerListener {
                 }
                 case PAID, CANCELLED -> {
                     j_apply.setDisable(true);
+                    setAutoBidAvailable(false);
                     j_status.setText(status == AuctionStatus.PAID ? "ĐÃ THANH TOÁN" : "ĐÃ HỦY");
                 }
             }
@@ -548,6 +789,10 @@ public class ControllerAuction implements ServerListener {
             });
         }
 
+        if (Command.SET_AUTO_BID_RESULT.equals(command)) {
+            handleAutoBidResult(response.payload());
+        }
+
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Platform.runLater(() -> {
                 j_notified.setText("Sản phẩm đã bị xóa");
@@ -557,6 +802,16 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.NOTIFICATION.equals(command)) {
             handleIncomingToastNotification(response.payload());
+        }
+    }
+
+    private static final class AutoBidSettings {
+        private final double maxBidAllow;
+        private final double bidGap;
+
+        private AutoBidSettings(double maxBidAllow, double bidGap) {
+            this.maxBidAllow = maxBidAllow;
+            this.bidGap = bidGap;
         }
     }
 }

@@ -2,6 +2,7 @@ package network;
 
 import model.Items.Item;
 import model.Items.ItemType;
+import model.User.UserRole;
 import model.auction.Auction;
 import org.junit.jupiter.api.Test;
 import service.UserService;
@@ -77,6 +78,11 @@ class ReadOnlyQueryHandlerTest {
         private List<Auction> auctions = List.of();
         private String requestedItemId;
 
+
+        @Override
+        public ArrayList<Item> select_items(UserRole role) {
+            return items;
+        }
 
         @Override
         public List<Auction> getAllAuctions() {

@@ -8,7 +8,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
 
-<AnchorPane fx:id="Pane1" prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #f8f9fa;" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAuction">
+<AnchorPane fx:id="Pane1" prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #f8f9fa;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAuction">
    <children>
       <HBox alignment="CENTER_LEFT" prefHeight="70.0" spacing="20.0" style="-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <padding>
@@ -183,6 +183,16 @@
                                  <font><Font name="System Bold" size="16.0" /></font>
                                  <cursor><Cursor fx:constant="HAND" /></cursor>
                               </Button>
+                              <HBox spacing="10.0">
+                                 <children>
+                                    <Button fx:id="j_autoBidSettings" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_AutoBidSettings" prefHeight="42.0" style="-fx-background-color: #34495e; -fx-text-fill: white; -fx-background-radius: 5; -fx-font-weight: bold;" text="AUTO BID SETTING" HBox.hgrow="ALWAYS">
+                                       <cursor><Cursor fx:constant="HAND" /></cursor>
+                                    </Button>
+                                    <ToggleButton fx:id="j_autoBidToggle" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_AutoBidToggle" prefHeight="42.0" style="-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; -fx-background-radius: 5; -fx-font-weight: bold;" text="AUTOBID OFF" HBox.hgrow="ALWAYS">
+                                       <cursor><Cursor fx:constant="HAND" /></cursor>
+                                    </ToggleButton>
+                                 </children>
+                              </HBox>
                               <Label fx:id="j_notified" alignment="CENTER" prefHeight="40.0" prefWidth="250.0" text="Lỗi thông báo" textFill="#e74c3c" visible="false" wrapText="true">
                                  <font><Font name="System Italic" size="13.0" /></font>
                               </Label>

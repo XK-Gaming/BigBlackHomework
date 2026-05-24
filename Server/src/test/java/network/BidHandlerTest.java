@@ -12,6 +12,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -134,6 +136,19 @@ class BidHandlerTest {
         private double acceptedPrice;
         private Auction latestAuction;
 
+        @Override
+        public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
+            if (failure != null) {
+                throw failure;
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("item", latestAuction != null ? latestAuction.getItem() : null);
+            result.put("latestAuction", latestAuction);
+            result.put("newPrice", acceptedPrice);
+            result.put("bidHistory", new ArrayList<>());
+            return result;
+        }
 
         @Override
         public Auction getAuctionByItemId(String itemId) {

@@ -28,6 +28,8 @@ public enum Command {
     // client đã đấu giá sau khi có người đặt giá mới
     BID,
     BID_RESULT,
+    SET_AUTO_BID,
+    SET_AUTO_BID_RESULT,
 
     // Lấy tất cả các phiên đấu giá () Chưa sử dụng
     GET_ALL_AUCTIONS,
