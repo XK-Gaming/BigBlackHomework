@@ -25,10 +25,10 @@ public final class AuctionEngine implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
 
     public AuctionEngine() {
-        this(new UserService(), DAOItems.getInstance());
+        this(new UserService(), dao.DAOItems.getInstance());
     }
 
-    AuctionEngine(UserService userService, DAOItems items) {
+    public AuctionEngine(UserService userService, DAOItems items) {
         this.userService = Objects.requireNonNull(userService);
         this.items = Objects.requireNonNull(items);
         this.scheduler = Executors.newSingleThreadScheduledExecutor(namedDaemonFactory());

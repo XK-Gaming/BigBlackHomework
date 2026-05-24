@@ -66,7 +66,7 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.LOGOUT, new LogoutHandler(this.userService));
         handlers.put(Command.EDIT_ITEM, new EditItemHandler(this.userService));
         handlers.put(Command.DELETE_ITEM, new DeleteItemHandler());
-        handlers.put(Command.GET_SELLER_ITEMS,new GetSellerItemsHandler(this.userService));
+        handlers.put(Command.GET_SELLER_ITEMS,new GetSellerItemsHandler());
         handlers.put(Command.GET_BIDDER_HISTORY, new GetBidderHistoryHandler(this.userService));
         handlers.put(Command.SET_ALLOW,new SetAllowHandler(this.userService));
         handlers.put(Command.RECHARGE_AMOUNT,new RechargeAmountHandler(this.userService));

@@ -2,6 +2,8 @@ package network;
 import network.Command;
 import dao.DAOUser;
 import model.User.User;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import service.AuctionEngine;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,19 +33,37 @@ public class AuctionServer {
      * (dễ tràn bộ nhớ khi có quá nhiều kết nối chờ xử lý).
      */
     private final ThreadPoolExecutor threadPool = createWorkerPool();
+
+    private AuctionEngine auctionEngine;
+
     public void launch() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("=== QUẢN LÝ ĐẤU GIÁ SERVER ===");
-            while (true) {
+
+            // 3. KHỞI ĐỘNG ENGINE TẠI ĐÂY
+            // Engine được bật lên, chạy song song với luồng chính nhờ cơ chế Daemon Thread có sẵn trong code Engine của bạn.
+            auctionEngine = new AuctionEngine();
+            auctionEngine.startEngine();
+            System.out.println("[AuctionServer] Background Engine đã khởi động, quét trạng thái mỗi 5 giây.");
+
+            do {
                 Socket clientSocket = serverSocket.accept();
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
-                threadPool.execute(clientHandler); // Ném công việc chạy cho threadpool -- giống start thread.
-            }
+                threadPool.execute(clientHandler);
+            } while (true);
         }
-        catch (IOException e) {e.printStackTrace();}
-        finally {threadPool.shutdown();}
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            // 4. DỌN DẸP ENGINE KHI SERVER SẬP HOẶC TẮT
+            if (auctionEngine != null) {
+                auctionEngine.close();
+                System.out.println("[AuctionServer] Background Engine đã đóng an toàn.");
+            }
+            threadPool.shutdown();
+        }
     }
-
 
     /** Broadcast theo {@code itemId} dạng chuỗi (chuẩn dùng khi id không phải số cố định). */
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
@@ -55,7 +75,7 @@ public class AuctionServer {
         if (itemId == null || itemId.isBlank()) {
             for (ClientHandler handler : onlineClients.values()) {
                 // Không lọc viewingItemId nữa, cứ online là gửi hết!
-                    handler.sendPacket(packet);
+                handler.sendPacket(packet);
             }
             return; // Sau khi chạy hết vòng lặp gửi cho mọi người mới return
         }
@@ -112,7 +132,7 @@ public class AuctionServer {
             private final AtomicInteger seq = new AtomicInteger();
 
             @Override
-            public Thread newThread(Runnable r) {
+            public Thread newThread(@NonNull Runnable r) {
                 Thread t = new Thread(r, "auction-server-worker-" + seq.incrementAndGet());
                 t.setDaemon(false);
                 return t;
