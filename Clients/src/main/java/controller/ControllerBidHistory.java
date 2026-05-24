@@ -326,5 +326,6 @@ public class ControllerBidHistory implements ServerListener {
     @FXML
     private void handleBackAction(ActionEvent event) {
         client.setListener(null);
+        SceneHelper.changeScene(btnBack, "/fxml/BidderView.fxml");
     }
 }
