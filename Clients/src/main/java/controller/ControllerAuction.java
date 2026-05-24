@@ -322,29 +322,57 @@ public class ControllerAuction implements ServerListener {
     private boolean showAutoBidSettingsDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("AutoBid");
-        dialog.setHeaderText("AutoBid settings");
+        dialog.setHeaderText(null);
+        if (j_autoBidSettings != null && j_autoBidSettings.getScene() != null) {
+            dialog.initOwner(j_autoBidSettings.getScene().getWindow());
+        }
 
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        dialog.getDialogPane().setPrefWidth(460);
+        dialog.getDialogPane().setMinWidth(460);
+        dialog.getDialogPane().setStyle(
+                "-fx-background-color: white;" +
+                "-fx-background-radius: 14;" +
+                "-fx-border-color: #dfe6e9;" +
+                "-fx-border-width: 1;" +
+                "-fx-border-radius: 14;");
 
         TextField maxBidField = new TextField(autoBidSettings != null ? plainNumber(autoBidSettings.maxBidAllow) : "");
         maxBidField.setPromptText("MaxBidAllow");
+        styleAutoBidInput(maxBidField);
         TextField bidGapField = new TextField(autoBidSettings != null ? plainNumber(autoBidSettings.bidGap) : "");
         bidGapField.setPromptText("BidGap");
+        styleAutoBidInput(bidGapField);
         Label validation = new Label();
         validation.setTextFill(Color.web("#e74c3c"));
+        validation.setWrapText(true);
+        validation.setMinHeight(22);
+
+        Label title = new Label("Cài đặt AutoBid");
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #243447;");
+        Label subtitle = new Label("Nhập giới hạn giá tối đa và bước nhảy cho mỗi lượt đặt tự động.");
+        subtitle.setWrapText(true);
+        subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #6c7a89;");
 
         GridPane grid = new GridPane();
-        grid.setHgap(12);
-        grid.setVgap(10);
-        grid.add(new Label("MaxBidAllow"), 0, 0);
+        grid.setHgap(14);
+        grid.setVgap(14);
+        grid.getColumnConstraints().addAll(labelColumn(), inputColumn());
+        grid.add(styledFieldLabel("MaxBidAllow"), 0, 0);
         grid.add(maxBidField, 1, 0);
-        grid.add(new Label("BidGap"), 0, 1);
+        grid.add(styledFieldLabel("BidGap"), 0, 1);
         grid.add(bidGapField, 1, 1);
         grid.add(validation, 0, 2, 2, 1);
-        dialog.getDialogPane().setContent(grid);
+
+        VBox content = new VBox(18, title, subtitle, grid);
+        content.setPadding(new Insets(24, 26, 10, 26));
+        content.setStyle("-fx-background-color: white; -fx-background-radius: 14;");
+        dialog.getDialogPane().setContent(content);
 
         Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        styleAutoBidDialogButton(saveButton, "#2ecc71", "white");
+        styleAutoBidDialogButton(dialog.getDialogPane().lookupButton(ButtonType.CANCEL), "#ecf0f1", "#2c3e50");
         saveButton.addEventFilter(ActionEvent.ACTION, event -> {
             try {
                 parseAutoBidSettings(maxBidField.getText(), bidGapField.getText());
@@ -363,6 +391,55 @@ public class ControllerAuction implements ServerListener {
             return true;
         }
         return false;
+    }
+
+    private Label styledFieldLabel(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #5d6d7e;");
+        return label;
+    }
+
+    private ColumnConstraints labelColumn() {
+        ColumnConstraints column = new ColumnConstraints();
+        column.setMinWidth(118);
+        column.setPrefWidth(126);
+        return column;
+    }
+
+    private ColumnConstraints inputColumn() {
+        ColumnConstraints column = new ColumnConstraints();
+        column.setHgrow(Priority.ALWAYS);
+        column.setMinWidth(240);
+        return column;
+    }
+
+    private void styleAutoBidInput(TextField field) {
+        field.setPrefHeight(44);
+        field.setMinHeight(44);
+        field.setStyle(
+                "-fx-font-size: 15px;" +
+                "-fx-background-color: #f8fafc;" +
+                "-fx-background-radius: 9;" +
+                "-fx-border-color: #d8dee6;" +
+                "-fx-border-radius: 9;" +
+                "-fx-border-width: 1;" +
+                "-fx-padding: 0 12 0 12;");
+    }
+
+    private void styleAutoBidDialogButton(Node button, String background, String textColor) {
+        if (button == null) {
+            return;
+        }
+        button.setStyle(
+                "-fx-background-color: " + background + ";" +
+                "-fx-text-fill: " + textColor + ";" +
+                "-fx-background-radius: 8;" +
+                "-fx-font-weight: bold;" +
+                "-fx-padding: 8 18 8 18;");
+        if (button instanceof Region region) {
+            region.setMinHeight(38);
+            region.setPrefHeight(38);
+        }
     }
 
     private AutoBidSettings parseAutoBidSettings(String maxBidText, String bidGapText) {
