@@ -57,8 +57,14 @@ public class RegisterHandler extends BaseHandler implements RequestHandler {
             return;
 
         }
-        Map<String, Object> result = userService.register(user);
-        sendResponse(out, Command.REGISTER_RESULT, result);
+        try {
+            Map<String, Object> result = userService.register(user);
+            sendResponse(out, Command.REGISTER_RESULT, result);
+        } catch (ConflictException e) {
+            fillErrorResponse(response, e);
+            response.put("success", "EXSITED");
+            sendResponse(out, Command.REGISTER_RESULT, response);
+        }
 
     }
 }
