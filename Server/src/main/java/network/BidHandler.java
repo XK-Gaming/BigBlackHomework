@@ -1,14 +1,11 @@
 package network;
 
-import model.Items.Item;
 import model.auction.Auction;
-import model.auction.BidTransaction;
 import model.exception.AuctionException;
 import service.UserService;
 
 import java.io.ObjectOutputStream;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +17,7 @@ public class BidHandler extends BaseHandler implements RequestHandler {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> bidInfo = (Map<String, Object>) payload;
         Map<String, Object> response = new HashMap<>();
@@ -29,79 +27,25 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             String bidderId = String.valueOf(bidInfo.get("bidderId"));
             double amount = Double.parseDouble(String.valueOf(bidInfo.get("amount")));
 
-            // Gọi service xử lý đấu giá và nhận về Map chứa các thông tin liên quan
             Map<String, Object> result = userService.processBid(itemId, bidderId, amount);
 
             if (result != null) {
-                ArrayList<BidTransaction> bidHistory = (ArrayList<BidTransaction>) result.get("bidHistory");
-                Auction latestAuction = (Auction) result.get("latestAuction");
-                Item item = (Item) result.get("item");
-                double newPrice = (double) result.get("newPrice");
+                double newPrice = ((Number) result.get("newPrice")).doubleValue();
 
-                // 1. Chuẩn bị response trả về riêng cho client vừa đặt bid
                 response.put("success", true);
                 response.put("message", "Đấu giá thành công");
                 response.put("newPrice", newPrice);
                 response.put("itemId", itemId);
 
-                // 2. Chuẩn bị gói tin cập nhật (Broadcast) cho các client đang xem chi tiết item này
-                Map<String, Object> bidUpdate = new HashMap<>();
-                bidUpdate.put("success", true);
-                bidUpdate.put("itemId", itemId);
-                bidUpdate.put("bidderId", bidderId);
-                bidUpdate.put("newPrice", newPrice);
-                bidUpdate.put("item", item);
-
-                if (latestAuction != null) {
-                    bidUpdate.put("auction", latestAuction);
-                    Instant auctionEndTime = latestAuction.getItem() != null
-                            ? latestAuction.getItem().getAuctionEndTime()
-                            : null;
+                if (result.get("latestAuction") instanceof Auction latestAuction) {
+                    Instant auctionEndTime = BidEventPublisher.extractAuctionEndTime(latestAuction);
                     if (auctionEndTime != null) {
                         response.put("auctionEndTime", auctionEndTime);
-                        bidUpdate.put("auctionEndTime", auctionEndTime);
                     }
-
-                    // 3. Xác định người bị vượt giá (Người đặt giá cao thứ nhì trước đó)
-                    String usernameOldBidder = null;
-                    try {
-                        if (bidHistory != null && bidHistory.size() >= 2) {
-                            usernameOldBidder = bidHistory.get(bidHistory.size() - 2).getBidder();
-                        } else {
-                            usernameOldBidder = bidderId;
-                        }
-                    } catch (Exception e) {
-                        usernameOldBidder = bidderId;
-                    }
-
-                    // Chuẩn bị payload gửi thông báo Toast dạng Notification
-                    Map<String, Object> notifPayload = new HashMap<>();
-                    notifPayload.put("item", item);
-                    notifPayload.put("auction", latestAuction);
-                    notifPayload.put("bidderId", bidderId);
-                    notifPayload.put("newPrice", newPrice);
-
-// --- TIẾN HÀNH PHÁT TÍN HIỆU REALTIME ---
-
-// 1. Phát tín hiệu cập nhật cho các client đang mở chi tiết phòng đấu giá này
-                    AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
-
-// 2. Gửi cập nhật ra sảnh chính (itemId = null) để các client xem danh sách thấy giá mới
-                    System.out.println("[Server Realtime] Phát tín hiệu cập nhật danh sách sảnh cho Item ID: " + itemId);
-                    AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, latestAuction);
-
-// ✅ BỔ SUNG: Broadcast thêm gói gói bidUpdate dạng ITEMS_UPDATE (hoặc BID_UPDATE) ra sảnh chung (null)
-// để các màn hình nền như "Lịch sử đặt giá" (không ở trong phòng) cũng nghe được sự thay đổi giá.
-                    AuctionServer.broadcastToSpecificAuction(null, Command.BID_UPDATE, bidUpdate);
-
-// 3. Gửi thông báo đến người bị vượt giá và chủ phòng (Người bán)
-                    AuctionServer.sendToSpecificUser(usernameOldBidder, Command.NOTIFICATION, notifPayload);
-                    if (item != null && item.getSellerId() != null) {
-                        AuctionServer.sendToSpecificUser(item.getSellerId(), Command.NOTIFICATION, notifPayload);
-                    }
-                } else {
-                    System.err.println("[Server Lỗi] Không thể phát tín hiệu update vì không tìm thấy dữ liệu đấu giá hiện tại!");
                 }
+
+                // Bid event: dùng helper chung để manual bid và AutoBid phát realtime giống nhau.
+                BidEventPublisher.publishSuccessfulBid(itemId, bidderId, result);
             } else {
                 response.put("success", false);
                 response.put("message", "Đấu giá thất bại");
@@ -116,7 +60,6 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             response.put("message", "Đấu giá thất bại do lỗi hệ thống");
         }
 
-        // Gửi kết quả cuối cùng về cho người gửi Request ban đầu
         sendResponse(out, Command.BID_RESULT, response);
     }
 }

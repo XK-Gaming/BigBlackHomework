@@ -20,7 +20,7 @@
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="Pane1" prefHeight="700.0" prefWidth="1100.0" style="-fx-background-color: #F0F2F5;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerManagerItem">
+<BorderPane fx:id="Pane1" prefHeight="700.0" prefWidth="1100.0" style="-fx-background-color: #F0F2F5;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerManagerItem">
 
    <left>
       <VBox alignment="TOP_CENTER" prefWidth="250.0" spacing="15.0" style="-fx-background-color: #1A2233;" BorderPane.alignment="CENTER">

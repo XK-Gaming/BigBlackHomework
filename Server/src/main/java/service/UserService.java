@@ -8,7 +8,8 @@ import dao.DAOUser;
 import model.DepositTransaction;
 import model.Items.Item;
 import model.User.User;
-import model.User.UserRole;import model.auction.Auction;
+import model.User.UserRole;
+import model.auction.Auction;
 import model.auction.AuctionStatus;
 import model.auction.BidHistoryDTO;
 import model.auction.BidTransaction;
@@ -163,11 +164,6 @@ public class UserService {
                 throw new NotFoundException("item", "Không tìm thấy sản phẩm.");
             }
 
-            User user = userDAO.selectByUsernameOnly(bidderId);
-            if (user == null) {
-                throw new NotFoundException("user", "Không tìm thấy người dùng.");
-            }
-
             // 2. Kiểm tra các điều kiện chặn
             if (bidderId != null && txItem.getSellerId() != null && bidderId.equals(txItem.getSellerId())) {
                 throw new BidRejectedException(BidRejectedException.Reason.SELLER_BID,
@@ -179,11 +175,6 @@ public class UserService {
                         "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
             }
 
-            if (amount > user.getBalance()) {
-                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Số dư tài khoản không đủ để đặt giá.");
-            }
-
             Auction txAuction = auctionDAO.selectByItemId(con, txItem);
             if (txAuction == null) {
                 throw new NotFoundException("auction", "Không tìm thấy phiên đấu giá.");
@@ -193,6 +184,16 @@ public class UserService {
             if (txAuction.getStatus() != AuctionStatus.RUNNING) {
                 throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
                         "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
+            }
+
+            User user = userDAO.selectByUsernameOnly(bidderId);
+            if (user == null) {
+                throw new NotFoundException("user", "Không tìm thấy người dùng.");
+            }
+
+            if (amount > user.getBalance()) {
+                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                        "Số dư tài khoản không đủ để đặt giá.");
             }
 
             // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI (NẰM TRONG TRANSACTION)
@@ -256,13 +257,14 @@ public class UserService {
             if (con != null) {
                 try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi logic
             }
-            return null; // Hoặc ném tiếp ra ngoài tùy cấu trúc của bạn
+            throw e;
         } catch (Exception e) {
             System.err.println("❌ processBid: Lỗi: " + e.getMessage());
             if (con != null) {
                 try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi hệ thống
             }
-            return null;
+            throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
+                    "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
         } finally {
             if (con != null) {
                 try {

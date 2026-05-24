@@ -23,6 +23,8 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -147,8 +149,10 @@ class UserServiceTest {
         itemDao.updateResult = 1;
         FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
         auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 1_000));
         UserService service = serviceWith(
-                new FakeUserDao(),
+                userDao,
                 itemDao,
                 auctionDao,
                 1,
@@ -174,8 +178,11 @@ class UserServiceTest {
         itemDao.updateResult = 1;
         FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
         auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 1_000));
+        userDao.addUser(new Bidder("bidder2", "secret", "Bidder Two", "bidder2@example.com", 1_000));
         UserService service = serviceWith(
-                new FakeUserDao(),
+                userDao,
                 itemDao,
                 auctionDao,
                 1,
@@ -347,6 +354,15 @@ class UserServiceTest {
             this.status = status;
         }
 
+        @Override
+        public AuctionStatus getStatus() {
+            return status;
+        }
+
+        @Override
+        public void setStatus(AuctionStatus status) {
+            this.status = status;
+        }
 
     }
 
@@ -354,11 +370,23 @@ class UserServiceTest {
      * ## Test fake DAO user: mo phong login, update profile va change password.
      */
     private static final class FakeUserDao extends DAOUser {
+        private final Map<String, User> users = new HashMap<>();
         private User user;
         private boolean updated;
 
+        private void addUser(User user) {
+            users.put(user.getUsername(), user);
+            if (this.user == null) {
+                this.user = user;
+            }
+        }
+
         @Override
         public User selectByUsername(String username, String password) {
+            User knownUser = users.get(username);
+            if (knownUser != null && knownUser.getPassword().equals(password)) {
+                return knownUser;
+            }
             if (user != null && user.getUsername().equals(username) && user.getPassword().equals(password)) {
                 return user;
             }
@@ -367,7 +395,21 @@ class UserServiceTest {
 
         @Override
         public User selectByUsernameOnly(String username) {
+            User knownUser = users.get(username);
+            if (knownUser != null) {
+                return knownUser;
+            }
             return user != null && user.getUsername().equals(username) ? user : null;
+        }
+
+        @Override
+        public int UpdateBalance(String username, double newBalance) {
+            User knownUser = selectByUsernameOnly(username);
+            if (knownUser != null) {
+                knownUser.setBalance(newBalance);
+                return 1;
+            }
+            return 0;
         }
 
         @Override

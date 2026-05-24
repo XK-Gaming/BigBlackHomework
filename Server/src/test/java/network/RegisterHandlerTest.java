@@ -23,7 +23,7 @@ class RegisterHandlerTest {
     @Test
     void registerSuccessReturnsServicePayload() throws Exception {
         FakeUserService userService = new FakeUserService();
-        User user = new Bidder("bidder1", "pass", "Bidder One", "bidder@example.com");
+        User user = new Bidder("bidder1", "pass123", "Bidder One", "bidder@example.com");
         RegisterHandler handler = new RegisterHandler(userService);
 
         DataPacket packet = HandlerTestSupport.handle(handler, user);
@@ -44,7 +44,7 @@ class RegisterHandlerTest {
         RegisterHandler handler = new RegisterHandler(userService);
 
         DataPacket packet = HandlerTestSupport.handle(handler,
-                new Bidder("bidder1", "pass", "Bidder One", "bidder@example.com"));
+                new Bidder("bidder1", "pass123", "Bidder One", "bidder@example.com"));
 
         Map<?, ?> payload = (Map<?, ?>) packet.payload();
         assertEquals(Command.REGISTER_RESULT, packet.command());
