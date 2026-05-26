@@ -20,8 +20,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import model.Items.Item;
-import model.Items.ItemSession;
-import model.Items.ItemType;
 import model.User.User;
 import model.User.UserRole;
 import model.User.UserSession;

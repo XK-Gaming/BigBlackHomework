@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import model.auction.BidHistoryDTO;
 
 public class ControllerAuction implements ServerListener {
     private final AuctionClient client = AuctionClient.getInstance();
@@ -164,6 +165,7 @@ public class ControllerAuction implements ServerListener {
     }
 
     public void onAuctionDataLoaded(Auction auction) {
+        System.out.println("[DEBUG] Server trả về phiên đấu giá: " + auction);
         this_Auction = auction;
         Platform.runLater(() -> {
             if (this_Auction == null) {
@@ -197,12 +199,21 @@ public class ControllerAuction implements ServerListener {
         if (j_countdown != null) {
             j_countdown.setVisible(true);
         }
+
+        // Hiển thị tên người dùng
         if (p1 != null) j_LabelName.setText(p1.getName());
+
+        // 🔥 SỬA CHỖ NÀY: Kiểm tra an toàn trước khi set tên sản phẩm
         if (item1 != null) {
-            j_name.setText(item1.getName());
+            // Chỉ cập nhật tên lên UI nếu tên trong item1 thực sự có chữ
+            if (item1.getName() != null && !item1.getName().trim().isEmpty()) {
+                j_name.setText(item1.getName());
+            }
+
             j_description.setText(getCustomDescription(item1));
             renderImage();
         }
+
         updatePriceAndLeader();
         startStatusEngine();
     }
@@ -349,6 +360,12 @@ public class ControllerAuction implements ServerListener {
 
         item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
         item1.setMinBid(auctionItem.getMinBid());
+
+        // 🔥 CHỈ ghi đè tên nếu dữ liệu từ Server trả về có tên hợp lệ
+        if (auctionItem.getName() != null && !auctionItem.getName().trim().isEmpty()) {
+            item1.setName(auctionItem.getName());
+        }
+
         if (auctionItem.getAuctionStartTime() != null) {
             item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
         }
@@ -1083,7 +1100,6 @@ public class ControllerAuction implements ServerListener {
     public void initData(model.auction.BidHistoryDTO dto) {
         if (dto == null) return;
 
-        // Tái tạo p1 và gán nóng đối tượng item1 cục bộ
         this.p1 = UserSession.getLoggedInUser();
         this.item1 = new model.Items.Item();
 
@@ -1091,25 +1107,33 @@ public class ControllerAuction implements ServerListener {
         this.item1.setName(dto.getItemName());
         this.item1.setCurrentHighestPrice(dto.getCurrentHighestPrice());
 
-        // Đồng bộ dữ liệu mới tạo này vào Session của hệ thống
+        // Tạm thời giả định MinBid để tránh lỗi chia/cộng trừ khi chưa có dữ liệu server
+        this.item1.setMinBid(10000);
+
         model.Items.ItemSession.setLoggedInItem(this.item1);
         restoreAutoBidState();
 
-        // Hiển thị nhanh dữ liệu tĩnh lên màn hình
         Platform.runLater(() -> {
             j_name.setText(dto.getItemName());
             DecimalFormat df = new DecimalFormat("#,###");
             j_CurrentPrice.setText(df.format(dto.getCurrentHighestPrice()) + " VNĐ");
             j_status.setText("Đang kết nối Server...");
+
+            // Cập nhật các label cơ bản khác tránh bị trống rỗng text
+            j_description.setText(getCustomDescription(item1));
+            updateMinBidLabel();
         });
 
         try {
-            // Đăng ký Listener và kích hoạt đẩy lệnh Socket đồng bộ lên Server
             client.setListener(this);
             client.sendCommand(Command.GET_AUCTION, dto.getItemId());
             if (p1 != null) {
                 client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", dto.getItemId()));
             }
+
+            // 🔥 ĐỂ Ý DÒNG NÀY: Kích hoạt Engine quản lý trạng thái đếm ngược/bật tắt nút ngay lập tức
+            Platform.runLater(this::startStatusEngine);
+
         } catch (IOException e) {
             System.err.println("Lỗi đồng bộ phòng đấu giá từ lịch sử: " + e.getMessage());
         }

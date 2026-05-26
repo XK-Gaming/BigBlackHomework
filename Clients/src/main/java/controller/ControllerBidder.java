@@ -23,7 +23,6 @@ import network.ServerListener;
 import org.controlsfx.control.Notifications;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;

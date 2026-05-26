@@ -22,24 +22,12 @@ import network.ServerListener;
 import javafx.scene.shape.Circle;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn;
 import model.DepositTransaction;
 import java.util.Map;
-import java.util.List;
-
-import model.User.Admin;
-import model.User.Bidder;
-import model.User.Seller;
-import model.User.User;
-import model.User.UserSession;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
 
 public class ControllerSetInf implements ServerListener {
     User p1 = UserSession.getLoggedInUser();

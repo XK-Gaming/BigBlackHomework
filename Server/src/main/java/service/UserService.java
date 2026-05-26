@@ -447,7 +447,12 @@ public class UserService {
                     }
                 }
 
-                String itemName = "Sản phẩm mã #" + auction.getItemId();
+// Thay vì gán cứng chuỗi mặc định, hãy check lấy tên thật từ Item:
+                String itemName = "mmb"; // Tạm thời làm dự phòng
+
+                if (auction.getItem() != null && auction.getItem().getName() != null) {
+                    itemName = auction.getItem().getName();
+                }
 
                 resultList.add(new BidHistoryDTO(
                         auction.getItemId(),
