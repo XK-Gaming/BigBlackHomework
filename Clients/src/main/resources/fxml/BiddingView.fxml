@@ -185,13 +185,6 @@
                               <Label text="ĐẶT GIÁ CỦA BẠN" textFill="#7f8c8d">
                                  <font><Font name="System Bold" size="13.0" /></font>
                               </Label>
-                              <HBox spacing="10.0">
-                                 <children>
-                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+10k" />
-                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+50k" />
-                                    <Button mnemonicParsing="false" prefWidth="80.0" style="-fx-background-color: #ecf0f1;" text="+100k" />
-                                 </children>
-                              </HBox>
                               <TextField fx:id="j_setPrice" prefHeight="45.0" promptText="Nhập số tiền...(chỉ nhập số từ 0-&gt;9)" style="-fx-font-size: 16; -fx-background-radius: 5;" />
                               <Button fx:id="j_apply" mnemonicParsing="false" onAction="#On_apply" prefHeight="50.0" prefWidth="300.0" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-background-radius: 5;" text="ĐẶT GIÁ NGAY">
                                  <font><Font name="System Bold" size="16.0" /></font>
