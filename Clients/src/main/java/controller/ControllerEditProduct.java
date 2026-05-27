@@ -133,8 +133,14 @@ public class ControllerEditProduct implements ServerListener {
         this.itemHasBids = hasBids;
         this.uploadedImageUrl = item.getImg();
 
+        //set description
         txtName.setText(item.getName());
-        txtDescription.setText(item.getDescription());
+        String jsonString =  item.getDescription();
+        com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonString).getAsJsonObject();
+        String pureDescription = jsonObject.get("description").getAsString();
+        txtDescription.setText(pureDescription);
+
+
         txtStartPrice.setText(String.format("%.0f", item.getStartingPrice()));
         txtMinBid.setText(String.format("%.0f", item.getMinBid()));
 
