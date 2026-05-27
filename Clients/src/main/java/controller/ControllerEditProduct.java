@@ -16,12 +16,14 @@ import javafx.stage.FileChooser;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
 import model.auction.AuctionStatus;
 import network.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DecimalFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -97,7 +99,8 @@ public class ControllerEditProduct implements ServerListener {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             j_LabelName.setText(currentUser.getName());
-            j_textSoDu.setText("0 VNĐ");
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(currentUser.getBalance()) + " VNĐ");
         }
 
         setupDatePickerConstraints();
@@ -365,6 +368,49 @@ public class ControllerEditProduct implements ServerListener {
                 }
             });
         }
+        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+            User user = UserSession.getLoggedInUser();
+            Map<String, Object> notifData = (Map<String, Object>) response.payload();
+            Item item = (Item) notifData.get("item");
+            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+            });
+        }
+        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+            String itemName = "";
+            Object auctionObj = responsePayload.get("auction");
+            if (auctionObj instanceof Auction) {
+                Auction auction = (Auction) auctionObj;
+                if (auction.getItem() != null) {
+                    itemName = " \"" + auction.getItem().getName() + "\"";
+                }
+            }
+
+            String finalItemName = itemName;
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!", ButtonType.OK);
+                alert.showAndWait();
+                if (!isAllow) {
+                    On_Back(new ActionEvent(j_textSoDu, null));
+                }
+            });
+        }
+        if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+            Map<String, Object> resData = (Map<String, Object>) response.payload();
+            boolean success = (boolean) resData.get("success");
+            String itemName = (String) resData.get("itemName");
+            if (success) {
+                String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sản phẩm" + displayName + " này đã bị xóa!", ButtonType.OK);
+                    alert.showAndWait();
+                    On_Back(new ActionEvent(j_textSoDu, null));
+                });
+            }
+        }
     }
 
     public Instant createInstantFromData(LocalDate date, String timeStr) throws DateTimeParseException {
@@ -484,4 +530,5 @@ public class ControllerEditProduct implements ServerListener {
             j_year.setText("");
         }
     }
+
 }

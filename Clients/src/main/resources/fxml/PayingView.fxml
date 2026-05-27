@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #F4F6F8;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Service_.ControllerPayment">
+<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #F4F6F8;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerPayment">
 
    <top>
       <HBox alignment="CENTER_LEFT" prefHeight="80.0" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 2);" BorderPane.alignment="CENTER">
@@ -21,7 +21,7 @@
             <Insets left="30.0" right="30.0" />
          </padding>
          <children>
-            <ImageView fx:id="j_image" fitHeight="50.0" fitWidth="50.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
+            <ImageView fx:id="j_image" fitHeight="50.0" fitWidth="50.0" pickOnBounds="true" preserveRatio="true">
                <image>
                   <Image url="@../img/imgUSER.png" />
                </image>

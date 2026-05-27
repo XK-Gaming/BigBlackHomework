@@ -13,6 +13,7 @@ import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -833,7 +834,7 @@ public class ControllerAuction implements ServerListener {
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
             PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "/fxml/PayingView.fxml"));
+            delay.setOnFinished(e -> SceneHelper.changeScene(j_notified, "/fxml/PayingView.fxml"));
             delay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
@@ -1073,8 +1074,12 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                j_notified.setText("Phiên đấu đã tạm dừng");
-                j_status.setText("CHƯA PHÊ DUYỆT");
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText("Phiên đấu giá bị tạm dừng!");
+                alert.setContentText("Hệ thống sẽ chuyển bạn về màn hình chính.");
+                alert.showAndWait();
+                SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
             });
         }
 
@@ -1084,8 +1089,12 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                j_notified.setText("Sản phẩm đã bị xóa");
-                j_status.setText("KHÔNG TỒN TẠI");
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText("Sản phẩm đã bị xóa!");
+                alert.setContentText("Hệ thống sẽ chuyển bạn về màn hình chính.");
+                alert.showAndWait();
+                SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
             });
         }
 

@@ -95,7 +95,7 @@ public class ConnectionStatusManager {
                 // TRƯỜNG HỢP 1: MẤT INTERNET (MÀU ĐỎ)
                 statusCircle.setFill(RED);
                 if (statusLabel != null) {
-                    statusLabel.setText("Disconnet Internet");
+                    statusLabel.setText("Disconnect Internet");
                     statusLabel.setTextFill(RED);
                 }
                 fadeTransition.setRate(2.5);

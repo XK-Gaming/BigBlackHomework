@@ -112,6 +112,10 @@ public class AuctionServer {
     public static ClientHandler getHandlerByUsername(String username) {
         return onlineClients.get(username);
     }
+
+    public static boolean isUserOnline(String username) {
+        return onlineClients.containsKey(username);
+    }
     public static void sendToSpecificUser (String username, Command command, Object payload) {
         ClientHandler handler = getHandlerByUsername(username);
         if (handler != null) {

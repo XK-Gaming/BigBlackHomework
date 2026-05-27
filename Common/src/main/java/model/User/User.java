@@ -14,6 +14,19 @@ public class User implements Serializable {
     private UserRole role;
     private double balance;
     private List<DepositTransaction> depositHistory = new ArrayList<>();
+    private boolean isOnline;
+
+    public boolean isOnline() {
+        return isOnline;
+    }
+
+    public void setOnline(boolean online) {
+        isOnline = online;
+    }
+
+    public String getStatus() {
+        return isOnline ? "Online" : "Offline";
+    }
 
     // ✅ Constructor no-arg cho Gson deserialization
     public User() {

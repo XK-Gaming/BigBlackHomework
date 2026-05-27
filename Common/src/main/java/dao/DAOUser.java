@@ -84,7 +84,39 @@ public class DAOUser implements DaoInterface<User> {
 
     @Override
     public ArrayList<User> selectAll()  {
-        return null;
+        ArrayList<User> ketQua = new ArrayList<>();
+        String sql = "SELECT * FROM khach";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                String role = rs.getString("role");
+                String name = rs.getString("name");
+                String email = rs.getString("email");
+                double balance = rs.getDouble("balance");
+                String depositJson = rs.getString("DepositHistory");
+
+                User user = null;
+                if ("Người bán".equals(role)) {
+                    user = new Seller(username, password, name, email, balance);
+                } else if ("Người đấu giá".equals(role)) {
+                    user = new Bidder(username, password, name, email, balance);
+                } else if ("Admin".equals(role)) {
+                    user = new Admin(username, password, name, email);
+                }
+
+                if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                    List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                    user.setDepositHistory(history);
+                }
+                if (user != null) ketQua.add(user);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ketQua;
     }
 
     @Override

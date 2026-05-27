@@ -75,6 +75,9 @@ public class ClientHandler implements Runnable {
         handlers.put(Command.REJECT_DEPOSIT, new DepositManagementHandler.RejectHandler(this.userService));
         handlers.put(Command.DELETE_DEPOSIT_HISTORY, new DepositManagementHandler.DeleteHistoryHandler(this.userService));
         handlers.put(Command.GET_USER_INFO, new GetUserInfoHandler(this.userService));
+        handlers.put(Command.BIDDER_PAY, new PaymentHandler(this.userService));
+        handlers.put(Command.GET_ALL_USERS, new GetAllUsersHandler(this.userService));
+        handlers.put(Command.DELETE_USER, new DeleteUserHandler(this.userService));
     }
     @Override
     public void run() {

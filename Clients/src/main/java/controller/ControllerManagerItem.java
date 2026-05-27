@@ -28,12 +28,14 @@ import model.auction.AuctionStatus;
 import model.auction.BidTransaction;
 import network.*;
 import javafx.scene.shape.Circle;
+import javafx.scene.control.Alert;
 
 import java.io.IOException;
 import java.net.URL;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -77,7 +79,10 @@ public class ControllerManagerItem implements ServerListener {
 
                 try {
                     // Gửi lệnh lấy thông tin phiên đấu giá của item vừa chọn
-                    client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", newValue.getDatabaseId()));
+                    Map<String, Object> setAuctionPayload = new HashMap<>();
+                    setAuctionPayload.put("userId", p1.getUsername());
+                    setAuctionPayload.put("itemId", newValue.getDatabaseId());
+                    client.sendCommand(Command.SET_AUCTION, setAuctionPayload);
                     client.sendCommand(Command.GET_AUCTION, newValue.getDatabaseId());
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -129,7 +134,11 @@ public class ControllerManagerItem implements ServerListener {
         // TH2: Nhận sản phẩm mới hoặc cập nhật từ Server
         if (Command.ITEMS_UPDATE.equals(command)) {
             Item newItem = (Item) response.payload();
-            Platform.runLater(() -> allAssets.add(newItem));
+            Platform.runLater(() -> {
+                // Kiểm tra xem đã tồn tại chưa để tránh trùng lặp
+                allAssets.removeIf(it -> it.getDatabaseId() == newItem.getDatabaseId());
+                allAssets.add(newItem);
+            });
         }
 
         // TH3: Nhận dữ liệu phiên đấu giá của Item được chọn
@@ -143,36 +152,85 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
 
-        //Nhận kết quả sau khi Admin bấm phê duyệt/tạm dừng
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             Object auctionObj = responsePayload.get("auction");
+            boolean success = responsePayload.get("success") != null && (boolean) responsePayload.get("success");
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+
             if (auctionObj instanceof Auction) {
-                auction = (Auction) auctionObj;
+                Auction updatedAuction = (Auction) auctionObj;
+                // Cập nhật auction hiện tại nếu đúng ID
+                if (item != null && updatedAuction.getItemId() == item.getDatabaseId()) {
+                    auction = updatedAuction;
+                }
+                
+                // Cập nhật trạng thái trong danh sách allAssets
+                for (Item it : allAssets) {
+                    if (it.getDatabaseId() == updatedAuction.getItemId()) {
+                        it.setAuctionStatus(updatedAuction.getStatus());
+                        updateSelectedItemStatus(it);
+                        break;
+                    }
+                }
             }
 
             Platform.runLater(() -> {
-                if (auction != null) {
-                    item.setAuctionStatus(auction.getStatus());
-                    updateSelectedItemStatus(item);
+                if (success) {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText(isAllow ? "Phê duyệt thành công!" : "Tạm dừng thành công!");
+                    alert.showAndWait();
                 }
                 updateAuctionControls();
             });
         }
-        if(Command.DELETE_ITEM_RESULT.equals(command)){
-            int result = (Integer) response.payload();
-            if(result > 0){
-                Platform.runLater(() -> {
-                    tableProducts.getSelectionModel().clearSelection();
-                    allAssets.remove(item);
-                    item = null;
-                    j_Delete.setVisible(false);
-                    j_ButtonController.setText("ĐÃ XÓA");
-                    j_ButtonController.setDisable(true);
-                });
-            } else {
-                System.err.println("Xóa sản phẩm thất bại trên Server!");
+
+        if (Command.DELETE_ITEM_RESULT.equals(command)) {
+            Map<String, Object> resData = (Map<String, Object>) response.payload();
+            boolean success = (boolean) resData.getOrDefault("success", false);
+            String message = (String) resData.getOrDefault("message", "");
+
+            Platform.runLater(() -> {
+                if (success) {
+                    int deletedItemId = ((Number) resData.get("deletedItemId")).intValue();
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Xóa thành công!");
+                    alert.showAndWait();
+
+                    // Xóa khỏi danh sách hiển thị
+                    allAssets.removeIf(it -> it.getDatabaseId() == deletedItemId);
+
+                    if (item != null && item.getDatabaseId() == deletedItemId) {
+                        tableProducts.getSelectionModel().clearSelection();
+                        item = null;
+                        auction = null;
+                        j_Delete.setVisible(false);
+                        j_ButtonController.setText("ĐÃ XÓA");
+                        j_ButtonController.setDisable(true);
+                    }
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Lỗi");
+                    alert.setHeaderText("Xóa thất bại");
+                    alert.setContentText(message);
+                    alert.showAndWait();
+                }
+            });
         }
+
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
         }
     }
 
@@ -248,11 +306,15 @@ public class ControllerManagerItem implements ServerListener {
     void On_ButtonController(ActionEvent event) throws IOException {
         if (auction == null) return;
 
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("itemId", String.valueOf(auction.getItemId()));
+        
         if (auction.getStatus() == null) {
-            client.sendCommand(Command.SET_ALLOW, Map.of("itemId", String.valueOf(auction.getItemId()), "allow", "true"));
+            payload.put("allow", "true");
         } else {
-            client.sendCommand(Command.SET_ALLOW, Map.of("itemId", String.valueOf(auction.getItemId()), "allow", "false"));
+            payload.put("allow", "false");
         }
+        client.sendCommand(Command.SET_ALLOW, payload);
     }
 
     // Hàm tập trung duy nhất chịu trách nhiệm thay đổi giao diện nút điều khiển
@@ -375,10 +437,16 @@ public class ControllerManagerItem implements ServerListener {
     @FXML void On_MouseClickImg(MouseEvent event) {}
     @FXML
     void On_Return(ActionEvent event) {
-
+        try {
+            SceneHelper.changeScene(j_Return, "/fxml/AdminView.fxml");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     @FXML
     void On_Delete(ActionEvent event) throws IOException {
-        client.sendCommand(Command.DELETE_ITEM,item.getDatabaseId());
+        if (item != null) {
+            client.sendCommand(Command.DELETE_ITEM, item);
+        }
     }
 }

@@ -14,6 +14,7 @@ import model.Items.Item;
 import model.Items.ItemFactory;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
 import network.*;
 
 import java.io.File;
@@ -358,6 +359,57 @@ public class ControllerSeller implements ServerListener {
             Platform.runLater(() -> {
                 ControllerNotificationSeller.handleIncomingToastNotificationSeller(response.payload(), j_textSoDu);
             });
+        }
+        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+            User user = UserSession.getLoggedInUser();
+            Map<String, Object> notifData = (Map<String, Object>) response.payload();
+            Item item = (Item) notifData.get("item");
+            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+            });
+        }
+        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+            String itemName = "";
+            Object auctionObj = responsePayload.get("auction");
+            if (auctionObj instanceof Auction) {
+                Auction auction = (Auction) auctionObj;
+                if (auction.getItem() != null) {
+                    itemName = " \"" + auction.getItem().getName() + "\"";
+                }
+            }
+
+            String finalItemName = itemName;
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText(null);
+                if (!isAllow) {
+                    alert.setContentText("Phiên đấu giá sản phẩm" + finalItemName + " của bạn đã bị tạm dừng!");
+                    j_ApplyItem.setDisable(true);
+                } else {
+                    alert.setContentText("Phiên đấu giá sản phẩm" + finalItemName + " của bạn đã được phê duyệt!");
+                    j_ApplyItem.setDisable(false);
+                }
+                alert.showAndWait();
+            });
+        }
+        if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean success = (boolean) responsePayload.get("success");
+            String itemName = (String) responsePayload.get("itemName");
+            if (success) {
+                String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Sản phẩm" + displayName + " của bạn đã bị xóa!");
+                    alert.showAndWait();
+                });
+            }
         }
     }
     @FXML

@@ -51,6 +51,7 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
                     response.put("success", true);
                     response.put("message", "Xóa sản phẩm thành công!");
                     response.put("deletedItemId", itemId); // Gửi ID về lại cho Seller dọn giao diện riêng (nếu cần)
+                    response.put("itemName", selectedItem.getName());
 
                     // ------------------------------------------------------------------
                     // LOGIC REALTIME: PHÁT TÍN HIỆU ĐẾN CÁC CLIENT KHÁC
@@ -59,6 +60,7 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
                     Map<String, Object> broadcastData = new HashMap<>();
                     broadcastData.put("success", true);
                     broadcastData.put("deletedItemId", itemId);
+                    broadcastData.put("itemName", selectedItem.getName());
 
                     System.out.println("[Server Realtime] Phát tín hiệu XÓA sản phẩm ra sảnh chính cho Item ID: " + itemId);
 

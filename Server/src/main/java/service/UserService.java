@@ -606,4 +606,14 @@ public class UserService {
         boolean hasHistory = auction.getBidHistory() != null && !auction.getBidHistory().isEmpty();
         return !hasLeader && !hasHistory;
     }
+
+    public boolean PayHandler(Item item) {
+        String sellerid = item.getSellerId();
+        double amount = item.getCurrentHighestPrice();
+        int result = userDAO.UpdateBalance(sellerid,amount);
+        Auction auction = auctionDAO.selectByItemId(item);
+        auctionDAO.Update_Status(auction, item, AuctionStatus.PAID);
+        if(result >= 1){return true;}
+        return false;
+    }
 }
