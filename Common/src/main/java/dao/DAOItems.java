@@ -102,57 +102,60 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    public int Update(Item item) {
-        String sql = "UPDATE items SET name = ?, description = ?, startingPrice = ?, minBid = ?, auctionStartTime = ?, auctionEndTime = ?, imgdata = ?, itemType = ? WHERE my_row_id = ?";
+    public int UpdateWhenEdit(Item item) {
+        String sql = "UPDATE items SET name = ?, description = ?, startingPrice = ?, minBid = ?, " +
+                "auctionStartTime = ?, auctionEndTime = ?, imgdata = ?, itemType = ?, " +
+                "currentHighestBid = ? WHERE my_row_id = ?";
 
         try (Connection con = JDBCUtil.getConnection()) {
             ensureMinBidColumn(con);
             try (PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            pstmt.setString(1, item.getName());
+                pstmt.setString(1, item.getName());
 
-            // 🌟 GIẢI PHÁP AN TOÀN: Tạo bản đồ Payload để đóng gói JSON
-            Map<String, String> payload = new HashMap<>();
-            payload.put("description", item.getDescription()); // Luôn lấy mô tả mới nhất (bao gồm cả note nếu có)
+                // 🌟 GIẢI PHÁP AN TOÀN: Tạo bản đồ Payload để đóng gói JSON
+                Map<String, String> payload = new HashMap<>();
+                payload.put("description", item.getDescription());
 
-            // Lấy Map thuộc tính hiện tại của đối tượng item
-            Map<String, String> currentProps = item.getProperties();
+                Map<String, String> currentProps = item.getProperties();
 
-            // 🛡️ PHÒNG VỆ ĐA LUỒNG / TRÁNH MẤT DATA:
-            // Nếu các trường phụ bị null hoặc rỗng hoàn toàn (do UI khóa không truyền xuống khi Append Note),
-            // ta sẽ chủ động lấy lại các thuộc tính cũ đang nằm trong DB để không làm mất dữ liệu lịch sử của item.
-            if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
-                Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
-                if (dbBackup != null && dbBackup.getProperties() != null) {
-                    currentProps = dbBackup.getProperties();
+                // 🛡️ PHÒNG VỆ ĐA LUỒNG / TRÁNH MẤT DATA:
+                if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
+                    Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
+                    if (dbBackup != null && dbBackup.getProperties() != null) {
+                        currentProps = dbBackup.getProperties();
+                    }
                 }
-            }
 
-            // Đổ toàn bộ dữ liệu thuộc tính an toàn vào JSON payload
-            if (currentProps != null) {
-                payload.putAll(currentProps);
-            }
+                if (currentProps != null) {
+                    payload.putAll(currentProps);
+                }
 
-            // Tiến hành chuyển đổi sang chuỗi JSON để lưu trữ vào trường description
-            String combinedJson = mapper.writeValueAsString(payload);
-            pstmt.setString(2, combinedJson);
+                String combinedJson = mapper.writeValueAsString(payload);
+                pstmt.setString(2, combinedJson);
 
-            pstmt.setDouble(3, item.getStartingPrice());
-            pstmt.setDouble(4, item.getMinBid());
+                pstmt.setDouble(3, item.getStartingPrice());
+                pstmt.setDouble(4, item.getMinBid());
 
-            Instant startTime = item.getAuctionStartTime();
-            pstmt.setTimestamp(5, startTime != null ? java.sql.Timestamp.from(startTime) : null);
+                Instant startTime = item.getAuctionStartTime();
+                pstmt.setTimestamp(5, startTime != null ? java.sql.Timestamp.from(startTime) : null);
 
-            Instant endTime = item.getAuctionEndTime();
-            pstmt.setTimestamp(6, endTime != null ? java.sql.Timestamp.from(endTime) : null);
+                Instant endTime = item.getAuctionEndTime();
+                pstmt.setTimestamp(6, endTime != null ? java.sql.Timestamp.from(endTime) : null);
 
-            pstmt.setString(7, item.getImg());
+                pstmt.setString(7, item.getImg());
 
-            // Đảm bảo lưu đúng giá trị chuỗi tiếng Việt hoặc giá trị chuỗi của Enum
-            pstmt.setString(8, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
-            pstmt.setInt(9, item.getDatabaseId());
+                pstmt.setString(8, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
 
-            return pstmt.executeUpdate();
+                // ⬇️ ĐÃ FIX THỨ TỰ TỪ ĐÂY ⬇️
+
+                // Tham số số 9: currentHighestBid (Lấy giá khởi điểm hoặc getter tương ứng của bạn)
+                pstmt.setDouble(9, item.getStartingPrice());
+
+                // Tham số số 10: Điều kiện WHERE my_row_id = ?
+                pstmt.setInt(10, item.getDatabaseId());
+
+                return pstmt.executeUpdate();
             }
 
         } catch (Exception e) {

@@ -395,11 +395,25 @@ public class UserService {
     public void updateItem(Item item) throws PersistenceException {
         try {
             validateMinBidForSave(item, false);
-            int rowsAffected = DAOItems.getInstance().Update(item);
+
+            // VÌ PHIÊN CHƯA DIỄN RA: Ép giá hiện tại bằng đúng giá khởi điểm mới sửa
+            item.setCurrentHighestPrice(item.getStartingPrice());
+
+            // 1. Cập nhật bảng items (Cập nhật startingPrice gốc)
+            int rowsAffected = DAOItems.getInstance().UpdateWhenEdit(item);
             if (rowsAffected == 0) {
                 throw new PersistenceException("Cập nhật thất bại. Không tìm thấy sản phẩm hoặc dữ liệu không thay đổi.");
             }
             System.out.println("[UserService] Cập nhật thành công sản phẩm có ID: " + item.getDatabaseId());
+
+            // 2. Cập nhật bảng auction_items (Đồng bộ currentPrice theo startingPrice mới)
+            int auctionRowsAffected = DAOAuction_Items.getInstance().updatePriceByItemIdWhenEditItem(item);
+            if (auctionRowsAffected > 0) {
+                System.out.println("[UserService] Phiên chưa diễn ra. Đã đồng bộ giá hiện tại (currentPrice) thành: " + item.getCurrentHighestPrice());
+            } else {
+                System.out.println("[UserService] Lưu ý: Sản phẩm được cập nhật nhưng không tìm thấy phiên đấu giá tương ứng.");
+            }
+
         } catch (Exception e) {
             throw new PersistenceException("Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage(), e);
         }

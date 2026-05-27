@@ -23,6 +23,7 @@ import network.ServerListener;
 import org.controlsfx.control.Notifications;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -174,9 +175,11 @@ public class ControllerBidder implements ServerListener {
     private void setupPagination() {
         int currentPage = List_Items_Bid.getCurrentPageIndex();
 
-        // Sử dụng dữ liệu từ "filteredAssets" thay vì "allAssets"
         int pageCount = Math.max(1, (int) Math.ceil((double) filteredAssets.size() / itemsPerPage));
         List_Items_Bid.setPageCount(pageCount);
+
+        // Ép buộc xóa factory cũ và gán lại để JavaFX chịu vẽ lại trang hiện tại
+        List_Items_Bid.setPageFactory(null);
         List_Items_Bid.setPageFactory(this::createPage);
 
         if (currentPage < pageCount) {
@@ -338,10 +341,26 @@ public class ControllerBidder implements ServerListener {
         if (!isExist) {
             System.out.println("[UI Realtime] Phát hiện Item mới hoàn toàn! Thêm vào danh sách.");
             allAssets.add(updatedItem);
+            // Nếu là item mới hoàn toàn thì bắt buộc phải vẽ lại Pagination
+            handleSearch(txtSearch != null ? txtSearch.getText() : "");
+        } else {
+            // CẬP NHẬT THỜI GIAN THỰC LÊN MÀN HÌNH NẾU CARD ĐANG HIỂN THỊ
+            if (activeControllers.containsKey(targetId)) {
+                ItemCardController cardController = activeControllers.get(targetId);
+                // Gọi hàm setData hoặc một hàm updatePrice riêng trong ItemCardController của bạn
+                try {
+                    cardController.setData(updatedItem);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (URISyntaxException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("[UI Realtime] Đã ép thẻ ID " + targetId + " cập nhật giá mới trên màn hình!");
+            } else {
+                // Nếu card nằm ở trang khác, chỉ cần cập nhật danh sách lọc để khi họ chuyển trang sẽ thấy giá mới
+                handleSearch(txtSearch != null ? txtSearch.getText() : "");
+            }
         }
-
-        // Cập nhật lại giao diện dựa trên bộ lọc hiện hành
-        handleSearch(txtSearch != null ? txtSearch.getText() : "");
     }
 
     private void handleIncomingToastNotification(Object payload) {

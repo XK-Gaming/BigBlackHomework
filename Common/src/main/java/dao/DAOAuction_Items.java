@@ -330,4 +330,25 @@ public class DAOAuction_Items{
             return 0;
         }
     }
+    /**
+     * Thực hiện cập nhật lại giá hiện tại (currentPrice) trong bảng đấu giá
+     * dựa theo giá hiện tại mới của Item (khi phiên chưa bắt đầu).
+     */
+    public int updatePriceByItemIdWhenEditItem(Item item) {
+        String sql = "UPDATE auction_items SET currentPrice = ? WHERE id_item = ?";
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            // Vì chưa đấu giá, currentHighestPrice của đối tượng item chính là startingPrice mới
+            pstmt.setDouble(1, item.getCurrentHighestPrice());
+            pstmt.setLong(2, item.getDatabaseId());
+
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Lỗi tại updatePriceByItemId: " + e.getMessage());
+            e.printStackTrace();
+            return 0;
+        }
+    }
 }

@@ -76,22 +76,20 @@ public final class AuctionEngine implements AutoCloseable {
         if (auction == null) {
             return;
         }
-        Item item = auction.getItem();
-        if (item == null) {
-            long pk = auction.getItemId();
-            if (pk <= 0) {
-                return;
+
+        // BẤT KỂ item có null hay không, đọc lại từ DB để lấy Giá/Tên/Ảnh mới nhất
+        long pk = auction.getItemId();
+        if (pk > 0) {
+            Item freshItem = items.selectById(String.valueOf(pk));
+            if (freshItem != null) {
+                // Nạp item mới nhất vừa được cập nhật ở DB vào phiên đấu giá trên RAM
+                auction.setItem(freshItem);
             }
-            item = items.selectById(String.valueOf(pk));
-            if (item == null) {
-                return;
-            }
-            auction.setItem(item);
         }
+
         /* updateStatusByTime được gọi từ getStatus(); đồng bộ OPEN/RUNNING/FINISHED vào DB khi có thay đổi */
         auction.getStatus();
     }
-
     /** Dừng lịch; gọi khi tắt ứng dụng server (JavaFX). */
     public void stopEngine() {
         scheduler.shutdown();
