@@ -62,4 +62,5 @@ public class BidHandler extends BaseHandler implements RequestHandler {
 
         sendResponse(out, Command.BID_RESULT, response);
     }
+
 }

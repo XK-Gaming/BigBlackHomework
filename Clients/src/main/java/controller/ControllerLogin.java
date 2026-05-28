@@ -38,7 +38,6 @@ public class ControllerLogin implements ServerListener {
     public void initialize() {
         // Đăng ký controller này làm người nghe tin nhắn từ Server
         client.setListener(this);
-
         // Cấu hình hành động sau khi hết 5 giây: Ẩn thông báo lỗi và xóa toàn bộ viền đỏ
         errorDelay.setOnFinished(event -> clearAllErrors());
 

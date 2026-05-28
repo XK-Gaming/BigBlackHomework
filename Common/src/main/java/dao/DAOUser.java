@@ -55,7 +55,22 @@ public class DAOUser implements DaoInterface<User> {
 
     @Override
     public int Delete(User user) {
-        return 0;
+        int result = 0;
+        String sql = "DELETE FROM khach WHERE username = ?";
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstm = con.prepareStatement(sql)) {
+
+            pstm.setString(1, user.getUsername());
+
+            result = pstm.executeUpdate();
+
+        } catch (SQLException e) {
+            System.err.println("Lỗi SQL khi xóa user [" + user.getUsername() + "]: " + e.getMessage());
+            // e.printStackTrace(); // Bạn có thể mở dòng này nếu muốn xem chi tiết dòng lỗi
+            return 0;
+        }
+        return result;
     }
     public int UpdateBalance(String username, double newBalance) {
         // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)

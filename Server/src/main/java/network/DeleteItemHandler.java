@@ -3,6 +3,7 @@ package network;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import model.Items.Item;
+import model.auction.AuctionStatus;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
@@ -15,13 +16,18 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
         Map<String, Object> response = new HashMap<>();
 
         try {
+            // 1. Kiểm tra và ép kiểu đúng về đối tượng Item
             if (!(payload instanceof Item)) {
                 throw new IllegalArgumentException("Dữ liệu yêu cầu xóa không hợp lệ! Mong đợi đối tượng Item.");
             }
 
+            // Ép kiểu về Item trước
             Item selectedItem = (Item) payload;
+
+            // Rút ID số nguyên ra để dùng
             int itemId = selectedItem.getDatabaseId();
 
+            // 2. Kiểm tra xem sản phẩm đã có ai đặt giá chưa
             var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
             boolean hasBids = (auctionItem != null
                     && auctionItem.getBidHistory() != null
@@ -30,6 +36,8 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
             if (hasBids) {
                 response.put("success", false);
                 response.put("message", "Không thể xóa! Sản phẩm này đã có người tham gia đặt giá.");
+
+                // Gửi phản hồi thất bại về riêng cho Seller
                 sendResponse(out, Command.DELETE_ITEM_RESULT, response);
                 return; // Ngắt luồng luôn cho gọn sạch
             }

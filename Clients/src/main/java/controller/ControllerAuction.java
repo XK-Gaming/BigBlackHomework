@@ -1,6 +1,8 @@
 package controller;
 
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -1105,12 +1107,37 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Platform.runLater(() -> {
+                // CHỐT CHẶN 1: Bỏ qua nếu giao diện này đã bị đóng hoặc ẩn ngầm
+                if (j_notified == null || j_notified.getScene() == null) {
+                    System.out.println(">>> [Bỏ qua] Nhận được tin SET_ALLOW_RESULT nhưng màn hình này không active.");
+                    return;
+                }
+
+                // 1. Tạo Alert dạng thông báo thuần túy (không block luồng)
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Thông báo");
                 alert.setHeaderText("Phiên đấu giá bị tạm dừng!");
-                alert.setContentText("Hệ thống sẽ chuyển bạn về màn hình chính.");
-                alert.showAndWait();
-                SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
+                alert.setContentText("Hệ thống sẽ tự động đưa bạn về màn hình chính sau 4 giây...");
+
+                // Sử dụng show() thay vì showAndWait() để code tiếp tục chạy xuống dưới
+                alert.show();
+
+                // 2. Thiết lập đồng hồ đếm ngược 4 giây bằng Timeline của JavaFX
+                Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(4), event -> {
+                    // Đoạn code bên trong này sẽ TỰ ĐỘNG CHẠY sau khi hết 4 giây
+
+                    // Tự động đóng hộp thoại Alert lại (tránh việc nó treo trên màn hình mới)
+                    if (alert.isShowing()) {
+                        alert.close();
+                    }
+
+                    // Kiểm tra lại một lần nữa xem người dùng có tắt màn hình trong lúc đợi 4s không
+                    if (j_notified != null && j_notified.getScene() != null) {
+                        SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");}
+                }));
+
+                // Kích hoạt đồng hồ chạy
+                timeline.play();
             });
         }
 
@@ -1151,6 +1178,16 @@ public class ControllerAuction implements ServerListener {
                     SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
                 });
             }
+        }
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
         }
     }
 

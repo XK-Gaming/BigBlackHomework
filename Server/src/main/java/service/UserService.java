@@ -504,10 +504,8 @@ public class UserService {
 
         Auction auction = auctionDAO.selectByItemId(item);
         AuctionStatus nextStatus = Boolean.parseBoolean(choose) ? AuctionStatus.OPEN : null;
+        auction.setStatus(nextStatus);
         auctionDAO.Update_Status(auction,item, nextStatus);
-        if (auction != null && auction.getItem() != null) {
-            auction.getItem().setAuctionStatus(auction.getStatus());
-        }
         return auction;
     }
 

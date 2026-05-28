@@ -102,7 +102,7 @@ public class Auction extends Entity implements Serializable {
         Instant now = Instant.now();
 
         // 1. Nếu đấu giá đã bị hủy hoặc đã thanh toán thì không tự động đổi nữa
-        if (this.status == AuctionStatus.CANCELLED || this.status == AuctionStatus.PAID) {
+        if (this.status == AuctionStatus.CANCELLED || this.status == AuctionStatus.PAID || this.status == null) {
             return;
         }
 

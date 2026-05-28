@@ -34,9 +34,7 @@ public class DAOAuction_Items{
 
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
-
-            // Khởi tạo mặc định là OPEN thay vì để NULL
-            pstmt.setString(3, gson.toJson(AuctionStatus.OPEN));
+            pstmt.setString(3, gson.toJson(null));
 
             String leadingUsername = auction.getLeadingBidder();
             pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson

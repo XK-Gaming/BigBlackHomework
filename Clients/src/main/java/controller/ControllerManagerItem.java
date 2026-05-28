@@ -44,11 +44,9 @@ public class ControllerManagerItem implements ServerListener {
     private User p1 = UserSession.getLoggedInUser();
     private AuctionClient client = AuctionClient.getInstance();
 
-    // Biến lưu phiên đấu giá hiện tại và item đang chọn
     private Auction auction;
     private Item item;
 
-    // Danh sách quan sát hiển thị trên TableView
     private ObservableList<Item> allAssets = FXCollections.observableArrayList();
 
     public void initialize() throws IOException {
@@ -56,36 +54,34 @@ public class ControllerManagerItem implements ServerListener {
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
-        // Kết nối cột TableView với dữ liệu model
+        // Kết nối cột TableView
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colCategory.setCellValueFactory(new PropertyValueFactory<>("itemType"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("displayStatus"));
-        // Khởi tạo: Bản đầu hiện ra TẤT CẢ sản phẩm (vì điều kiện luôn luôn đúng 'true')
-        filteredAssets = new FilteredList<>(allAssets, p -> true);
-        tableProducts.setItems(filteredAssets); // Gán danh sách vào bảng
 
+        filteredAssets = new FilteredList<>(allAssets, p -> true);
+        tableProducts.setItems(filteredAssets);
 
         client.sendCommand(Command.SELECT_ITEMS, UserRole.ADMIN);
 
-        // Hiển thị chi tiết khi chọn một item trong bảng
+        // Lắng nghe sự kiện chọn dòng trên TableView
         tableProducts.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 item = newValue;
-                auction = null; // Reset để tránh nhầm dữ liệu cũ
+                auction = null; // Xóa dữ liệu cũ của phiên trước
 
                 showItemDetails(newValue);
-                updateAuctionControls(); // Đặt nút về trạng thái "ĐANG TẢI"
+                updateAuctionControls();
 
                 try {
-                    // Gửi lệnh lấy thông tin phiên đấu giá của item vừa chọn
                     Map<String, Object> setAuctionPayload = new HashMap<>();
                     setAuctionPayload.put("userId", p1.getUsername());
                     setAuctionPayload.put("itemId", newValue.getDatabaseId());
                     client.sendCommand(Command.SET_AUCTION, setAuctionPayload);
                     client.sendCommand(Command.GET_AUCTION, newValue.getDatabaseId());
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }
         });
@@ -97,51 +93,60 @@ public class ControllerManagerItem implements ServerListener {
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
 
-        // TH1: Nhận danh sách tất cả sản phẩm (Lần đầu load)
+        // TH1: Tải danh sách sản phẩm ban đầu
         if (Command.SELECT_ITEMS_RESULT.equals(command)) {
             List<Item> itemsFromServer = (List<Item>) response.payload();
             Platform.runLater(() -> {
+                // Hủy theo dõi các item cũ trước khi xóa danh sách để tránh rò rỉ bộ nhớ
+                for (Item oldItem : allAssets) {
+                    AuctionEngine.getInstance().unwatchItem(oldItem);
+                }
+
                 allAssets.setAll(itemsFromServer);
 
-                // Kích hoạt theo dõi đếm ngược thời gian thực cho toàn bộ bảng
+                // Kích hoạt theo dõi đếm ngược thời gian thực
                 for (Item currentItem : allAssets) {
                     if (currentItem.getAuctionStatus() == null) {
                         currentItem.setDisplayStatus("DISABLE");
                         continue;
                     }
 
-                    AuctionEngine.getInstance().watchItem(currentItem, (status, seconds) -> {
-                        Platform.runLater(() -> {
-                            String timeFormatted = formatDuration(seconds);
-                            if (status == null) {
-                                currentItem.setDisplayStatus("DISABLE");
-                                return; // Thoát luôn, không chạy xuống switch nữa
-                            }
-                            String statusString = switch (status) {
-                                case OPEN -> "OPEN  (" + timeFormatted + ")";
-                                case RUNNING -> "RUNNING (" + timeFormatted + ")";
-                                case FINISHED -> "FINISHED";
-                                case PAID -> "PAID";
-                                case CANCELLED -> "CANCELLED";
-                            };
-                            currentItem.setDisplayStatus(statusString);
-                        });
-                    });
+                    updateSelectedItemStatus(currentItem);
                 }
             });
         }
 
-        // TH2: Nhận sản phẩm mới hoặc cập nhật từ Server
         if (Command.ITEMS_UPDATE.equals(command)) {
             Item newItem = (Item) response.payload();
             Platform.runLater(() -> {
-                // Kiểm tra xem đã tồn tại chưa để tránh trùng lặp
+                // 1. Hủy theo dõi luồng cũ của item này (nếu có) để tránh rò rỉ bộ nhớ
+                allAssets.stream()
+                        .filter(it -> it.getDatabaseId() == newItem.getDatabaseId())
+                        .findFirst()
+                        .ifPresent(it -> AuctionEngine.getInstance().unwatchItem(it));
+
+                // 2. Xóa phần tử cũ và thêm phần tử mới nhận từ server vào
                 allAssets.removeIf(it -> it.getDatabaseId() == newItem.getDatabaseId());
                 allAssets.add(newItem);
+
+                // 3. CHỐT CHẶN: Ép trạng thái hiển thị thành DISABLE nếu status từ DB trả về là null
+                if (newItem.getAuctionStatus() == null) {
+                    newItem.setDisplayStatus("DISABLE");
+                } else {
+                    // Nếu sản phẩm mới mang trạng thái hoạt động (OPEN/RUNNING), kích hoạt luồng đếm ngược luôn
+                    updateSelectedItemStatus(newItem);
+                }
+
+                // 4. Đồng bộ giao diện khu vực chi tiết bên phải nếu Admin đang chọn trúng item vừa cập nhật
+                if (item != null && item.getDatabaseId() == newItem.getDatabaseId()) {
+                    item = newItem;
+                    showItemDetails(newItem);
+                    updateAuctionControls();
+                }
             });
         }
 
-        // TH3: Nhận dữ liệu phiên đấu giá của Item được chọn
+        // TH3: Nhận thông tin phiên đấu giá cụ thể
         if (Command.GET_AUCTION_RESULT.equals(command)) {
             auction = (Auction) response.payload();
             Platform.runLater(() -> {
@@ -152,41 +157,65 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
 
+        // TH4: Kết quả Phê duyệt / Tạm dừng
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            if (responsePayload == null) return;
+
             Object auctionObj = responsePayload.get("auction");
             boolean success = responsePayload.get("success") != null && (boolean) responsePayload.get("success");
-            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
 
-            if (auctionObj instanceof Auction) {
+            if (success && auctionObj instanceof Auction) {
                 Auction updatedAuction = (Auction) auctionObj;
-                // Cập nhật auction hiện tại nếu đúng ID
+
+                // --- 1. XỬ LÝ LOGIC DỮ LIỆU TRÊN BACKGROUND THREAD ---
                 if (item != null && updatedAuction.getItemId() == item.getDatabaseId()) {
-                    auction = updatedAuction;
+                    if (auction != null) {
+                        auction.setStatus(updatedAuction.getStatus());
+                    }
                 }
-                
-                // Cập nhật trạng thái trong danh sách allAssets
+
                 for (Item it : allAssets) {
                     if (it.getDatabaseId() == updatedAuction.getItemId()) {
+                        // Đồng bộ trạng thái cốt lõi từ server về model
                         it.setAuctionStatus(updatedAuction.getStatus());
-                        updateSelectedItemStatus(it);
+
+                        if (updatedAuction.getStatus() == null) {
+                            // Nếu đưa về null -> TẠM DỪNG: Ngắt luồng ngầm ngay lập tức tại đây
+                            AuctionEngine.getInstance().unwatchItem(it);
+                            Platform.runLater(() -> it.setDisplayStatus("DISABLE"));
+                        } else {
+                            // Nếu khác null -> PHÊ DUYỆT: Kích hoạt/Cập nhật lại luồng đếm giây
+                            updateSelectedItemStatus(it);
+                        }
                         break;
                     }
                 }
-            }
 
-            Platform.runLater(() -> {
-                if (success) {
+                // --- 2. ĐẨY THÔNG BÁO UI LÊN FX APPLICATION THREAD ---
+                Platform.runLater(() -> {
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Thông báo");
                     alert.setHeaderText(null);
-                    alert.setContentText(isAllow ? "Phê duyệt thành công!" : "Tạm dừng thành công!");
+
+                    // CHỐT CHẶN LỖI: Kiểm tra trực tiếp trên data sạch từ server trả về
+                    if (auction.getStatus() != null) {
+                        alert.setContentText("Phê duyệt thành công!");
+                    } else {
+                        alert.setContentText("Tạm dừng thành công!");
+                    }
                     alert.showAndWait();
-                }
-                updateAuctionControls();
-            });
+
+                    // Làm mới giao diện vùng bên phải và các nút bấm điều khiển
+                    if (item != null && item.getDatabaseId() == updatedAuction.getItemId()) {
+                        showItemDetails(item);
+                    }
+                    updateAuctionControls();
+                });
+            }
         }
 
+        // TH5: Xóa sản phẩm thành công
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.getOrDefault("success", false);
@@ -194,15 +223,22 @@ public class ControllerManagerItem implements ServerListener {
 
             Platform.runLater(() -> {
                 if (success) {
+                    // ĐÃ SỬA LỖI TRỐNG KEY: Điền chính xác "deletedItemId"
                     int deletedItemId = ((Number) resData.get("deletedItemId")).intValue();
+
+                    // Tìm và hủy watch của item bị xóa để giải phóng bộ nhớ thread
+                    allAssets.stream()
+                            .filter(it -> it.getDatabaseId() == deletedItemId)
+                            .findFirst()
+                            .ifPresent(it -> AuctionEngine.getInstance().unwatchItem(it));
+
+                    allAssets.removeIf(it -> it.getDatabaseId() == deletedItemId);
+
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Thông báo");
                     alert.setHeaderText(null);
                     alert.setContentText("Xóa thành công!");
                     alert.showAndWait();
-
-                    // Xóa khỏi danh sách hiển thị
-                    allAssets.removeIf(it -> it.getDatabaseId() == deletedItemId);
 
                     if (item != null && item.getDatabaseId() == deletedItemId) {
                         tableProducts.getSelectionModel().clearSelection();
@@ -222,41 +258,45 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
 
-        if (Command.FORCE_LOGOUT.equals(command)) {
-            Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Tài khoản bị xóa");
-                alert.setHeaderText(null);
-                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
-                alert.showAndWait();
-                System.exit(0);
-            });
-        }
+
     }
 
-    // Cập nhật bộ đếm thời gian cho riêng Item đang được chọn (Tối ưu chỉ refresh bảng)
     private void updateSelectedItemStatus(Item targetItem) {
         if (targetItem == null) return;
 
         AuctionEngine.getInstance().watchItem(targetItem, (auctionstatus, seconds) -> {
+            // --- 1. XỬ LÝ LOGIC & CHỐT CHẶN TRÊN BACKGROUND THREAD (Của Engine) ---
+
+            // Chốt chặn 1: Trạng thái null (Tạm dừng)
+            if (auctionstatus == null || targetItem.getAuctionStatus() == null) {
+                AuctionEngine.getInstance().unwatchItem(targetItem); // Ngắt kết nối ngay lập tức tại đây
+                Platform.runLater(() -> targetItem.setDisplayStatus("DISABLE"));
+                return;
+            }
+
+            // Chốt chặn 2: Các trạng thái tĩnh (Kết thúc phiên)
+            if (auctionstatus == AuctionStatus.FINISHED ||
+                    auctionstatus == AuctionStatus.PAID ||
+                    auctionstatus == AuctionStatus.CANCELLED) {
+
+                AuctionEngine.getInstance().unwatchItem(targetItem); // Ngắt kết nối ngay lập tức tại đây
+                final String finalStatus = auctionstatus.toString();
+                Platform.runLater(() -> targetItem.setDisplayStatus(finalStatus));
+                return;
+            }
+
+            // Tối ưu: Tính toán chuỗi hiển thị ngay trên Background Thread
+            String timeFormatted = formatDuration(seconds);
+            String statusString = switch (auctionstatus) {
+                case OPEN -> "OPEN (" + timeFormatted + ")";
+                case RUNNING -> "RUNNING (" + timeFormatted + ")";
+                default -> auctionstatus.toString();
+            };
+
+            // --- 2. ĐẨY DỮ LIỆU ĐÃ XỬ LÝ XONG LÊN UI THREAD ĐỂ HIỂN THỊ ---
+            final String displayValue = statusString;
             Platform.runLater(() -> {
-                // 1. Kiểm tra an toàn: Nếu Engine báo trạng thái đã bị đưa về null
-                if (auctionstatus == null) {
-                    targetItem.setDisplayStatus("DISABLE");
-                    return; // Dừng luôn, không chạy xuống switch-case nữa
-                }
-
-                // 2. Nếu trạng thái hợp lệ, tính toán chuỗi hiển thị như bình thường
-                String timeFormatted = formatDuration(seconds);
-                String statusString = switch (auctionstatus) {
-                    case OPEN -> "OPEN (" + timeFormatted + "))";
-                    case RUNNING -> "RUNNING (" + timeFormatted + ")";
-                    case FINISHED -> "FINISHED";
-                    case PAID -> "PAID";
-                    case CANCELLED -> "CANCELLED";
-                };
-
-                targetItem.setDisplayStatus(statusString);
+                targetItem.setDisplayStatus(displayValue);
             });
         });
     }
@@ -276,7 +316,6 @@ public class ControllerManagerItem implements ServerListener {
     private void showItemDetails(Item item) {
         if (item == null) return;
         j_Delete.setVisible(true);
-        // 1. Cập nhật các thành phần chữ tĩnh
         detailName.setText(item.getName());
         detailDesc.setText(item.getDescription());
 
@@ -285,7 +324,6 @@ public class ControllerManagerItem implements ServerListener {
                 item.getStartingPrice());
         detailSpecs.setText(specs);
 
-        // 2. Cập nhật ảnh từ URL hoặc Resources
         if (item.getImg() != null && !item.getImg().isEmpty()) {
             if (item.getImg().startsWith("http")) {
                 detailImage.setImage(new Image(item.getImg(), true));
@@ -304,39 +342,49 @@ public class ControllerManagerItem implements ServerListener {
 
     @FXML
     void On_ButtonController(ActionEvent event) throws IOException {
-        if (auction == null) return;
+        if (item == null) return; // Bảo vệ an toàn bằng cách check trực tiếp đối tượng Item được chọn
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("itemId", String.valueOf(auction.getItemId()));
-        
-        if (auction.getStatus() == null) {
-            payload.put("allow", "true");
+        payload.put("itemId", String.valueOf(item.getDatabaseId()));
+
+        // Gửi lệnh đảo ngược trạng thái chuẩn xác dựa theo UI TableView
+        if (item.getAuctionStatus() == null) {
+            payload.put("allow", "true"); // Đang DISABLE thì bấm nút sẽ gửi lệnh PHÊ DUYỆT
         } else {
-            payload.put("allow", "false");
+            payload.put("allow", "false"); // Đang OPEN/RUNNING thì bấm nút sẽ gửi lệnh TẠM DỪNG
         }
         client.sendCommand(Command.SET_ALLOW, payload);
     }
 
-    // Hàm tập trung duy nhất chịu trách nhiệm thay đổi giao diện nút điều khiển
     private void updateAuctionControls() {
-        if (auction == null) {
+        // ĐÃ SỬA LỖI ĐỒNG BỘ: Dùng thuộc tính item làm gốc duy nhất để render chữ của nút bấm
+        if (item == null) {
             j_ButtonController.setDisable(true);
             j_ButtonController.setText("ĐANG TẢI");
             return;
         }
 
         j_ButtonController.setDisable(false);
-        if (auction.getStatus() == null) {
+
+        if (item.getAuctionStatus() == null) {
             j_ButtonController.setText("PHÊ DUYỆT");
-        } else if (auction.getStatus() == AuctionStatus.FINISHED) {
+            j_ButtonController.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;"); // Màu xanh lá bắt mắt
+        } else if (item.getAuctionStatus() == AuctionStatus.FINISHED) {
             j_ButtonController.setText("ĐÃ KẾT THÚC");
-            j_ButtonController.setDisable(true); // Kết thúc rồi thì khóa nút lại
+            j_ButtonController.setDisable(true);
+            j_ButtonController.setStyle("-fx-background-color: #9E9E9E; -fx-text-fill: white;");
+        } else if (item.getAuctionStatus() == AuctionStatus.PAID ||
+                item.getAuctionStatus() == AuctionStatus.CANCELLED) {
+            j_ButtonController.setText("HOÀN THÀNH");
+            j_ButtonController.setDisable(true);
+            j_ButtonController.setStyle("-fx-background-color: #9E9E9E; -fx-text-fill: white;");
         } else {
+            // Trạng thái OPEN hoặc RUNNING
             j_ButtonController.setText("TẠM DỪNG");
+            j_ButtonController.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;"); // Đổi sang màu đỏ cảnh báo khi chạy
         }
     }
 
-    // --- Quản lý các thành phần Đồ họa / Biểu đồ ---
     @FXML private LineChart<String, Number> bidLineChart;
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
@@ -367,30 +415,22 @@ public class ControllerManagerItem implements ServerListener {
                 .format(instant);
     }
 
-
-
-    // --- Bộ lọc các thông tin đấu giá ---
     @FXML
     void On_Filter(ActionEvent event) {
-        // 1. Lấy giá trị Admin đang chọn tại thời điểm bấm nút
         Object selectedCategoryObj = cbCategory.getSelectionModel().getSelectedItem();
         Object selectedStatusObj = cbStatus.getSelectionModel().getSelectedItem();
 
         String selectedCategory = (selectedCategoryObj != null) ? selectedCategoryObj.toString() : null;
         String selectedStatus = (selectedStatusObj != null) ? selectedStatusObj.toString() : null;
 
-        // 2. Kích hoạt chuyển đổi màng lọc
         filteredAssets.setPredicate(item -> {
-            // Mặc định là thỏa mãn nếu Admin không chọn gì hoặc chọn "Tất cả"
             boolean matchCategory = (selectedCategory == null || selectedCategory.isEmpty() || selectedCategory.equals("TẤT CẢ"));
             boolean matchStatus = (selectedStatus == null || selectedStatus.isEmpty() || selectedStatus.equals("TẤT CẢ"));
 
-            // Lọc theo Danh mục
             if (item.getItemType() != null && selectedCategory != null && !selectedCategory.equals("TẤT CẢ")) {
                 matchCategory = item.getItemType().equalsIgnoreCase(selectedCategory);
             }
 
-            // Lọc theo Trạng thái
             if (selectedStatus != null && !selectedStatus.equals("TẤT CẢ")) {
                 if (item.getAuctionStatus() == null) {
                     matchStatus = selectedStatus.equalsIgnoreCase("DISABLE");
@@ -402,16 +442,15 @@ public class ControllerManagerItem implements ServerListener {
             return matchCategory && matchStatus;
         });
     }
+
     @FXML
     void On_ResetFilter(ActionEvent event) {
-        // 1. Xóa sạch các chữ đang chọn trên thanh ComboBox
         cbCategory.getSelectionModel().clearSelection();
         cbStatus.getSelectionModel().clearSelection();
-
-        // 2. Đưa màng lọc về trạng thái ban đầu: Hiện ra TẤT CẢ sản phẩm
         filteredAssets.setPredicate(p -> true);
     }
-    // --- Các Event Handler FXML chưa dùng tới ---
+
+    // --- Các FXML Components ---
     @FXML private ComboBox<String> cbCategory;
     @FXML private ComboBox<String> cbStatus;
     @FXML private TableColumn<?, ?> colCategory;
@@ -433,8 +472,10 @@ public class ControllerManagerItem implements ServerListener {
     @FXML private ImageView detailImage;
     @FXML private Label detailName;
     @FXML private Label detailSpecs;
+
     @FXML void On_ItemManager(ActionEvent event) {}
     @FXML void On_MouseClickImg(MouseEvent event) {}
+
     @FXML
     void On_Return(ActionEvent event) {
         try {
@@ -443,6 +484,7 @@ public class ControllerManagerItem implements ServerListener {
             e.printStackTrace();
         }
     }
+
     @FXML
     void On_Delete(ActionEvent event) throws IOException {
         if (item != null) {

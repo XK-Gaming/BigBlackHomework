@@ -271,6 +271,25 @@ public class ControllerProductList implements ServerListener {
                 requestProductsFromNetwork();
             });
         }
+        if (Command.FORCE_LOGOUT.equals(response.command())) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(response.command())) {
+            Platform.runLater(() -> {
+                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
+                // 2. Chuyển về màn hình đăng nhập
+            });
+        }
     }
 
     private SimpleStringProperty formatInstant(Instant instant) {
@@ -340,12 +359,17 @@ public class ControllerProductList implements ServerListener {
                 }
             });
         }
+
     }
 
     @FXML
-    void On_LogOut(ActionEvent event) {
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
+    void On_LogOut (ActionEvent event) {
+        try {
+            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+        } catch (IOException e) {
+            System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
+            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
+        }
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

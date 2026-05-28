@@ -18,7 +18,6 @@ import model.User.User;
 import model.auction.BidHistoryDTO;
 import network.*;
 import java.io.IOException;
-import java.io.Serializable;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -49,10 +48,13 @@ public class ControllerManagerUser implements ServerListener {
 
     private final AuctionClient client = AuctionClient.getInstance();
     private ObservableList<User> masterData = FXCollections.observableArrayList();
+    private ConnectionStatusManager statusManager;
 
     @FXML
     public void initialize() {
         client.setListener(this);
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
         setupTable();
         setupComboBox();
         loadData();
@@ -229,5 +231,12 @@ public class ControllerManagerUser implements ServerListener {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+    @FXML private Button btnRefresh; // Phải trùng khớp fx:id="btnRefresh" ở XML
+
+    @FXML
+    public void On_RefreshData(ActionEvent event) {
+        loadData(); // Tải lại toàn bộ dữ liệu từ Server
+        tableUsers.getSelectionModel().clearSelection(); // Reset vùng chọn bảng
     }
 }

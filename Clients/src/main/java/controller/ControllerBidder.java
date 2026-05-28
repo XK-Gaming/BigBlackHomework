@@ -87,8 +87,6 @@ public class ControllerBidder implements ServerListener {
         } catch (IOException e) {
             System.err.println("Logout request failed: " + e.getMessage());
         }
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
 
     @FXML
@@ -313,6 +311,25 @@ public class ControllerBidder implements ServerListener {
         if (Command.NOTIFICATION.equals(command)) {
             handleIncomingToastNotification(response.payload());
         }
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(command)) {
+            Platform.runLater(() -> {
+                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
+                // 2. Chuyển về màn hình đăng nhập
+            });
+        }
     }
 
     private void processPayloadObject(Object obj, List<Item> listToPopulate) {
@@ -507,4 +524,5 @@ public class ControllerBidder implements ServerListener {
             handleSearch(txtSearch != null ? txtSearch.getText() : "");
         }
     }
+
 }

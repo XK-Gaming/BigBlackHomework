@@ -61,24 +61,22 @@
          <children>
             <VBox spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 5);">
                <children>
-            <HBox alignment="CENTER_LEFT" spacing="10.0">
-               <children>
-                  <Label text="HỆ THỐNG QUẢN TRỊ TÀI KHOẢN" textFill="#1A2233">
-                     <font><Font name="System Bold" size="22.0" /></font>
-                  </Label>
-                  <Region HBox.hgrow="ALWAYS" />
-                  <HBox alignment="CENTER_LEFT" spacing="5.0">
+                  <HBox alignment="CENTER_LEFT" spacing="10.0">
                      <children>
-                        <Label fx:id="connectionText" text="Offline" textFill="#666666">
-                           <font>
-                              <Font size="11.0" />
-                           </font>
+                        <Label text="HỆ THỐNG QUẢN TRỊ TÀI KHOẢN" textFill="#1A2233">
+                           <font><Font name="System Bold" size="22.0" /></font>
                         </Label>
-                        <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="5.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <HBox alignment="CENTER_LEFT" spacing="5.0">
+                           <children>
+                              <Label fx:id="connectionText" text="Offline" textFill="#666666">
+                                 <font><Font size="11.0" /></font>
+                              </Label>
+                              <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="5.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+                           </children>
+                        </HBox>
                      </children>
                   </HBox>
-               </children>
-            </HBox>
                   <HBox alignment="BOTTOM_LEFT" spacing="25.0">
                      <children>
                         <VBox spacing="5.0">
@@ -87,7 +85,9 @@
                               <ComboBox fx:id="cbRole" prefWidth="200.0" promptText="-- Tất cả vai trò --" />
                            </children>
                         </VBox>
-                        <Button onAction="#On_Filter" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2B3442; -fx-text-fill: white; -fx-font-weight: bold;" text="LỌC TÀI KHOẢN" />
+                        <Button onAction="#On_Filter" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2B3442; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="LỌC TÀI KHOẢN" />
+
+                        <Button fx:id="btnRefresh" onAction="#On_RefreshData" prefHeight="35.0" prefWidth="100.0" style="-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="🔄 LÀM MỚI" />
                      </children>
                   </HBox>
                </children>
@@ -121,9 +121,7 @@
                                                 <VBox HBox.hgrow="ALWAYS">
                                                    <children>
                                                       <Label fx:id="detailUsername" text="Chưa chọn User" textFill="#2B3442">
-                                                         <font>
-                                                            <Font name="System Bold" size="18.0" />
-                                                         </font>
+                                                         <font><Font name="System Bold" size="18.0" /></font>
                                                       </Label>
                                                       <Label fx:id="detailRole" text="Vai trò: ---" textFill="#718096" />
                                                    </children>
