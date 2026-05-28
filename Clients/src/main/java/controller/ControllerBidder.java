@@ -495,8 +495,6 @@ public class ControllerBidder implements ServerListener {
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/BidHistoryView.fxml");
     }
 
-    public void On_MyAuctions(ActionEvent event) {
-    }
 
     private void removeSingleItem(int deletedId) {
         System.out.println("[UI Realtime] Phát hiện Item ID " + deletedId + " bị xóa từ Server. Đang dọn dẹp...");

@@ -39,4 +39,12 @@ public class SceneHelper {
             return null;
         }
     }
+    public static void changeScene(javafx.stage.Stage stage, String fxmlPath) {
+        try {
+            javafx.scene.Parent root = javafx.fxml.FXMLLoader.load(SceneHelper.class.getResource(fxmlPath));
+            stage.getScene().setRoot(root);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

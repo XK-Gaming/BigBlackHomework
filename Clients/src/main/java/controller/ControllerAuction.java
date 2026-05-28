@@ -828,17 +828,48 @@ public class ControllerAuction implements ServerListener {
         }));
     }
 
+    private javafx.stage.Stage findValidStage() {
+        // Thử lấy stage từ các node hiện tại
+        if (j_return != null && j_return.getScene() != null) return (javafx.stage.Stage) j_return.getScene().getWindow();
+        if (j_apply != null && j_apply.getScene() != null) return (javafx.stage.Stage) j_apply.getScene().getWindow();
+
+        // Nếu chịu chết, lấy Stage đầu tiên đang hiển thị của ứng dụng
+        return javafx.stage.Window.getWindows().stream()
+                .filter(w -> w instanceof javafx.stage.Stage && w.isShowing())
+                .map(w -> (javafx.stage.Stage) w)
+                .findFirst()
+                .orElse(null);
+    }
+
     private void handleFinishedAuction() {
         if (p1 != null && this_Auction != null && this_Auction.getLeadingBidder() != null
                 && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
+
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
+
             PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_notified, "/fxml/PayingView.fxml"));
+            delay.setOnFinished(e -> {
+                javafx.stage.Stage stage = findValidStage();
+                if (stage != null) {
+                    SceneHelper.changeScene(stage, "/fxml/PayingView.fxml");
+                } else {
+                    System.err.println("[CRITICAL] Không tìm thấy Stage nào đang mở để chuyển trang!");
+                }
+            });
             delay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
             j_notified.setVisible(true);
+
+            PauseTransition delay = new PauseTransition(Duration.seconds(3));
+            delay.setOnFinished(e -> {
+                javafx.stage.Stage stage = findValidStage();
+                if (stage != null) {
+                    SceneHelper.changeScene(stage, "/fxml/BidderView.fxml");
+                }
+            });
+            delay.play();
         }
     }
 

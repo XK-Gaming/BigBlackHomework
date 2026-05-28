@@ -302,6 +302,7 @@ public class ControllerBidHistory implements ServerListener {
         String statusColorStyle = "";
         String statusText = "";
         boolean showRebidButton = false;
+        boolean showPaymentButton = false; // Thêm biến cờ để kiểm soát nút thanh toán
 
         switch (dto.getStatus()) {
             case "WINNING" -> {
@@ -316,6 +317,7 @@ public class ControllerBidHistory implements ServerListener {
             case "WON" -> {
                 statusColorStyle = "-fx-background-color: #FFFDE7; -fx-border-color: #FFC107; -fx-border-radius: 10; -fx-border-width: 1.5;";
                 statusText = "🏆 Thắng cuộc";
+                showPaymentButton = true; // Bật hiển thị nút thanh toán khi đấu giá thành công
             }
             case "LOST" -> {
                 statusColorStyle = "-fx-background-color: #F5F5F5; -fx-border-color: #BDBDBD; -fx-border-radius: 10; -fx-border-width: 1.5;";
@@ -327,7 +329,6 @@ public class ControllerBidHistory implements ServerListener {
         VBox txtSection = new VBox(6);
 
         // ==================== ĐOẠN ĐÃ ĐƯỢC NÂNG CẤP HIỂN THỊ TÊN ====================
-        // Kết hợp Tên thật từ Server gửi về và ID gốc để hiển thị rõ ràng hơn
         String rawName = dto.getItemName();
         String finalDisplayName;
 
@@ -340,7 +341,6 @@ public class ControllerBidHistory implements ServerListener {
         Label nameLabel = new Label(finalDisplayName);
         nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
 
-        // Chống tràn chữ: Nếu tên sản phẩm quá dài, JavaFX sẽ tự thêm dấu "..." ở cuối thay vì đẩy layout ra ngoài
         nameLabel.setWrapText(false);
         nameLabel.setMaxWidth(280);
         // ===========================================================================
@@ -364,6 +364,7 @@ public class ControllerBidHistory implements ServerListener {
         statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
         actionSection.getChildren().add(statusLabel);
 
+        // 1. NÚT RE-BID NHANH (KHI BỊ VƯỢT MẶT)
         if (showRebidButton) {
             Button rebidBtn = new Button("Re-bid nhanh");
             rebidBtn.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
@@ -372,6 +373,26 @@ public class ControllerBidHistory implements ServerListener {
             actionSection.getChildren().add(rebidBtn);
         }
 
+        // 2. NÚT VÀO THANH TOÁN (KHI ĐẤU GIÁ THÀNH CÔNG - WON)
+        if (showPaymentButton) {
+            Button btnPayment = new Button("Vào thanh toán");
+            // Giao diện màu Cam nổi bật phong cách Payment
+            btnPayment.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
+            btnPayment.setPadding(new Insets(5, 10, 5, 10));
+
+            btnPayment.setOnAction(e -> {
+                client.setListener(null); // Gỡ bỏ listener hiện tại trước khi chuyển màn hình
+
+                var targetController = SceneHelper.changeSceneAndGetController(btnPayment, "/fxml/PayingView.fxml");
+                if (targetController instanceof ControllerPayment paymentCtrl) {
+                    paymentCtrl.initData(dto); // Gọi hàm truyền dữ liệu vừa viết ở Bước 1
+                    System.out.println("[Chuyển hướng] Đã kích hoạt initData cho ControllerPayment thành công.");
+                }
+            });
+            actionSection.getChildren().add(btnPayment);
+        }
+
+        // 3. NÚT VÀO PHÒNG ĐẤU GIÁ (Nên ẩn đi hoặc giữ lại tùy bạn, ở đây giữ nguyên theo code cũ)
         Button btnGoToAuction = new Button("Vào phòng ĐG");
         btnGoToAuction.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
         btnGoToAuction.setPadding(new Insets(5, 10, 5, 10));

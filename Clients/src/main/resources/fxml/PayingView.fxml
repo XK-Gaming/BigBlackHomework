@@ -147,11 +147,21 @@
                      </cursor>
                   </Button>
 
-                  <Button fx:id="j_return" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #B0B8C4; -fx-border-radius: 5; -fx-text-fill: #555555; -fx-font-weight: bold;" text="Quay lại">
-                     <cursor>
-                        <Cursor fx:constant="HAND" />
-                     </cursor>
-                  </Button>
+                  <HBox spacing="10.0" maxWidth="Infinity">
+                     <children>
+                        <Button fx:id="j_return" HBox.hgrow="ALWAYS" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #B0B8C4; -fx-border-radius: 5; -fx-text-fill: #555555; -fx-font-weight: bold;" text="Về Sảnh">
+                           <cursor>
+                              <Cursor fx:constant="HAND" />
+                           </cursor>
+                        </Button>
+                        <Button fx:id="j_return_history" HBox.hgrow="ALWAYS" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return_History" prefHeight="40.0" style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="Lịch sử">
+                           <cursor>
+                              <Cursor fx:constant="HAND" />
+                           </cursor>
+                        </Button>
+                     </children>
+                  </HBox>
+
                </children>
             </VBox>
          </children>
