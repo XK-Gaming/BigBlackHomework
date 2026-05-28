@@ -1101,6 +1101,26 @@ public class ControllerAuction implements ServerListener {
         if (Command.NOTIFICATION.equals(command)) {
             handleIncomingToastNotification(response.payload());
         }
+
+        if (Command.DELETE_ITEM_RESULT.equals(command)) {
+            if (response.payload() instanceof Map) {
+                Map<String, Object> result = (Map<String, Object>) response.payload();
+                boolean isSuccess = (boolean) result.getOrDefault("success", false);
+                String message = (String) result.getOrDefault("message", "Phiên đấu giá bị đóng.");
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(isSuccess ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText(message);
+                    alert.showAndWait();
+
+                    // Nếu không phải seller xóa thành công (tức là người xem bị ép đóng phiên)
+                    // hoặc kể cả seller xóa xong thì đều chuyển hướng về sảnh chính
+                    SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
+                });
+            }
+        }
     }
 
     // =========================================================================
