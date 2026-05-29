@@ -39,7 +39,9 @@ public class Main extends Application {
         Parent root = loader.load();
         
         stage.setTitle("Hệ thống đấu giá trực tuyến");
-        stage.setScene(new Scene(root));
+        Scene scene = new Scene(root);
+        SceneHelper.applyGlobalStyles(scene);
+        stage.setScene(scene);
         stage.show();
     }
 }

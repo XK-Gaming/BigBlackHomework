@@ -89,7 +89,9 @@ public class ControllerLogin implements ServerListener {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/SignUpView.fxml"));
             Parent root = loader.load();
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
-            window.setScene(new Scene(root));
+            Scene scene = new Scene(root);
+            SceneHelper.applyGlobalStyles(scene);
+            window.setScene(scene);
         } catch (Exception e) {
             e.printStackTrace();
         }

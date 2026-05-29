@@ -65,7 +65,20 @@ public class ControllerBidder implements ServerListener {
 
     private ConnectionStatusManager statusManager;
 
-    private final int itemsPerPage = 4;
+    private static final int DEFAULT_ITEMS_PER_PAGE = 4;
+    private static final double CARD_WIDTH = 210;
+    private static final double CARD_HEIGHT = 280;
+    private static final double CARD_HGAP = 20;
+    private static final double CARD_VGAP = 20;
+    private static final double PAGE_PADDING = 20;
+    private static final double PAGINATION_CONTROLS_HEIGHT = 45;
+    private static final String PAGINATION_STYLE = "-fx-background-color: white; "
+            + "-fx-background-radius: 14; "
+            + "-fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.08), 10, 0, 0, 5); "
+            + "-fx-page-information-alignment: bottom; "
+            + "-fx-animate-on-change: false;";
+
+    private int itemsPerPage = DEFAULT_ITEMS_PER_PAGE;
     private List<Item> allAssets = new ArrayList<>();
 
     // --- THÊM LIST ĐÃ LỌC ĐỂ PHỤC VỤ SEARCH ---
@@ -132,7 +145,7 @@ public class ControllerBidder implements ServerListener {
         }
 
         List_Items_Bid.setPageCount(1);
-        List_Items_Bid.setStyle("-fx-page-information-alignment: bottom; -fx-animate-on-change: false;");
+        List_Items_Bid.setStyle(PAGINATION_STYLE);
         List_Items_Bid.setPageFactory(pageIndex -> {
             Label msg = new Label("Đang tải danh sách sản phẩm...");
             StackPane pane = new StackPane(msg);
@@ -142,6 +155,10 @@ public class ControllerBidder implements ServerListener {
         });
 
         // --- LẮNG NGHE SỰ KIỆN THAY ĐỔI TEXT TRÊN Ô TÌM KIẾM ---
+        List_Items_Bid.widthProperty().addListener((observable, oldValue, newValue) -> updateItemsPerPageForCurrentSize());
+        List_Items_Bid.heightProperty().addListener((observable, oldValue, newValue) -> updateItemsPerPageForCurrentSize());
+        Platform.runLater(this::updateItemsPerPageForCurrentSize);
+
         if (txtSearch != null) {
             txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
                 handleSearch(newValue);
@@ -171,7 +188,12 @@ public class ControllerBidder implements ServerListener {
     }
 
     private void setupPagination() {
-        int currentPage = List_Items_Bid.getCurrentPageIndex();
+        int firstVisibleItemIndex = Math.max(0, List_Items_Bid.getCurrentPageIndex() * itemsPerPage);
+        setupPagination(firstVisibleItemIndex);
+    }
+
+    private void setupPagination(int firstVisibleItemIndex) {
+        itemsPerPage = calculateItemsPerPage();
 
         int pageCount = Math.max(1, (int) Math.ceil((double) filteredAssets.size() / itemsPerPage));
         List_Items_Bid.setPageCount(pageCount);
@@ -180,11 +202,36 @@ public class ControllerBidder implements ServerListener {
         List_Items_Bid.setPageFactory(null);
         List_Items_Bid.setPageFactory(this::createPage);
 
-        if (currentPage < pageCount) {
-            List_Items_Bid.setCurrentPageIndex(currentPage);
-        } else {
-            List_Items_Bid.setCurrentPageIndex(pageCount - 1);
+        int targetPage = Math.min(pageCount - 1, Math.max(0, firstVisibleItemIndex / itemsPerPage));
+        List_Items_Bid.setCurrentPageIndex(targetPage);
+    }
+
+    private void updateItemsPerPageForCurrentSize() {
+        int calculatedItemsPerPage = calculateItemsPerPage();
+        if (calculatedItemsPerPage == itemsPerPage) {
+            return;
         }
+
+        int firstVisibleItemIndex = Math.max(0, List_Items_Bid.getCurrentPageIndex() * itemsPerPage);
+        itemsPerPage = calculatedItemsPerPage;
+        if (filteredAssets != null && !filteredAssets.isEmpty()) {
+            setupPagination(firstVisibleItemIndex);
+        }
+    }
+
+    private int calculateItemsPerPage() {
+        double width = List_Items_Bid.getWidth();
+        double height = List_Items_Bid.getHeight();
+        if (width <= 0 || height <= 0) {
+            return Math.max(DEFAULT_ITEMS_PER_PAGE, itemsPerPage);
+        }
+
+        double availableWidth = Math.max(CARD_WIDTH, width - (PAGE_PADDING * 2));
+        double availableHeight = Math.max(CARD_HEIGHT, height - (PAGE_PADDING * 2) - PAGINATION_CONTROLS_HEIGHT);
+        int columns = Math.max(1, (int) Math.floor((availableWidth + CARD_HGAP) / (CARD_WIDTH + CARD_HGAP)));
+        int rows = Math.max(1, (int) Math.floor((availableHeight + CARD_VGAP) / (CARD_HEIGHT + CARD_VGAP)));
+
+        return Math.max(DEFAULT_ITEMS_PER_PAGE, columns * rows);
     }
 
     private Node createPage(int pageIndex) {
@@ -200,6 +247,8 @@ public class ControllerBidder implements ServerListener {
         flowPane.setHgap(20);
         flowPane.setVgap(20);
         flowPane.setPadding(new Insets(20));
+        flowPane.setAlignment(Pos.TOP_LEFT);
+        flowPane.setPrefWrapLength(Math.max(CARD_WIDTH, List_Items_Bid.getWidth() - (PAGE_PADDING * 2)));
 
         int start = pageIndex * itemsPerPage;
         int end = Math.min(start + itemsPerPage, filteredAssets.size());

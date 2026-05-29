@@ -15,10 +15,10 @@
 <?import javafx.scene.shape.Line?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="450.0" prefWidth="642.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerSetInf">
+<AnchorPane prefHeight="450.0" prefWidth="642.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerSetInf">
    <children>
 
-      <AnchorPane prefWidth="185.0" style="-fx-background-color: #2C3E50;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <AnchorPane prefWidth="185.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d);" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
             <ImageView fx:id="j_image" fitHeight="80.0" fitWidth="80.0" layoutX="52.0" layoutY="25.0" onMouseClicked="#On_MouseClickImg" pickOnBounds="true" preserveRatio="true">
                <image>
@@ -32,39 +32,39 @@
                <font><Font name="System Bold" size="15.0" /></font>
             </Label>
 
-            <Label layoutX="30.0" layoutY="146.0" text="User:" textFill="#bdc3c7">
+            <Label layoutX="30.0" layoutY="146.0" text="User:" textFill="#d7e0ef">
                <font><Font name="System Bold" size="12.0" /></font>
             </Label>
-            <Label fx:id="show_userName" layoutX="70.0" layoutY="146.0" prefHeight="17.0" prefWidth="88.0" text="admin" textFill="#3498DB">
+            <Label fx:id="show_userName" layoutX="70.0" layoutY="146.0" prefHeight="17.0" prefWidth="88.0" text="admin" textFill="#3b82f6">
                <font><Font name="System Bold" size="12.0" /></font>
             </Label>
 
-            <Label layoutX="30.0" layoutY="170.0" text="Pass:" textFill="#bdc3c7">
+            <Label layoutX="30.0" layoutY="170.0" text="Pass:" textFill="#d7e0ef">
                <font><Font name="System Bold" size="12.0" /></font>
             </Label>
-            <Label fx:id="show_Password" layoutX="70.0" layoutY="170.0" prefHeight="17.0" prefWidth="81.0" text="******" textFill="#3498DB">
+            <Label fx:id="show_Password" layoutX="70.0" layoutY="170.0" prefHeight="17.0" prefWidth="81.0" text="******" textFill="#3b82f6">
                <font><Font name="System Bold" size="12.0" /></font>
             </Label>
 
             <Line endX="130.0" layoutX="27.0" layoutY="205.0" stroke="#ffffff22" />
 
-            <Button fx:id="j_buttonThongTinDangNhap" layoutX="15.0" layoutY="225.0" mnemonicParsing="false" onAction="#j_OnbuttonThongTinDangNhap" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #34495E; -fx-background-radius: 6;" text="👤 Thông tin tài khoản" textFill="WHITE">
+            <Button fx:id="j_buttonThongTinDangNhap" layoutX="15.0" layoutY="225.0" mnemonicParsing="false" onAction="#j_OnbuttonThongTinDangNhap" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="👤 Thông tin tài khoản" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonThanhToan" layoutX="15.0" layoutY="265.0" mnemonicParsing="false" onAction="#j_OnbuttonThanhToan" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #34495E; -fx-background-radius: 6;" text="💳 Thanh toán" textFill="WHITE">
+            <Button fx:id="j_buttonThanhToan" layoutX="15.0" layoutY="265.0" mnemonicParsing="false" onAction="#j_OnbuttonThanhToan" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="💳 Thanh toán" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonDoiMatKhau" layoutX="15.0" layoutY="305.0" mnemonicParsing="false" onAction="#j_OnbuttonDoiMatKhau" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #34495E; -fx-background-radius: 6;" text="🔑 Đổi mật khẩu" textFill="WHITE">
+            <Button fx:id="j_buttonDoiMatKhau" layoutX="15.0" layoutY="305.0" mnemonicParsing="false" onAction="#j_OnbuttonDoiMatKhau" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="🔑 Đổi mật khẩu" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonCaiDat" layoutX="15.0" layoutY="345.0" mnemonicParsing="false" onAction="#j_OnbuttonCaiDat" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #34495E; -fx-background-radius: 6;" text="⚙️ Cài đặt" textFill="WHITE">
+            <Button fx:id="j_buttonCaiDat" layoutX="15.0" layoutY="345.0" mnemonicParsing="false" onAction="#j_OnbuttonCaiDat" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="⚙️ Cài đặt" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
 
-            <Button fx:id="j_buttonDangXuat" layoutX="15.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_OnbuttonDangXuat" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #E74C3C; -fx-background-radius: 5;" text="Đăng xuất" textFill="WHITE">
+            <Button fx:id="j_buttonDangXuat" layoutX="15.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_OnbuttonDangXuat" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #dc2626; -fx-background-radius: 12;" text="Đăng xuất" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_return" layoutX="96.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_event_return" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #7F8C8D; -fx-background-radius: 5;" text="Quay lại" textFill="WHITE">
+            <Button fx:id="j_return" layoutX="96.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_event_return" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #64748b; -fx-background-radius: 12;" text="Quay lại" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -72,35 +72,35 @@
 
       <HBox alignment="CENTER_RIGHT" prefHeight="25.0" prefWidth="150.0" spacing="8.0" AnchorPane.rightAnchor="15.0" AnchorPane.topAnchor="15.0">
          <children>
-            <Label fx:id="connectionText" text="Offline" textFill="#666666">
+            <Label fx:id="connectionText" text="Offline" textFill="#64748b">
                <font><Font name="System Bold" size="12.0" /></font>
             </Label>
-            <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="6.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+            <Circle fx:id="connectionStatus" fill="#ef4444" radius="6.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
          </children>
       </HBox>
 
       <AnchorPane fx:id="Pane_ThongTinTaiKhoan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="true" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Label layoutX="40.0" layoutY="30.0" text="THÔNG TIN CÁ NHÂN" textFill="#2C3E50">
+            <Label layoutX="40.0" layoutY="30.0" text="THÔNG TIN CÁ NHÂN" textFill="#111827">
                <font><Font name="System Bold" size="20.0" /></font>
             </Label>
-            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#DCDDE1" strokeWidth="2.0" />
+            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#d7e0ef" strokeWidth="2.0" />
 
-            <Label layoutX="40.0" layoutY="100.0" text="Họ và tên:" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="100.0" text="Họ và tên:" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <TextField fx:id="j_inputNewName" layoutX="150.0" layoutY="95.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <TextField fx:id="j_inputNewName" layoutX="150.0" layoutY="95.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label layoutX="40.0" layoutY="145.0" text="Số điện thoại:" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="145.0" text="Số điện thoại:" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <TextField fx:id="j_inputNewTel" layoutX="150.0" layoutY="140.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <TextField fx:id="j_inputNewTel" layoutX="150.0" layoutY="140.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label fx:id="j_labelMessageName" layoutX="150.0" layoutY="180.0" text="Message" textFill="RED" visible="false">
+            <Label fx:id="j_labelMessageName" layoutX="150.0" layoutY="180.0" text="Message" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
 
-            <Button layoutX="150.0" layoutY="210.0" mnemonicParsing="false" onAction="#j_OnUpdateInfo" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #27AE60; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;" text="Ghi nhận">
+            <Button layoutX="150.0" layoutY="210.0" mnemonicParsing="false" onAction="#j_OnUpdateInfo" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -108,31 +108,31 @@
 
       <AnchorPane fx:id="Pane_DoiMatKhau" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Label layoutX="40.0" layoutY="30.0" text="ĐỔI MẬT KHẨU" textFill="#2C3E50">
+            <Label layoutX="40.0" layoutY="30.0" text="ĐỔI MẬT KHẨU" textFill="#111827">
                <font><Font name="System Bold" size="20.0" /></font>
             </Label>
-            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#DCDDE1" strokeWidth="2.0" />
+            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#d7e0ef" strokeWidth="2.0" />
 
-            <Label layoutX="40.0" layoutY="100.0" text="Mật khẩu cũ:" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="100.0" text="Mật khẩu cũ:" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <PasswordField fx:id="j_inputOldPassword" layoutX="150.0" layoutY="95.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <PasswordField fx:id="j_inputOldPassword" layoutX="150.0" layoutY="95.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label layoutX="40.0" layoutY="145.0" text="Mật khẩu mới:" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="145.0" text="Mật khẩu mới:" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <PasswordField fx:id="j_inputNewPassword" layoutX="150.0" layoutY="140.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <PasswordField fx:id="j_inputNewPassword" layoutX="150.0" layoutY="140.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label layoutX="40.0" layoutY="190.0" text="Nhập lại M.K:" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="190.0" text="Nhập lại M.K:" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <PasswordField fx:id="j_inputConfirmPassword" layoutX="150.0" layoutY="185.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <PasswordField fx:id="j_inputConfirmPassword" layoutX="150.0" layoutY="185.0" prefHeight="30.0" prefWidth="260.0" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label fx:id="j_labelMessagePassword" layoutX="150.0" layoutY="225.0" text="Message" textFill="RED" visible="false">
+            <Label fx:id="j_labelMessagePassword" layoutX="150.0" layoutY="225.0" text="Message" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
 
-            <Button layoutX="150.0" layoutY="255.0" mnemonicParsing="false" onAction="#j_OnChangePassword" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2980B9; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;" text="Cập nhật">
+            <Button layoutX="150.0" layoutY="255.0" mnemonicParsing="false" onAction="#j_OnChangePassword" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Cập nhật">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -140,41 +140,41 @@
 
       <AnchorPane fx:id="Pane_ThanhToan" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Label fx:id="Pane_ChuyenKhoan" layoutX="40.0" layoutY="30.0" text="THANH TOÁN GIAO DỊCH" textFill="#2C3E50">
+            <Label fx:id="Pane_ChuyenKhoan" layoutX="40.0" layoutY="30.0" text="THANH TOÁN GIAO DỊCH" textFill="#111827">
                <font><Font name="System Bold" size="20.0" /></font>
             </Label>
-            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#DCDDE1" strokeWidth="2.0" />
+            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#d7e0ef" strokeWidth="2.0" />
 
-            <Label layoutX="40.0" layoutY="100.0" text="Số tiền nạp (VNĐ):" textFill="#7F8C8D">
+            <Label layoutX="40.0" layoutY="100.0" text="Số tiền nạp (VNĐ):" textFill="#64748b">
                <font><Font name="System Bold" size="13.0" /></font>
             </Label>
-            <TextField fx:id="j_inputMoney" layoutX="170.0" layoutY="95.0" prefHeight="30.0" prefWidth="200.0" promptText="VD: 100000" style="-fx-background-color: #FFFFFF; -fx-border-color: #DCDDE1; -fx-border-radius: 5;" />
+            <TextField fx:id="j_inputMoney" layoutX="170.0" layoutY="95.0" prefHeight="30.0" prefWidth="200.0" promptText="VD: 100000" style="-fx-background-color: #FFFFFF; -fx-border-color: #d7e0ef; -fx-border-radius: 12;" />
 
-            <Label fx:id="j_labelMessagePayment" layoutX="170.0" layoutY="135.0" text="Thông báo" textFill="RED" visible="false">
+            <Label fx:id="j_labelMessagePayment" layoutX="170.0" layoutY="135.0" text="Thông báo" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
 
-            <Button layoutX="170.0" layoutY="165.0" mnemonicParsing="false" onAction="#j_OnPayMent" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #D35400; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;" text="Ghi nhận">
+            <Button layoutX="170.0" layoutY="165.0" mnemonicParsing="false" onAction="#j_OnPayMent" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #f97316; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
 
-            <TableView fx:id="depositHistoryTable" layoutX="40.0" layoutY="220.0" prefHeight="170.0" prefWidth="380.0" style="-fx-border-color: #DCDDE1; -fx-border-radius: 5;">
+            <TableView fx:id="depositHistoryTable" layoutX="40.0" layoutY="220.0" prefHeight="170.0" prefWidth="380.0" style="-fx-border-color: #d7e0ef; -fx-border-radius: 12;">
                <columns>
                   <TableColumn fx:id="colDepositAmount" prefWidth="120.0" text="Số tiền (VNĐ)" />
                   <TableColumn fx:id="colDepositTime" prefWidth="140.0" text="Thời gian" />
                   <TableColumn fx:id="colDepositStatus" prefWidth="118.0" text="Trạng thái" />
                </columns>
             </TableView>
-            <Button fx:id="btnDeleteHistory" layoutX="40.0" layoutY="395.0" mnemonicParsing="false" onAction="#handleDeleteDepositHistory" prefHeight="30.0" prefWidth="100.0" style="-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="Xóa lịch sử" visible="true" />
+            <Button fx:id="btnDeleteHistory" layoutX="40.0" layoutY="395.0" mnemonicParsing="false" onAction="#handleDeleteDepositHistory" prefHeight="30.0" prefWidth="100.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Xóa lịch sử" visible="true" />
          </children>
       </AnchorPane>
 
       <AnchorPane fx:id="Pane_CaiDat" layoutX="185.0" layoutY="0.0" prefHeight="450.0" prefWidth="457.0" style="-fx-background-color: transparent;" visible="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="185.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Label layoutX="40.0" layoutY="30.0" text="CÀI ĐẶT HỆ THỐNG" textFill="#2C3E50">
+            <Label layoutX="40.0" layoutY="30.0" text="CÀI ĐẶT HỆ THỐNG" textFill="#111827">
                <font><Font name="System Bold" size="20.0" /></font>
             </Label>
-            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#DCDDE1" strokeWidth="2.0" />
+            <Line endX="280.0" layoutX="130.0" layoutY="70.0" startX="-90.0" stroke="#d7e0ef" strokeWidth="2.0" />
          </children>
       </AnchorPane>
    </children>

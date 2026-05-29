@@ -7,9 +7,9 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="500.0" prefWidth="700.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAdminViewerPayment">
+<AnchorPane prefHeight="500.0" prefWidth="700.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAdminViewerPayment">
    <children>
-      <Label layoutX="30.0" layoutY="30.0" text="QUẢN LÝ PHÊ DUYỆT NẠP TIỀN" textFill="#2C3E50">
+      <Label layoutX="30.0" layoutY="30.0" text="QUẢN LÝ PHÊ DUYỆT NẠP TIỀN" textFill="#111827">
          <font>
             <Font name="System Bold" size="22.0" />
          </font>
@@ -24,9 +24,9 @@
       </TableView>
       <HBox alignment="CENTER" layoutX="30.0" layoutY="440.0" prefWidth="640.0" spacing="30.0">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleApprove" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #27AE60; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="PHÊ DUYỆT" />
-            <Button mnemonicParsing="false" onAction="#handleReject" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="TỪ CHỐI" />
-            <Button mnemonicParsing="false" onAction="#handleReturn" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #95A5A6; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;" text="QUAY LẠI" />
+            <Button mnemonicParsing="false" onAction="#handleApprove" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="PHÊ DUYỆT" />
+            <Button mnemonicParsing="false" onAction="#handleReject" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="TỪ CHỐI" />
+            <Button mnemonicParsing="false" onAction="#handleReturn" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #64748b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="QUAY LẠI" />
          </children>
       </HBox>
    </children>
