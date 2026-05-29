@@ -425,8 +425,13 @@ public class ControllerSeller implements ServerListener {
                 System.exit(0);
             });
         }
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
+        if (Command.LOGOUT_RESULT.equals(response.command())) {
+            Platform.runLater(() -> {
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
+            });
+        }
     }
     @FXML
     private Label j_textSoDu;

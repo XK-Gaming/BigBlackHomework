@@ -71,7 +71,6 @@ public class ControllerBidder implements ServerListener {
     private static final double CARD_HGAP = 20;
     private static final double CARD_VGAP = 20;
     private static final double PAGE_PADDING = 20;
-    private static final double PAGINATION_CONTROLS_HEIGHT = 45;
     private static final String PAGINATION_STYLE = "-fx-background-color: white; "
             + "-fx-background-radius: 14; "
             + "-fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.08), 10, 0, 0, 5); "
@@ -227,7 +226,7 @@ public class ControllerBidder implements ServerListener {
         }
 
         double availableWidth = Math.max(CARD_WIDTH, width - (PAGE_PADDING * 2));
-        double availableHeight = Math.max(CARD_HEIGHT, height - (PAGE_PADDING * 2) - PAGINATION_CONTROLS_HEIGHT);
+        double availableHeight = Math.max(CARD_HEIGHT, height - (PAGE_PADDING * 2));
         int columns = Math.max(1, (int) Math.floor((availableWidth + CARD_HGAP) / (CARD_WIDTH + CARD_HGAP)));
         int rows = Math.max(1, (int) Math.floor((availableHeight + CARD_VGAP) / (CARD_HEIGHT + CARD_VGAP)));
 
