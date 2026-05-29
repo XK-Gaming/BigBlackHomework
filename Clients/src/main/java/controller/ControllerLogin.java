@@ -18,11 +18,16 @@ import model.User.UserRole;
 import model.User.UserSession;
 import network.*;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.Properties;
 
 public class ControllerLogin implements ServerListener {
 
     private final AuctionClient client = AuctionClient.getInstance();
+    private static final String DEFAULT_SERVER_IP = "localhost";
+    private static final int DEFAULT_SERVER_PORT = 8080;
     public User p1 = null;
 
     @FXML private AnchorPane Pane1;
@@ -110,6 +115,8 @@ public class ControllerLogin implements ServerListener {
 
         ClientNetworkExecutor.execute(() -> {
             try {
+                client.setListener(this);
+                ensureConnected();
                 client.sendCommand(network.Command.LOGIN, Map.of(
                         "username", this_username,
                         "password", this_password
@@ -122,6 +129,39 @@ public class ControllerLogin implements ServerListener {
             }
         });
     }
+
+    private void ensureConnected() throws IOException {
+        if (client.isConnected()) {
+            return;
+        }
+
+        ServerConfig config = loadServerConfig();
+        client.connect(config.ip(), config.port());
+
+        if (!client.isConnected()) {
+            throw new IOException("Khong the ket noi toi server.");
+        }
+    }
+
+    private ServerConfig loadServerConfig() {
+        String serverIp = DEFAULT_SERVER_IP;
+        int serverPort = DEFAULT_SERVER_PORT;
+
+        Properties props = new Properties();
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
+            if (input != null) {
+                props.load(input);
+                serverIp = props.getProperty("server.ip", DEFAULT_SERVER_IP);
+                serverPort = Integer.parseInt(props.getProperty("server.port", String.valueOf(DEFAULT_SERVER_PORT)));
+            }
+        } catch (Exception e) {
+            System.err.println("Khong load duoc client.properties, dung cau hinh mac dinh: " + e.getMessage());
+        }
+
+        return new ServerConfig(serverIp, serverPort);
+    }
+
+    private record ServerConfig(String ip, int port) {}
 
     // Nhận phản hồi từ Server qua ObjectStream
     @Override
