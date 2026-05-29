@@ -414,6 +414,9 @@ class UserServiceTest {
 
         assertEquals(450, userDao.selectByUsernameOnly("bidder0").getBalance(), 0.001);
         assertEquals(800, userDao.selectByUsernameOnly("bidder1").getBalance(), 0.001);
+        assertEquals("bidder0", result.get("refundedBidderId"));
+        assertEquals(450.0, result.get("refundedBalance"));
+        assertSame(userDao.selectByUsernameOnly("bidder0"), result.get("refundedUser"));
         assertEquals(200, item.getCurrentHighestPrice(), 0.001);
         Auction latestAuction = (Auction) result.get("latestAuction");
         assertEquals("bidder1", latestAuction.getLeadingBidder());

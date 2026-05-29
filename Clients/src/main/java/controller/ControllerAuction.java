@@ -75,6 +75,9 @@ public class ControllerAuction implements ServerListener {
     private static final Set<String> AUTO_BID_ENABLED_KEYS = new HashSet<>();
     private AutoBidSettings autoBidSettings;
     private boolean updatingAutoBidToggle;
+    private Double pendingManualBidAmount;
+    private Double pendingManualBidPreviousPrice;
+    private boolean pendingManualBidWasLeading;
 
     @FXML private TextField j_setPrice;
     @FXML private Button j_apply;
@@ -355,6 +358,13 @@ public class ControllerAuction implements ServerListener {
         return !hasLeader && !hasHistory;
     }
 
+    private String currentLeadingBidder() {
+        if (this_Auction == null || this_Auction.getLeadingBidder() == null) {
+            return "";
+        }
+        return this_Auction.getLeadingBidder().replace("\"", "").trim();
+    }
+
     private void syncAuctionSnapshot(Auction auction) {
         if (auction == null || item1 == null) return;
         this_Auction = auction;
@@ -428,6 +438,9 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setText("Số dư không đủ để đấu giá");
                 j_notified.setVisible(true);
             } else {
+                pendingManualBidAmount = (double) bidAmount;
+                pendingManualBidPreviousPrice = currentPrice;
+                pendingManualBidWasLeading = p1.getUsername().equals(currentLeadingBidder());
                 client.sendCommand(Command.BID, Map.of(
                         "itemId", item1.getDatabaseId(),
                         "bidderId", p1.getUsername(),
@@ -756,23 +769,44 @@ public class ControllerAuction implements ServerListener {
             return;
         }
 
-        User currentUser = p1 != null ? p1 : UserSession.getLoggedInUser();
-        Object userObj = result.get("user");
-        if (userObj instanceof User updatedUser) {
-            if (currentUser == null || updatedUser.getUsername().equals(currentUser.getUsername())) {
-                p1 = updatedUser;
-                UserSession.setLoggedInUser(updatedUser);
-            }
-        } else {
-            Double updatedBalance = numericValue(result.get("balance"));
-            if (currentUser != null && updatedBalance != null) {
-                currentUser.setBalance(updatedBalance);
-                p1 = currentUser;
-                UserSession.setLoggedInUser(currentUser);
-            }
+        boolean appliedAuthoritativeBalance = UserBalanceSync.applyBalancePayload(result);
+        p1 = UserSession.getLoggedInUser();
+
+        if (!appliedAuthoritativeBalance) {
+            applyManualBidBalanceFallback(result);
         }
 
         updateBalanceLabel();
+    }
+
+    private void syncLoggedInUserFromNotification(Map<?, ?> result) {
+        if (result == null) {
+            return;
+        }
+
+        if (UserBalanceSync.applyBalancePayload(result)) {
+            p1 = UserSession.getLoggedInUser();
+            updateBalanceLabel();
+        }
+    }
+
+    private void applyManualBidBalanceFallback(Map<?, ?> result) {
+        User currentUser = p1 != null ? p1 : UserSession.getLoggedInUser();
+        if (currentUser == null || pendingManualBidAmount == null) {
+            return;
+        }
+
+        Double bidAmount = numericValue(result.get("newPrice"));
+        if (bidAmount == null) {
+            bidAmount = pendingManualBidAmount;
+        }
+
+        double refund = pendingManualBidWasLeading && pendingManualBidPreviousPrice != null
+                ? pendingManualBidPreviousPrice
+                : 0;
+        currentUser.setBalance(currentUser.getBalance() + refund - bidAmount);
+        p1 = currentUser;
+        UserSession.setLoggedInUser(currentUser);
     }
 
     private Double numericValue(Object value) {
@@ -790,13 +824,17 @@ public class ControllerAuction implements ServerListener {
     }
 
     private void updateBalanceLabel() {
-        if (p1 != null && j_textSoDu != null) {
-            DecimalFormat df = new DecimalFormat("#,###");
-            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
-        }
+        p1 = UserSession.getLoggedInUser();
+        UserBalanceSync.refreshBalanceLabel(j_textSoDu);
     }
 
     // AutoBid availability: chỉ cho bật/tắt khi phiên đang RUNNING.
+    private void clearPendingManualBid() {
+        pendingManualBidAmount = null;
+        pendingManualBidPreviousPrice = null;
+        pendingManualBidWasLeading = false;
+    }
+
     private void setAutoBidAvailable(boolean available) {
         if (j_autoBidToggle != null) {
             j_autoBidToggle.setDisable(!available);
@@ -1125,9 +1163,11 @@ public class ControllerAuction implements ServerListener {
                 Platform.runLater(() -> {
                     if (isSuccess) {
                         syncLoggedInUserFromResponse(result);
+                        clearPendingManualBid();
                         syncAuctionEndTime(result.get("auctionEndTime"));
                         j_notified.setText("Đấu giá thành công");
                     } else {
+                        clearPendingManualBid();
                         j_notified.setText(message);
                     }
                     j_notified.setVisible(true);
@@ -1206,7 +1246,19 @@ public class ControllerAuction implements ServerListener {
         }
 
         if (Command.NOTIFICATION.equals(command)) {
+            if (response.payload() instanceof Map<?, ?> notificationPayload) {
+                Platform.runLater(() -> syncLoggedInUserFromNotification(notificationPayload));
+            }
             handleIncomingToastNotification(response.payload());
+        }
+
+        if (Command.BALANCE_UPDATE.equals(command)) {
+            Platform.runLater(() -> {
+                if (UserBalanceSync.applyBalancePayload(response.payload())) {
+                    p1 = UserSession.getLoggedInUser();
+                    updateBalanceLabel();
+                }
+            });
         }
 
         if (Command.DELETE_ITEM_RESULT.equals(command)) {

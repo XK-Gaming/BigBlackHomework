@@ -28,6 +28,7 @@ public enum Command {
     // client đã đấu giá sau khi có người đặt giá mới
     BID,
     BID_RESULT,
+    BALANCE_UPDATE,
 
     // AutoBid: client gửi cấu hình bật/tắt và server trả trạng thái hiện tại.
     SET_AUTO_BID,

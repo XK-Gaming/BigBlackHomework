@@ -213,15 +213,23 @@ public class UserService {
             String oldBidder = txAuction.getLeadingBidder();
             double oldHighestPrice = txItem.getCurrentHighestPrice();
             double bidderBalanceBeforeCharge = user.getBalance();
+            String refundedBidderId = null;
+            Double refundedBalance = null;
+            User refundedUser = null;
 
             // Hoàn tiền cho người cũ (nếu có)
             if (oldBidder != null && !oldBidder.isEmpty()) {
                 User userOldBidder = userDAO.selectByUsernameOnly(oldBidder);
                 if (userOldBidder != null) {
-                    double refundedBalance = userOldBidder.getBalance() + oldHighestPrice;
-                    userDAO.UpdateBalance(oldBidder, refundedBalance);
+                    double newOldBidderBalance = userOldBidder.getBalance() + oldHighestPrice;
+                    userDAO.UpdateBalance(oldBidder, newOldBidderBalance);
+                    userOldBidder.setBalance(newOldBidderBalance);
                     if(oldBidder.equals(bidderId)){
-                        bidderBalanceBeforeCharge = refundedBalance;
+                        bidderBalanceBeforeCharge = newOldBidderBalance;
+                    } else {
+                        refundedBidderId = oldBidder;
+                        refundedBalance = newOldBidderBalance;
+                        refundedUser = userOldBidder;
                     }
                 }
             }
@@ -268,6 +276,11 @@ public class UserService {
             finalResult.put("latestAuction", txAuction);
             finalResult.put("newPrice", amount);
             finalResult.put("bidHistory", new ArrayList<>(txAuction.getBidHistory()));
+            if (refundedBidderId != null) {
+                finalResult.put("refundedBidderId", refundedBidderId);
+                finalResult.put("refundedBalance", refundedBalance);
+                finalResult.put("refundedUser", refundedUser);
+            }
             return finalResult;
 
         } catch (BidRejectedException | NotFoundException e) {

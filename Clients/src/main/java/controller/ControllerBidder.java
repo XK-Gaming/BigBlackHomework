@@ -357,7 +357,11 @@ public class ControllerBidder implements ServerListener {
         }
 
         if (Command.NOTIFICATION.equals(command)) {
+            UserBalanceSync.applyAndRefresh(response.payload(), j_textSoDu);
             handleIncomingToastNotification(response.payload());
+        }
+        if (Command.BALANCE_UPDATE.equals(command) || Command.SET_AUTO_BID_RESULT.equals(command)) {
+            UserBalanceSync.applyAndRefresh(response.payload(), j_textSoDu);
         }
         if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
