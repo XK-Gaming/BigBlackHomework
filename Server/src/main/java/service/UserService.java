@@ -212,21 +212,24 @@ public class UserService {
             // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI (NẰM TRONG TRANSACTION)
             String oldBidder = txAuction.getLeadingBidder();
             double oldHighestPrice = txItem.getCurrentHighestPrice();
+            double bidderBalanceBeforeCharge = user.getBalance();
 
             // Hoàn tiền cho người cũ (nếu có)
             if (oldBidder != null && !oldBidder.isEmpty()) {
                 User userOldBidder = userDAO.selectByUsernameOnly(oldBidder);
                 if (userOldBidder != null) {
-                    userDAO.UpdateBalance(oldBidder, userOldBidder.getBalance() + oldHighestPrice);
+                    double refundedBalance = userOldBidder.getBalance() + oldHighestPrice;
+                    userDAO.UpdateBalance(oldBidder, refundedBalance);
                     if(oldBidder.equals(bidderId)){
-                        user.setBalance(userOldBidder.getBalance() + oldHighestPrice);
+                        bidderBalanceBeforeCharge = refundedBalance;
                     }
                 }
             }
 
             // Trừ tiền người đặt mới
-            userDAO.UpdateBalance(bidderId, user.getBalance() - amount);
-            user.setBalance(user.getBalance() - amount); // Cập nhật lại object để trả về Client
+            double newBidderBalance = bidderBalanceBeforeCharge - amount;
+            userDAO.UpdateBalance(bidderId, newBidderBalance);
+            user.setBalance(newBidderBalance); // Cập nhật lại object để trả về Client
 
             // 4. CẬP NHẬT LỊCH SỬ ĐẤU GIÁ
             List<BidTransaction> newHistory = new ArrayList<>(txAuction.getBidHistory());
@@ -239,6 +242,7 @@ public class UserService {
             );
             newHistory.add(newBid);
             txAuction.setBidHistory(newHistory);
+            txAuction.setLeadingBidder(bidderId);
 
             applyAntiSnipingExtension(txItem);
 

@@ -3,15 +3,20 @@ package service;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import dao.DAOUser;
+import model.DepositTransaction;
 import model.Items.Item;
 import model.Items.ItemType;
 import model.User.Bidder;
+import model.User.Seller;
 import model.User.User;
+import model.User.UserRole;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
+import model.auction.BidHistoryDTO;
 import model.auction.BidTransaction;
 import model.exception.BidRejectedException;
 import model.exception.NotFoundException;
+import model.exception.PersistenceException;
 import model.exception.UnauthorizedException;
 import org.junit.jupiter.api.Test;
 
@@ -24,12 +29,14 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -60,6 +67,116 @@ class UserServiceTest {
         UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(null), new FakeAuctionDao(null));
 
         assertThrows(UnauthorizedException.class, () -> service.loginAndGetUser("bidder1", "wrong"));
+    }
+
+    /**
+     * ## Test dang ky: username da ton tai thi service tra EXSITED va khong insert lan nua.
+     */
+    @Test
+    void registerReturnsExistingWhenUsernameAlreadyExists() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com"));
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        Map<String, Object> response = service.register(
+                new Bidder("bidder1", "other", "Duplicate", "other@example.com"));
+
+        assertEquals("EXSITED", response.get("success"));
+        assertEquals(0, userDao.insertCalls);
+    }
+
+    /**
+     * ## Test dang ky: user moi duoc insert qua DAO va service tra TRUE.
+     */
+    @Test
+    void registerInsertsNewUserAndReturnsTrue() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+        User newUser = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com");
+
+        Map<String, Object> response = service.register(newUser);
+
+        assertEquals("TRUE", response.get("success"));
+        assertEquals(1, userDao.insertCalls);
+        assertSame(newUser, userDao.insertedUser);
+        assertSame(newUser, userDao.selectByUsernameOnly("bidder1"));
+    }
+
+    /**
+     * ## Test dang san pham: service luu item truoc roi tao auction tu item da co databaseId.
+     */
+    @Test
+    void createItemPersistsItemThenAuction() throws Exception {
+        FakeItemDao itemDao = new FakeItemDao(null);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(null);
+        UserService service = serviceWith(new FakeUserDao(), itemDao, auctionDao);
+        Item item = item("seller", 500);
+        item.setMinBid(50);
+        item.setDatabaseId(0);
+
+        service.creater_item(item);
+
+        assertEquals(1, itemDao.insertCalls);
+        assertEquals(1, auctionDao.insertCalls);
+        assertSame(item, itemDao.insertedItem);
+        assertSame(item, auctionDao.insertedItem);
+        assertNotNull(auctionDao.insertedAuction);
+        assertEquals("seller", auctionDao.insertedAuction.getSellerID());
+        assertTrue(item.getDatabaseId() > 0);
+    }
+
+    /**
+     * ## Test dang san pham: MinBid bat buoc lon hon 0 khi tao auction moi.
+     */
+    @Test
+    void createItemRejectsMissingMinBid() throws Exception {
+        FakeItemDao itemDao = new FakeItemDao(null);
+        UserService service = serviceWith(new FakeUserDao(), itemDao, new FakeAuctionDao(null));
+        Item item = item("seller", 500);
+        item.setMinBid(0);
+
+        PersistenceException exception = assertThrows(PersistenceException.class,
+                () -> service.creater_item(item));
+
+        assertTrue(exception.getMessage().contains("MinBid"));
+        assertEquals(0, itemDao.insertCalls);
+    }
+
+    /**
+     * ## Test dang san pham: MinBid khong duoc vuot qua 20% gia khoi diem.
+     */
+    @Test
+    void createItemRejectsMinBidAboveTwentyPercentOfStartingPrice() throws Exception {
+        FakeItemDao itemDao = new FakeItemDao(null);
+        UserService service = serviceWith(new FakeUserDao(), itemDao, new FakeAuctionDao(null));
+        Item item = item("seller", 500);
+        item.setMinBid(101);
+
+        PersistenceException exception = assertThrows(PersistenceException.class,
+                () -> service.creater_item(item));
+
+        assertTrue(exception.getMessage().contains("20%"));
+        assertEquals(0, itemDao.insertCalls);
+    }
+
+    /**
+     * ## Test select_items: admin thay ca item chua co status, bidder chi thay item da co status dau gia.
+     */
+    @Test
+    void selectItemsFiltersUnapprovedItemsForNonAdminRoles() throws Exception {
+        Item visible = item("seller", 100);
+        visible.setAuctionStatus(AuctionStatus.OPEN);
+        Item hidden = item("seller", 200);
+        hidden.setDatabaseId(2);
+        FakeItemDao itemDao = new FakeItemDao(null);
+        itemDao.addItem(visible);
+        itemDao.addItem(hidden);
+        UserService service = serviceWith(new FakeUserDao(), itemDao, new FakeAuctionDao(null));
+
+        assertEquals(2, service.select_items(UserRole.ADMIN).size());
+        List<Item> bidderItems = service.select_items(UserRole.BIDDER);
+        assertEquals(1, bidderItems.size());
+        assertSame(visible, bidderItems.getFirst());
     }
 
     /**
@@ -181,6 +298,32 @@ class UserServiceTest {
     /**
      * ## Test anti-sniping: bid hop le trong 60 giay cuoi thi keo dai gio ket thuc them 90 giay.
      */
+    @Test
+    void processBidExtendsAuctionEndTimeInsideLastMinute() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Instant originalEnd = now.plusSeconds(30);
+        Item item = item("seller", 100, now.minusSeconds(3600), originalEnd);
+        item.setMinBid(20);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 1_000));
+        UserService service = serviceWith(
+                userDao,
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        Map<String, Object> result = service.processBid("1", "bidder1", 150);
+
+        assertEquals(originalEnd.plusSeconds(UserService.ANTI_SNIPING_EXTENSION_SECONDS), item.getAuctionEndTime());
+        assertSame(item, result.get("item"));
+        assertEquals(1, itemDao.updateCalls);
+        assertEquals(1, auctionDao.updateCalls);
+    }
 
     /**
      * ## Test anti-sniping: bid ngoai 60 giay cuoi thi khong doi thoi gian ket thuc.
@@ -243,6 +386,128 @@ class UserServiceTest {
     }
 
     /**
+     * ## Test bid co leader cu: bidder cu duoc hoan tien, bidder moi bi tru tien va auction doi leader.
+     */
+    @Test
+    void processBidRefundsPreviousLeaderAndChargesNewLeader() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Item item = item("seller", 150, now.minusSeconds(3600), now.plusSeconds(3600));
+        item.setMinBid(20);
+        Auction auction = runningAuction(item);
+        auction.setLeadingBidder("bidder0");
+        auction.setBidHistory(List.of(new BidTransaction("bid-1", "bidder0", 150, now.minusSeconds(60))));
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(auction);
+        auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder0", "secret", "Old Leader", "old@example.com", 300));
+        userDao.addUser(new Bidder("bidder1", "secret", "New Leader", "new@example.com", 1_000));
+        UserService service = serviceWith(
+                userDao,
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        Map<String, Object> result = service.processBid("1", "bidder1", 200);
+
+        assertEquals(450, userDao.selectByUsernameOnly("bidder0").getBalance(), 0.001);
+        assertEquals(800, userDao.selectByUsernameOnly("bidder1").getBalance(), 0.001);
+        assertEquals(200, item.getCurrentHighestPrice(), 0.001);
+        Auction latestAuction = (Auction) result.get("latestAuction");
+        assertEquals("bidder1", latestAuction.getLeadingBidder());
+        assertEquals(2, latestAuction.getBidHistory().size());
+    }
+
+    /**
+     * ## Test bid: user khong ton tai thi rollback va tra NotFoundException resource user.
+     */
+    @Test
+    void processBidThrowsNotFoundWhenBidderDoesNotExist() throws Exception {
+        FakeConnectionState connection = new FakeConnectionState(1);
+        Item item = item("seller", 100);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), auctionDao, connection);
+
+        NotFoundException exception = assertThrows(NotFoundException.class,
+                () -> service.processBid("1", "missing", 150));
+
+        assertEquals("user", exception.getResource());
+        assertEquals(1, connection.rollbackCalls);
+        assertEquals(0, connection.commitCalls);
+    }
+
+    /**
+     * ## Test bid: so du khong du thi service tu choi va rollback transaction.
+     */
+    @Test
+    void processBidRejectsInsufficientBalanceAndRollsBack() throws Exception {
+        FakeConnectionState connection = new FakeConnectionState(1);
+        Item item = item("seller", 100);
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 120));
+        UserService service = serviceWith(userDao, new FakeItemDao(item), new FakeAuctionDao(runningAuction(item)), connection);
+
+        BidRejectedException exception = assertThrows(BidRejectedException.class,
+                () -> service.processBid("1", "bidder1", 150));
+
+        assertEquals(BidRejectedException.Reason.PRICE_TOO_LOW, exception.getReason());
+        assertEquals(1, connection.rollbackCalls);
+        assertEquals(0, connection.commitCalls);
+    }
+
+    /**
+     * ## Test transaction: update auction fail thi rollback va khong update item.
+     */
+    @Test
+    void processBidRollsBackWhenAuctionUpdateFails() throws Exception {
+        FakeConnectionState connection = new FakeConnectionState(1);
+        Item item = item("seller", 100);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 0;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 1_000));
+        UserService service = serviceWith(userDao, itemDao, auctionDao, connection);
+
+        BidRejectedException exception = assertThrows(BidRejectedException.class,
+                () -> service.processBid("1", "bidder1", 150));
+
+        assertEquals(BidRejectedException.Reason.PERSIST, exception.getReason());
+        assertEquals(1, auctionDao.updateCalls);
+        assertEquals(0, itemDao.updateCalls);
+        assertEquals(1, connection.rollbackCalls);
+        assertEquals(0, connection.commitCalls);
+    }
+
+    /**
+     * ## Test transaction: update item fail sau update auction thi van rollback.
+     */
+    @Test
+    void processBidRollsBackWhenItemUpdateFails() throws Exception {
+        FakeConnectionState connection = new FakeConnectionState(1);
+        Item item = item("seller", 100);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 0;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(runningAuction(item));
+        auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 1_000));
+        UserService service = serviceWith(userDao, itemDao, auctionDao, connection);
+
+        BidRejectedException exception = assertThrows(BidRejectedException.class,
+                () -> service.processBid("1", "bidder1", 150));
+
+        assertEquals(BidRejectedException.Reason.PERSIST, exception.getReason());
+        assertEquals(1, auctionDao.updateCalls);
+        assertEquals(1, itemDao.updateCalls);
+        assertEquals(1, connection.rollbackCalls);
+        assertEquals(0, connection.commitCalls);
+    }
+
+    /**
      * ## Test lay auction theo itemId: service nap item truoc roi moi lay auction tu DAO.
      */
     @Test
@@ -254,6 +519,230 @@ class UserServiceTest {
 
         assertSame(auction, service.getAuctionByItemId("1"));
         assertSame(item, auctionDao.selectedItem);
+    }
+
+    /**
+     * ## Test getAllAuctions: auction thieu item se duoc hydrate bang itemDAO theo itemId.
+     */
+    @Test
+    void getAllAuctionsHydratesAuctionItemsWhenMissing() throws Exception {
+        Item item = item("seller", 100);
+        Auction auction = new StaticStatusAuction("auction-1", item, "seller", Instant.now(), AuctionStatus.RUNNING);
+        auction.setItemId(1);
+        auction.setItem(null);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(null);
+        auctionDao.addAuction(auction);
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), auctionDao);
+
+        List<Auction> auctions = service.getAllAuctions();
+
+        assertEquals(1, auctions.size());
+        assertSame(item, auctions.getFirst().getItem());
+    }
+
+    /**
+     * ## Test bid history: service tra ban copy cua lich su bid theo itemId.
+     */
+    @Test
+    void getBidHistoryReturnsCopyOfAuctionHistory() throws Exception {
+        Item item = item("seller", 100);
+        Auction auction = runningAuction(item);
+        auction.setBidHistory(List.of(new BidTransaction("bid-1", "bidder1", 150, Instant.now())));
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), new FakeAuctionDao(auction));
+
+        ArrayList<BidTransaction> history = service.getBidHistory("1");
+
+        assertEquals(1, history.size());
+        history.clear();
+        assertEquals(1, auction.getBidHistory().size());
+    }
+
+    /**
+     * ## Test update status: service load item/auction roi ghi status moi qua DAO.
+     */
+    @Test
+    void updateAuctionStatusPersistsStatusWhenItemAndAuctionExist() throws Exception {
+        Item item = item("seller", 100);
+        Auction auction = runningAuction(item);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(auction);
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), auctionDao);
+
+        service.updateAuctionStatus("auction-1", "1", "FINISHED");
+
+        assertEquals(1, auctionDao.statusUpdateCalls);
+        assertEquals(AuctionStatus.FINISHED, auctionDao.updatedStatus);
+        assertEquals(AuctionStatus.FINISHED, auction.getStatus());
+    }
+
+    /**
+     * ## Test duyet auction: choose=true mo phien, choose=false xoa status cho phien.
+     */
+    @Test
+    void setAllowAppliesOpenOrNullStatus() throws Exception {
+        Item item = item("seller", 100);
+        Auction auction = runningAuction(item);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(auction);
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), auctionDao);
+
+        Auction opened = service.setAllow("1", "true");
+        assertSame(auction, opened);
+        assertEquals(AuctionStatus.OPEN, auctionDao.updatedStatus);
+
+        Auction cleared = service.setAllow("1", "false");
+        assertSame(auction, cleared);
+        assertEquals(null, auctionDao.updatedStatus);
+    }
+
+    /**
+     * ## Test xoa san pham: service lay item theo id roi goi DAO delete.
+     */
+    @Test
+    void deleteItemDelegatesToItemDaoWhenItemExists() throws Exception {
+        Item item = item("seller", 100);
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.deleteResult = 1;
+        UserService service = serviceWith(new FakeUserDao(), itemDao, new FakeAuctionDao(null));
+
+        assertEquals(1, service.DeleteItem(1));
+        assertEquals(1, itemDao.deleteCalls);
+        assertSame(item, itemDao.deletedItem);
+    }
+
+    /**
+     * ## Test thanh toan: seller nhan gia thang va auction duoc chuyen sang PAID.
+     */
+    @Test
+    void payHandlerTransfersAmountToSellerAndMarksAuctionPaid() throws Exception {
+        Item item = item("seller", 500);
+        Auction auction = runningAuction(item);
+        FakeAuctionDao auctionDao = new FakeAuctionDao(auction);
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Seller("seller", "secret", "Seller", "seller@example.com", 0));
+        UserService service = serviceWith(userDao, new FakeItemDao(item), auctionDao);
+
+        assertTrue(service.PayHandler(item));
+        assertEquals(500, userDao.selectByUsernameOnly("seller").getBalance(), 0.001);
+        assertEquals(AuctionStatus.PAID, auctionDao.updatedStatus);
+    }
+
+    /**
+     * ## Test nap tien: service tao giao dich PENDING va luu lich su deposit.
+     */
+    @Test
+    void rechargeAmountAddsPendingDepositAndPersistsHistory() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        User bidder = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 100);
+        userDao.addUser(bidder);
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        assertTrue(service.rechargeAmount("bidder1", 250));
+
+        assertEquals(1, bidder.getDepositHistory().size());
+        DepositTransaction deposit = bidder.getDepositHistory().getFirst();
+        assertEquals("bidder1", deposit.getUsername());
+        assertEquals(250, deposit.getAmount(), 0.001);
+        assertEquals("PENDING", deposit.getStatus());
+        assertEquals(1, userDao.depositHistoryUpdateCalls);
+    }
+
+    /**
+     * ## Test duyet nap tien: transaction PENDING thanh APPROVED va balance duoc cong.
+     */
+    @Test
+    void approveDepositApprovesPendingTransactionAndAddsBalance() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        User bidder = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 100);
+        DepositTransaction deposit = deposit("tx-1", "bidder1", 250);
+        bidder.setDepositHistory(new ArrayList<>(List.of(deposit)));
+        userDao.addUser(bidder);
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        assertTrue(service.approveDeposit("bidder1", "tx-1"));
+
+        assertEquals("APPROVED", deposit.getStatus());
+        assertEquals(350, bidder.getBalance(), 0.001);
+        assertEquals(1, userDao.depositHistoryUpdateCalls);
+    }
+
+    /**
+     * ## Test tu choi nap tien: transaction PENDING thanh REJECTED va khong cong balance.
+     */
+    @Test
+    void rejectDepositRejectsPendingTransactionWithoutAddingBalance() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        User bidder = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 100);
+        DepositTransaction deposit = deposit("tx-1", "bidder1", 250);
+        bidder.setDepositHistory(new ArrayList<>(List.of(deposit)));
+        userDao.addUser(bidder);
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        assertTrue(service.rejectDeposit("bidder1", "tx-1"));
+
+        assertEquals("REJECTED", deposit.getStatus());
+        assertEquals(100, bidder.getBalance(), 0.001);
+        assertEquals(1, userDao.depositHistoryUpdateCalls);
+    }
+
+    /**
+     * ## Test xoa lich su nap tien: transaction dung id bi remove va lich su duoc luu lai.
+     */
+    @Test
+    void deleteDepositHistoryRemovesMatchingTransaction() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        User bidder = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 100);
+        bidder.setDepositHistory(new ArrayList<>(List.of(deposit("tx-1", "bidder1", 250))));
+        userDao.addUser(bidder);
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        assertTrue(service.deleteDepositHistory("bidder1", "tx-1"));
+
+        assertTrue(bidder.getDepositHistory().isEmpty());
+        assertEquals(1, userDao.depositHistoryUpdateCalls);
+    }
+
+    /**
+     * ## Test pending deposits: service tra danh sach pending tu DAO.
+     */
+    @Test
+    void getPendingDepositsDelegatesToUserDao() throws Exception {
+        FakeUserDao userDao = new FakeUserDao();
+        DepositTransaction pending = deposit("tx-1", "bidder1", 250);
+        userDao.pendingDeposits = List.of(pending);
+        UserService service = serviceWith(userDao, new FakeItemDao(null), new FakeAuctionDao(null));
+
+        assertSame(pending, service.getPendingDeposits().getFirst());
+    }
+
+    /**
+     * ## Test lich su bidder: service map WINNING/OUTBID/WON/LOST theo status va leader.
+     */
+    @Test
+    void getBidderHistoryMapsAuctionOutcomeStatuses() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        FakeAuctionDao auctionDao = new FakeAuctionDao(null);
+        auctionDao.addAuction(historyAuction(1, "Running Win", AuctionStatus.RUNNING, "bidder1",
+                List.of(new BidTransaction("bid-1", "bidder1", 150, now))));
+        auctionDao.addAuction(historyAuction(2, "Running Lost", AuctionStatus.RUNNING, "bidder2",
+                List.of(
+                        new BidTransaction("bid-2", "bidder1", 120, now),
+                        new BidTransaction("bid-3", "bidder2", 160, now.plusSeconds(10)))));
+        auctionDao.addAuction(historyAuction(3, "Finished Win", AuctionStatus.FINISHED, "bidder1",
+                List.of(new BidTransaction("bid-4", "bidder1", 180, now))));
+        auctionDao.addAuction(historyAuction(4, "Finished Lost", AuctionStatus.FINISHED, "bidder2",
+                List.of(
+                        new BidTransaction("bid-5", "bidder1", 150, now),
+                        new BidTransaction("bid-6", "bidder2", 200, now.plusSeconds(10)))));
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(null), auctionDao);
+
+        List<BidHistoryDTO> history = service.getBidderHistory("bidder1");
+
+        assertEquals(4, history.size());
+        assertEquals("WINNING", history.get(0).getStatus());
+        assertEquals("OUTBID", history.get(1).getStatus());
+        assertEquals("WON", history.get(2).getStatus());
+        assertEquals("LOST", history.get(3).getStatus());
+        assertEquals(120, history.get(1).getMyHighestBid(), 0.001);
+        assertEquals(160, history.get(1).getCurrentHighestPrice(), 0.001);
     }
 
     /**
@@ -309,6 +798,11 @@ class UserServiceTest {
         return new UserService(userDao, itemDao, auctionDao, () -> connectionWithUpdateCount(updateCount), clock);
     }
 
+    private UserService serviceWith(FakeUserDao userDao, FakeItemDao itemDao, FakeAuctionDao auctionDao,
+                                    FakeConnectionState connectionState) {
+        return new UserService(userDao, itemDao, auctionDao, connectionState::connection);
+    }
+
     private Item item(String sellerId, double currentPrice) {
         Instant now = Instant.now();
         return item(sellerId, currentPrice, now.minusSeconds(60), now.plusSeconds(60));
@@ -333,17 +827,26 @@ class UserServiceTest {
         return new StaticStatusAuction("auction-1", item, item.getSellerId(), Instant.now(), AuctionStatus.RUNNING);
     }
 
+    private Auction historyAuction(long itemId, String itemName, AuctionStatus status, String leadingBidder,
+                                   List<BidTransaction> history) {
+        Item item = item("seller", 100);
+        item.setDatabaseId((int) itemId);
+        item.setName(itemName);
+        Auction auction = new StaticStatusAuction("auction-" + itemId, item, "seller", Instant.now(), status);
+        auction.setItemId(itemId);
+        auction.setLeadingBidder(leadingBidder);
+        auction.setBidHistory(history);
+        return auction;
+    }
+
+    private DepositTransaction deposit(String id, String username, double amount) {
+        DepositTransaction deposit = new DepositTransaction(username, amount);
+        deposit.setId(id);
+        return deposit;
+    }
+
     private Connection connectionWithUpdateCount(int updateCount) {
-        InvocationHandler handler = (proxy, method, args) -> {
-            if ("prepareStatement".equals(method.getName())) {
-                return preparedStatementWithUpdateCount(updateCount);
-            }
-            return defaultValue(method);
-        };
-        return (Connection) Proxy.newProxyInstance(
-                Connection.class.getClassLoader(),
-                new Class<?>[]{Connection.class},
-                handler);
+        return new FakeConnectionState(updateCount).connection();
     }
 
     private PreparedStatement preparedStatementWithUpdateCount(int updateCount) {
@@ -418,12 +921,27 @@ class UserServiceTest {
         private final Map<String, User> users = new HashMap<>();
         private User user;
         private boolean updated;
+        private int insertCalls;
+        private User insertedUser;
+        private int depositHistoryUpdateCalls;
+        private List<DepositTransaction> pendingDeposits = List.of();
 
         private void addUser(User user) {
             users.put(user.getUsername(), user);
             if (this.user == null) {
                 this.user = user;
             }
+        }
+
+        @Override
+        public int Insert(User user) {
+            insertCalls++;
+            insertedUser = user;
+            users.put(user.getUsername(), user);
+            if (this.user == null) {
+                this.user = user;
+            }
+            return 1;
         }
 
         @Override
@@ -462,29 +980,89 @@ class UserServiceTest {
             this.updated = true;
             this.user = user;
         }
+
+        @Override
+        public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
+            depositHistoryUpdateCalls++;
+            User knownUser = selectByUsernameOnly(username);
+            if (knownUser != null) {
+                knownUser.setDepositHistory(history);
+                return 1;
+            }
+            return 0;
+        }
+
+        @Override
+        public List<DepositTransaction> getAllPendingDeposits() {
+            return pendingDeposits;
+        }
     }
 
     /**
      * ## Test fake DAO item: tra item cho processBid/getAuctionByItemId va chan ghi DB that.
      */
     private static final class FakeItemDao extends DAOItems {
-        private final Item item;
+        private final Map<String, Item> itemsById = new HashMap<>();
+        private final ArrayList<Item> allItems = new ArrayList<>();
+        private Item item;
+        private int insertResult = 1;
+        private int insertCalls;
+        private Item insertedItem;
         private int updateResult = -1;
         private int updateCalls;
         private Item updatedItem;
+        private int deleteResult = 0;
+        private int deleteCalls;
+        private Item deletedItem;
 
         private FakeItemDao(Item item) {
             this.item = item;
+            addItem(item);
+        }
+
+        private void addItem(Item item) {
+            if (item == null) {
+                return;
+            }
+            this.item = this.item == null ? item : this.item;
+            itemsById.put(String.valueOf(item.getDatabaseId()), item);
+            if (!allItems.contains(item)) {
+                allItems.add(item);
+            }
+        }
+
+        @Override
+        public int Insert(Item item) {
+            insertCalls++;
+            insertedItem = item;
+            if (item.getDatabaseId() == 0) {
+                item.setDatabaseId(100 + insertCalls);
+            }
+            addItem(item);
+            return insertResult;
         }
 
         @Override
         public Item selectById(String itemId) {
-            return item;
+            Item found = itemsById.get(itemId);
+            return found != null ? found : item;
         }
 
         @Override
         public Item selectById(Connection con, String itemId) {
-            return item;
+            return selectById(itemId);
+        }
+
+        @Override
+        public ArrayList<Item> selectAll() {
+            return new ArrayList<>(allItems);
+        }
+
+        @Override
+        public int Delete(Item item) {
+            deleteCalls++;
+            deletedItem = item;
+            return deleteResult;
         }
 
         @Override
@@ -502,29 +1080,67 @@ class UserServiceTest {
      * ## Test fake DAO auction: tra auction cho processBid va ghi nhan item duoc service truyen vao.
      */
     private static final class FakeAuctionDao extends DAOAuction_Items {
-        private final Auction auction;
+        private final Map<Long, Auction> auctionsByItemId = new HashMap<>();
+        private final ArrayList<Auction> allAuctions = new ArrayList<>();
+        private Auction auction;
         private boolean selectCalled;
         private Item selectedItem;
+        private int insertResult = 1;
+        private int insertCalls;
+        private Auction insertedAuction;
+        private Item insertedItem;
         private int updateResult = -1;
         private int updateCalls;
         private Auction updatedAuction;
+        private AuctionStatus updatedStatus;
+        private int statusUpdateCalls;
 
         private FakeAuctionDao(Auction auction) {
             this.auction = auction;
+            addAuction(auction);
+        }
+
+        private void addAuction(Auction auction) {
+            if (auction == null) {
+                return;
+            }
+            this.auction = this.auction == null ? auction : this.auction;
+            if (auction.getItem() != null) {
+                auctionsByItemId.put((long) auction.getItem().getDatabaseId(), auction);
+            }
+            if (auction.getItemId() != 0) {
+                auctionsByItemId.put(auction.getItemId(), auction);
+            }
+            if (!allAuctions.contains(auction)) {
+                allAuctions.add(auction);
+            }
+        }
+
+        @Override
+        public int Insert(Auction auction, Item item) {
+            insertCalls++;
+            insertedAuction = auction;
+            insertedItem = item;
+            addAuction(auction);
+            return insertResult;
         }
 
         @Override
         public Auction selectByItemId(Item item) {
             this.selectCalled = true;
             this.selectedItem = item;
-            return auction;
+            Auction found = item == null ? null : auctionsByItemId.get((long) item.getDatabaseId());
+            return found != null ? found : auction;
         }
 
         @Override
         public Auction selectByItemId(Connection con, Item item) {
-            this.selectCalled = true;
-            this.selectedItem = item;
-            return auction;
+            return selectByItemId(item);
+        }
+
+        @Override
+        public List<Auction> selectAll() {
+            return new ArrayList<>(allAuctions);
         }
 
         @Override
@@ -535,6 +1151,61 @@ class UserServiceTest {
             this.updatedAuction = auction;
             this.updateCalls++;
             return updateResult;
+        }
+
+        @Override
+        public void Update_Status(Auction auction, Item item1, AuctionStatus status) {
+            statusUpdateCalls++;
+            updatedAuction = auction;
+            insertedItem = item1;
+            updatedStatus = status;
+            if (auction != null) {
+                auction.setStatus(status);
+            }
+        }
+    }
+
+    /**
+     * ## Test fake connection: ghi nhan commit/rollback/close ma khong can database.
+     */
+    private final class FakeConnectionState {
+        private final int updateCount;
+        private int commitCalls;
+        private int rollbackCalls;
+        private int closeCalls;
+        private Boolean autoCommit;
+
+        private FakeConnectionState(int updateCount) {
+            this.updateCount = updateCount;
+        }
+
+        private Connection connection() {
+            InvocationHandler handler = (proxy, method, args) -> switch (method.getName()) {
+                case "prepareStatement" -> preparedStatementWithUpdateCount(updateCount);
+                case "commit" -> {
+                    commitCalls++;
+                    yield null;
+                }
+                case "rollback" -> {
+                    rollbackCalls++;
+                    yield null;
+                }
+                case "close" -> {
+                    closeCalls++;
+                    yield null;
+                }
+                case "setAutoCommit" -> {
+                    autoCommit = (Boolean) args[0];
+                    yield null;
+                }
+                case "getAutoCommit" -> autoCommit == null || autoCommit;
+                case "isClosed" -> closeCalls > 0;
+                default -> defaultValue(method);
+            };
+            return (Connection) Proxy.newProxyInstance(
+                    Connection.class.getClassLoader(),
+                    new Class<?>[]{Connection.class},
+                    handler);
         }
     }
 }
