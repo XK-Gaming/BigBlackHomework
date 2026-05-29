@@ -1,6 +1,7 @@
 package network;
 
 import model.Items.Item;
+import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
 import service.UserService;
@@ -179,7 +180,7 @@ public final class AutoBidManager {
         try {
             Map<String, Object> bidResult = userService.processBid(config.itemId(), config.username(), bidAmount);
             BidEventPublisher.publishSuccessfulBid(config.itemId(), config.username(), bidResult);
-            return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount);
+            return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount, bidResult);
         } catch (Exception e) {
             disable(key);
             return AutoBidAttempt.disabled("AutoBid dat gia that bai: " + e.getMessage(), true, false);
@@ -273,6 +274,10 @@ public final class AutoBidManager {
         if (attempt.bidAmount() > 0) {
             response.put("bidAmount", attempt.bidAmount());
         }
+        if (attempt.user() != null) {
+            response.put("user", attempt.user());
+            response.put("balance", attempt.user().getBalance());
+        }
         return response;
     }
 
@@ -322,15 +327,17 @@ public final class AutoBidManager {
             boolean success,
             boolean bidPlaced,
             double bidAmount,
+            User user,
             String message,
             boolean shouldNotifyUser) {
 
-        static AutoBidAttempt placed(String message, double bidAmount) {
-            return new AutoBidAttempt(true, true, bidAmount, message, true);
+        static AutoBidAttempt placed(String message, double bidAmount, Map<String, Object> bidResult) {
+            User updatedUser = bidResult != null && bidResult.get("user") instanceof User user ? user : null;
+            return new AutoBidAttempt(true, true, bidAmount, updatedUser, message, true);
         }
 
         static AutoBidAttempt skipped(String message) {
-            return new AutoBidAttempt(true, false, 0, message, false);
+            return new AutoBidAttempt(true, false, 0, null, message, false);
         }
 
         static AutoBidAttempt disabled(String message, boolean shouldNotifyUser) {
@@ -338,7 +345,7 @@ public final class AutoBidManager {
         }
 
         static AutoBidAttempt disabled(String message, boolean shouldNotifyUser, boolean success) {
-            return new AutoBidAttempt(success, false, 0, message, shouldNotifyUser);
+            return new AutoBidAttempt(success, false, 0, null, message, shouldNotifyUser);
         }
     }
 }

@@ -730,6 +730,9 @@ public class ControllerAuction implements ServerListener {
         String message = result.get("message") != null ? String.valueOf(result.get("message")) : "";
 
         Platform.runLater(() -> {
+            if (success) {
+                syncLoggedInUserFromResponse(result);
+            }
             if (enabled) {
                 AUTO_BID_ENABLED_KEYS.add(autoBidKey());
             } else {
@@ -746,6 +749,51 @@ public class ControllerAuction implements ServerListener {
 
     private boolean booleanValue(Object value) {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
+    }
+
+    private void syncLoggedInUserFromResponse(Map<?, ?> result) {
+        if (result == null) {
+            return;
+        }
+
+        User currentUser = p1 != null ? p1 : UserSession.getLoggedInUser();
+        Object userObj = result.get("user");
+        if (userObj instanceof User updatedUser) {
+            if (currentUser == null || updatedUser.getUsername().equals(currentUser.getUsername())) {
+                p1 = updatedUser;
+                UserSession.setLoggedInUser(updatedUser);
+            }
+        } else {
+            Double updatedBalance = numericValue(result.get("balance"));
+            if (currentUser != null && updatedBalance != null) {
+                currentUser.setBalance(updatedBalance);
+                p1 = currentUser;
+                UserSession.setLoggedInUser(currentUser);
+            }
+        }
+
+        updateBalanceLabel();
+    }
+
+    private Double numericValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value != null) {
+            try {
+                return Double.parseDouble(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void updateBalanceLabel() {
+        if (p1 != null && j_textSoDu != null) {
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(p1.getBalance()) + " VNĐ");
+        }
     }
 
     // AutoBid availability: chỉ cho bật/tắt khi phiên đang RUNNING.
@@ -1076,6 +1124,7 @@ public class ControllerAuction implements ServerListener {
                 String message = (String) result.get("message");
                 Platform.runLater(() -> {
                     if (isSuccess) {
+                        syncLoggedInUserFromResponse(result);
                         syncAuctionEndTime(result.get("auctionEndTime"));
                         j_notified.setText("Đấu giá thành công");
                     } else {

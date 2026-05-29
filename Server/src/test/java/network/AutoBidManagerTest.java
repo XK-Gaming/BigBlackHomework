@@ -2,6 +2,8 @@ package network;
 
 import model.Items.Item;
 import model.Items.ItemType;
+import model.User.Bidder;
+import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,8 @@ class AutoBidManagerTest {
             assertEquals(115.0, (Double) response.get("bidAmount"), 0.001);
             assertEquals("7", response.get("itemId"));
             assertEquals("bidder1", response.get("username"));
+            assertEquals(885.0, response.get("balance"));
+            assertEquals("bidder1", ((User) response.get("user")).getUsername());
             assertEquals(1, userService.processBidCalls);
             assertEquals("7", userService.processItemId);
             assertEquals("bidder1", userService.processBidderId);
@@ -275,6 +279,7 @@ class AutoBidManagerTest {
             result.put("latestAuction", auction);
             result.put("item", auction == null ? null : auction.getItem());
             result.put("newPrice", amount);
+            result.put("user", new Bidder(bidderId, "secret", "Bidder", bidderId + "@example.com", 1_000 - amount));
             result.put("bidHistory", new ArrayList<>());
             return result;
         }
