@@ -25,6 +25,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 public class ControllerProductList implements ServerListener {
 
@@ -58,6 +63,8 @@ public class ControllerProductList implements ServerListener {
 
     // 🚀 BỔ SUNG: Bộ nhớ đệm quản lý giá hiện tại (Real-time Price Cache)
     private final Map<Integer, Double> currentPriceCache = new HashMap<>();
+    private final ScheduledExecutorService statusRefreshScheduler = Executors.newSingleThreadScheduledExecutor(statusRefreshThreadFactory());
+    private final List<ScheduledFuture<?>> statusRefreshTasks = new ArrayList<>();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
@@ -65,7 +72,7 @@ public class ControllerProductList implements ServerListener {
     @FXML
     public void initialize() {
         // Thiết lập lắng nghe phản hồi từ máy chủ hệ thống
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
@@ -240,6 +247,8 @@ public class ControllerProductList implements ServerListener {
                     }
 
                     productList.setAll(serverItems != null ? serverItems : new ArrayList<>());
+                    applyLocalTimeStatusUpdates();
+                    scheduleStatusRefreshes();
                     tableProducts.setPlaceholder(new Label("Không có sản phẩm nào."));
                 } else {
                     String errorMsg = (String) data.getOrDefault("message", "Lỗi không xác định từ Server.");
@@ -248,35 +257,93 @@ public class ControllerProductList implements ServerListener {
             });
         }
 
-        // 🚀 --- CASE 2: Đón nhận cập nhật trạng thái tự động và Cập nhật GIÁ MỚI nếu có ---
+        // 🚀 --- CASE 2: Đón nhận cập nhật trạng thái tự động tự động từ Server ---
+        else if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command)) {
+            handleRealtimeItemUpdate(response.payload());
+        }
+
         else if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
+            // 📝 LOG 1: Kiểm tra xem gói tin có thực sự bay về tới đúng Class này không
+            System.out.println("\n========================================================");
+            System.out.println("[CLIENT LOG 1] Đã nhận tín hiệu UPDATE_AUCTION_STATUS từ mạng!");
+            System.out.println("   + Chi tiết dữ liệu nhận về: " + response.payload());
+
             if (response.payload() instanceof Map<?, ?> map) {
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
                         String itemIdStr = map.get("itemId").toString();
-                        int targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).intValue() : Integer.parseInt(itemIdStr);
+
+                        // Trích xuất ID an toàn
+                        final int targetItemId = itemIdStr.contains(".")
+                                ? Double.valueOf(itemIdStr).intValue()
+                                : Integer.parseInt(itemIdStr);
+
+                        // 📝 LOG 2: Kiểm tra việc phân tích cú pháp ID từ chuỗi mạng
+                        System.out.println("[CLIENT LOG 2] Phân tích ID thành công:");
+                        System.out.println("   + Chuỗi thô: " + itemIdStr + " -> Ép kiểu số nguyên (int): " + targetItemId);
 
                         Platform.runLater(() -> {
-                            // 1. Cập nhật trạng thái
-                            if (map.containsKey("newStatus") && map.get("newStatus") != null) {
-                                String newStatusStr = map.get("newStatus").toString();
-                                statusCache.put(targetItemId, AuctionStatus.valueOf(newStatusStr));
-                                System.out.println("[Product List] Sản phẩm " + targetItemId + " đổi trạng thái: " + newStatusStr);
+                            System.out.println("[CLIENT LOG 3] Bắt đầu chạy trong luồng giao diện (Platform.runLater)...");
+
+                            // 📝 LOG 3.1: Liệt kê danh sách ID hiện có trên bảng để so sánh
+                            System.out.print("   + Các ID hiện có trên TableView: ");
+                            productList.forEach(i -> System.out.print(i.getDatabaseId() + " "));
+                            System.out.println();
+
+                            // Tìm kiếm item tương ứng trong danh sách đang hiển thị
+                            Item targetItem = productList.stream()
+                                    .filter(i -> i.getDatabaseId() == targetItemId)
+                                    .findFirst()
+                                    .orElse(null);
+
+                            // 📝 LOG 4: Kết quả tìm kiếm đối tượng Item trong bảng
+                            if (targetItem != null) {
+                                System.out.println("[CLIENT LOG 4] Đã tìm thấy Sản phẩm trùng khớp trong bảng: " + targetItem.getName());
+                            } else {
+                                System.err.println("[CLIENT LOG 4 TẠCH] KHÔNG tìm thấy sản phẩm nào có ID " + targetItemId + " đang hiển thị trên bảng!");
                             }
 
-                            // 🚀 2. Cập nhật Giá hiện tại theo thời gian thực (Nếu Server đẩy kèm giá mới trong gói Update)
+                            // 1. Cập nhật trạng thái mới vào Cache để cột Trạng thái đổi màu
+                            if (map.containsKey("newStatus") && map.get("newStatus") != null) {
+                                String newStatusStr = map.get("newStatus").toString();
+                                AuctionStatus newStatus = AuctionStatus.valueOf(newStatusStr);
+
+                                // Đẩy vào cache
+                                statusCache.put(targetItemId, newStatus);
+
+                                // 📝 LOG 5: Kiểm tra Cache sau khi ghi đè
+                                System.out.println("[CLIENT LOG 5] Đã nạp trạng thái mới vào Cache hiển thị:");
+                                System.out.println("   + statusCache.get(" + targetItemId + ") -> " + statusCache.get(targetItemId));
+                            }
+
+                            // 2. Cập nhật Giá (Nếu có)
                             if (map.containsKey("currentPrice") && map.get("currentPrice") != null) {
                                 double newPrice = Double.parseDouble(map.get("currentPrice").toString());
                                 currentPriceCache.put(targetItemId, newPrice);
-                                System.out.println("[Product List] Sản phẩm " + targetItemId + " cập nhật giá mới: " + newPrice);
+                                if (targetItem != null) {
+                                    targetItem.setCurrentHighestPrice(newPrice);
+                                }
+                                System.out.println("[CLIENT LOG 6] Đã cập nhật giá mới vào bộ nhớ đệm: " + newPrice);
                             }
 
-                            // Ép TableView vẽ lại để cập nhật cả Trạng thái lẫn Giá hiện tại lên UI ngay lập tức
-                            tableProducts.refresh();
+                            // 🔥 ÉP TABLEVIEW VẼ LẠI GIAO DIỆN BẰNG PHƯƠNG PHÁP THAY THẾ PHẦN TỬ
+                            System.out.println("[CLIENT LOG 7] Tiến hành ép TableView vẽ lại dòng...");
+                            if (targetItem != null) {
+                                int index = productList.indexOf(targetItem);
+                                if (index >= 0) {
+                                    productList.set(index, targetItem); // Phát tín hiệu ListChangeListener cho JavaFX
+                                    System.out.println("   => Đã kích hoạt sự kiện thay thế dòng tại vị trí index: " + index);
+                                }
+                            } else {
+                                tableProducts.refresh();
+                                System.out.println("   => Đã gọi lệnh làm mới toàn bảng (tableProducts.refresh())");
+                            }
+                            System.out.println("========================================================\n");
                         });
                     }
                 } catch (Exception e) {
-                    System.err.println("Lỗi xử lý đồng bộ trạng thái & giá Real-time: " + e.getMessage());
+                    System.err.println("[CLIENT ERROR] Lỗi xử lý đổi màu giao diện: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
@@ -366,11 +433,217 @@ public class ControllerProductList implements ServerListener {
         // --- CASE 7: Kết quả đăng xuất thủ công thành công ---
         else if (Command.LOGOUT_RESULT.equals(command)) {
             Platform.runLater(() -> {
+                stopRealtimeRefresh();
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
+                client.removeListener(this);
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
             });
         }
+    }
+
+    private void handleRealtimeItemUpdate(Object payload) {
+        RealtimeItemUpdate update = parseRealtimeItemUpdate(payload);
+        if (update == null) {
+            return;
+        }
+
+        Platform.runLater(() -> {
+            Item targetItem = productList.stream()
+                    .filter(i -> i.getDatabaseId() == update.itemId())
+                    .findFirst()
+                    .orElse(null);
+
+            if (update.status() != null) {
+                statusCache.put(update.itemId(), update.status());
+            }
+
+            if (update.price() != null) {
+                currentPriceCache.put(update.itemId(), update.price());
+                if (targetItem != null) {
+                    targetItem.setCurrentHighestPrice(update.price());
+                }
+            }
+
+            if (targetItem != null) {
+                int index = productList.indexOf(targetItem);
+                if (index >= 0) {
+                    productList.set(index, targetItem);
+                }
+            } else {
+                tableProducts.refresh();
+            }
+        });
+    }
+
+    private RealtimeItemUpdate parseRealtimeItemUpdate(Object payload) {
+        if (payload instanceof Auction auction) {
+            Item item = auction.getItem();
+            if (item == null) {
+                return null;
+            }
+            return new RealtimeItemUpdate(item.getDatabaseId(), auction.getRawStatus(), auction.getCurrentPrice());
+        }
+
+        if (!(payload instanceof Map<?, ?> map)) {
+            return null;
+        }
+
+        Integer itemId = intValue(firstPresent(map, "itemId", "id"));
+        AuctionStatus status = statusValue(firstPresent(map, "newStatus", "status"));
+        Double price = doubleValue(firstPresent(map, "newPrice", "currentPrice"));
+
+        Object itemObj = map.get("item");
+        if (itemObj instanceof Item item) {
+            if (itemId == null) {
+                itemId = item.getDatabaseId();
+            }
+            if (price == null) {
+                price = item.getCurrentHighestPrice();
+            }
+        }
+
+        Object auctionObj = map.get("auction");
+        if (auctionObj instanceof Auction auction) {
+            Item item = auction.getItem();
+            if (itemId == null && item != null) {
+                itemId = item.getDatabaseId();
+            }
+            if (status == null) {
+                status = auction.getRawStatus();
+            }
+            if (price == null) {
+                price = auction.getCurrentPrice();
+            }
+        }
+
+        return itemId == null ? null : new RealtimeItemUpdate(itemId, status, price);
+    }
+
+    private Object firstPresent(Map<?, ?> map, String... keys) {
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Integer intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value != null) {
+            try {
+                return Double.valueOf(value.toString()).intValue();
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value != null) {
+            try {
+                return Double.parseDouble(value.toString());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private AuctionStatus statusValue(Object value) {
+        if (value instanceof AuctionStatus status) {
+            return status;
+        }
+        if (value != null) {
+            try {
+                return AuctionStatus.valueOf(value.toString());
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void scheduleStatusRefreshes() {
+        cancelStatusRefreshes();
+        Instant now = Instant.now();
+        for (Item item : productList) {
+            scheduleStatusRefresh(item.getAuctionStartTime(), now);
+            scheduleStatusRefresh(item.getAuctionEndTime(), now);
+        }
+    }
+
+    private void scheduleStatusRefresh(Instant boundary, Instant now) {
+        if (boundary == null || boundary.isBefore(now)) {
+            return;
+        }
+        long delayMs = Math.max(0, boundary.toEpochMilli() - now.toEpochMilli() + 100);
+        ScheduledFuture<?> task = statusRefreshScheduler.schedule(() -> Platform.runLater(() -> {
+            applyLocalTimeStatusUpdates();
+            tableProducts.refresh();
+            scheduleStatusRefreshes();
+        }), delayMs, TimeUnit.MILLISECONDS);
+        statusRefreshTasks.add(task);
+    }
+
+    private void applyLocalTimeStatusUpdates() {
+        Instant now = Instant.now();
+        for (Item item : productList) {
+            AuctionStatus current = statusCache.get(item.getDatabaseId());
+            if (current == AuctionStatus.PAID || current == AuctionStatus.CANCELLED) {
+                continue;
+            }
+            AuctionStatus computed = computeStatusByTime(item, now);
+            if (computed != null) {
+                statusCache.put(item.getDatabaseId(), computed);
+            }
+        }
+    }
+
+    private AuctionStatus computeStatusByTime(Item item, Instant now) {
+        Instant start = item.getAuctionStartTime();
+        Instant end = item.getAuctionEndTime();
+        if (start == null || end == null) {
+            return statusCache.getOrDefault(item.getDatabaseId(), AuctionStatus.OPEN);
+        }
+        if (!now.isBefore(end)) {
+            return AuctionStatus.FINISHED;
+        }
+        if (!now.isBefore(start)) {
+            return AuctionStatus.RUNNING;
+        }
+        return AuctionStatus.OPEN;
+    }
+
+    private void cancelStatusRefreshes() {
+        for (ScheduledFuture<?> task : statusRefreshTasks) {
+            task.cancel(false);
+        }
+        statusRefreshTasks.clear();
+    }
+
+    private void stopRealtimeRefresh() {
+        cancelStatusRefreshes();
+        statusRefreshScheduler.shutdownNow();
+    }
+
+    private static ThreadFactory statusRefreshThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "product-list-status-refresh");
+            thread.setDaemon(true);
+            return thread;
+        };
+    }
+
+    private record RealtimeItemUpdate(int itemId, AuctionStatus status, Double price) {
     }
 
     private SimpleStringProperty formatInstant(Instant instant) {
@@ -380,6 +653,8 @@ public class ControllerProductList implements ServerListener {
 
     @FXML
     void On_AddProduct(ActionEvent event) {
+        stopRealtimeRefresh();
+        client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/SellerView.fxml");
     }
 
@@ -401,6 +676,8 @@ public class ControllerProductList implements ServerListener {
 
         boolean hasBids = false;
 
+        stopRealtimeRefresh();
+        client.removeListener(this);
         ControllerEditProduct editController = SceneHelper.changeSceneAndGetController(
                 (Node) event.getSource(), "/fxml/EditProductView.fxml"
         );
@@ -441,6 +718,7 @@ public class ControllerProductList implements ServerListener {
 
     @FXML
     void On_LogOut (ActionEvent event) {
+        stopRealtimeRefresh();
         try {
             client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         } catch (IOException e) {
