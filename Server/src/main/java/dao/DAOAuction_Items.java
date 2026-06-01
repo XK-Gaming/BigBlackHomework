@@ -7,7 +7,11 @@ import model.auction.Auction;
 import model.auction.AuctionStatus;
 import model.auction.BidTransaction;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,33 +22,33 @@ public class DAOAuction_Items {
         return INSTANCE;
     }
 
-    // Đảm bảo class GsonUtils tồn tại và hoạt động đúng trong dự án của bạn
     private final Gson gson = GsonUtils.createGson();
 
     public int Insert(Auction auction, Item item) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return Insert(con, auction, item);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public int Insert(Connection con, Auction auction, Item item) throws SQLException {
         String sql = "INSERT INTO auction_items (id_item, sellerID, status, leadingbider, bidHistory, currentPrice) VALUES (?, ?, ?, ?, ?, ?)";
 
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
 
-            // ✅ ĐÃ SỬA: Bọc Enum status thành chuỗi JSON hợp lệ bằng gson.toJson
-            String rawStatus = auction.getStatus() != null ? auction.getStatus().name() : AuctionStatus.OPEN.name();
-            pstmt.setString(3, gson.toJson(rawStatus));
+            AuctionStatus status = auction.getRawStatus() != null ? auction.getRawStatus() : AuctionStatus.OPEN;
+            pstmt.setString(3, gson.toJson(status.name()));
 
-            String leadingUsername = auction.getLeadingBidder();
-            pstmt.setString(4, leadingUsername);
+            pstmt.setString(4, auction.getLeadingBidder());
             pstmt.setString(5, gson.toJson(new ArrayList<BidTransaction>()));
-
             pstmt.setDouble(6, item.getCurrentHighestPrice());
 
             return pstmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
-        return 0;
     }
 
     public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) throws SQLException {
@@ -60,22 +64,15 @@ public class DAOAuction_Items {
         }
     }
 
-    /**
-     * Phương thức mặc định lấy thông tin Auction (Tự tạo Connection ngắn hạn)
-     */
     public Auction selectByItemId(Item item) {
         try (Connection con = JDBCUtil.getConnection()) {
             return selectByItemId(con, item);
         } catch (SQLException e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
-    /**
-     * ✅ ĐÃ SỬA LỖI & NÂNG CẤP CHÍ MẠNG: Sử dụng "FOR UPDATE" kết hợp Connection dùng chung từ Service.
-     * Khóa chặt hàng dữ liệu của phiên đấu giá này lại dưới DB, ép các luồng đặt giá đồng thời phải xếp hàng (Queue).
-     */
     public Auction selectByItemId(Connection con, Item item) throws SQLException {
         String sql = "SELECT * FROM auction_items WHERE id_item = ? FOR UPDATE";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -89,18 +86,14 @@ public class DAOAuction_Items {
         return null;
     }
 
-    /**
-     * ✅ TỐI ƯU CƠ CHẾ ĐỒNG BỘ TRANSACTION: Đồng bộ hàm Update_Status sử dụng connection tổng.
-     */
     public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            // ✅ ĐÃ SỬA: Convert enum status sang định dạng chuỗi JSON bằng gson.toJson
             pstmt.setString(1, status == null ? null : gson.toJson(status.name()));
             pstmt.setLong(2, item1.getDatabaseId());
 
             int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
+            if (rowsAffected > 0 && auction != null) {
                 auction.setStatus(status);
             }
         }
@@ -118,17 +111,14 @@ public class DAOAuction_Items {
         String sql = "INSERT INTO auction_items (id_item, sellerID, currentPrice, status) VALUES (?, ?, ?, ?)";
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
-
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
             pstmt.setDouble(3, item.getCurrentHighestPrice());
-
-            // ✅ ĐÃ SỬA: Convert giá trị mặc định sang chuỗi JSON hợp lệ
             pstmt.setString(4, gson.toJson(AuctionStatus.OPEN.name()));
 
             return pstmt.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("Lỗi tại Insert: " + e.getMessage());
+            System.err.println("Loi tai Insert: " + e.getMessage());
             e.printStackTrace();
             return 0;
         }
@@ -153,7 +143,7 @@ public class DAOAuction_Items {
                 Auction auction = new Auction();
                 auction.setItemId(rs.getLong("id_item"));
 
-                model.Items.Item item = new model.Items.Item();
+                Item item = new Item();
                 item.setDatabaseId(rs.getInt("id_item"));
                 item.setName(rs.getString("item_name"));
                 item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
@@ -165,14 +155,11 @@ public class DAOAuction_Items {
 
                 Timestamp startTimestamp = rs.getTimestamp("item_start");
                 Timestamp endTimestamp = rs.getTimestamp("item_end");
-
                 if (startTimestamp != null) item.setAuctionStartTime(startTimestamp.toInstant());
                 if (endTimestamp != null) item.setAuctionEndTime(endTimestamp.toInstant());
 
                 auction.setItem(item);
-
-                String statusStr = rs.getString("status");
-                auction.setStatus(parseAuctionStatus(statusStr));
+                auction.setStatus(parseAuctionStatus(rs.getString("status")));
 
                 String leadingUsername = rs.getString("leadingbider");
                 if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
@@ -203,9 +190,7 @@ public class DAOAuction_Items {
 
         item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
         auction.setItem(item);
-
-        String statusStr = rs.getString("status");
-        auction.setStatus(parseAuctionStatus(statusStr));
+        auction.setStatus(parseAuctionStatus(rs.getString("status")));
 
         String leadingUsername = rs.getString("leadingbider");
         if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
@@ -248,13 +233,18 @@ public class DAOAuction_Items {
         }
     }
 
-    public int updatePriceByItemIdWhenEditItem(Item item) {
+    public int updatePriceByItemIdWhenEditItem(Connection con, Item item) throws SQLException {
         String sql = "UPDATE auction_items SET currentPrice = ? WHERE id_item = ?";
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, item.getCurrentHighestPrice());
             pstmt.setLong(2, item.getDatabaseId());
             return pstmt.executeUpdate();
+        }
+    }
+
+    public int updatePriceByItemIdWhenEditItem(Item item) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return updatePriceByItemIdWhenEditItem(con, item);
         } catch (SQLException e) {
             e.printStackTrace();
             return 0;

@@ -49,6 +49,7 @@ public enum Command {
     // Đăng xuất  Chưa sử dụng
     LOGOUT,
     LOGOUT_RESULT,
+    FORCE_LOGOUT_MULTIPLE_USER,
 
     // Đăng cập nhật giá mới nhất trên toàn
     // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)

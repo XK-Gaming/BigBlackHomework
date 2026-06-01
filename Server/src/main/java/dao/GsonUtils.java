@@ -84,7 +84,7 @@ public class GsonUtils {
             out.name("id").value(value.getId());
             out.name("Usernamebidder").value(value.getBidder());
             out.name("amount").value(value.getAmount());
-            out.name("bidTime").value(value.getBidTime().getEpochSecond());
+            out.name("bidTime").value(value.getBidTime().getEpochSecond()); // Đúng chuẩn Instant
             out.endObject();
         }
 
@@ -125,6 +125,10 @@ public class GsonUtils {
             return new BidTransaction(id, bidder, amount, Instant.ofEpochSecond(epochSeconds));
         }
     }
+
+    /**
+     * Custom TypeAdapter cho DepositTransaction
+     */
     public static class DepositTransactionTypeAdapter extends TypeAdapter<DepositTransaction> {
         @Override
         public void write(JsonWriter out, DepositTransaction value) throws java.io.IOException {
@@ -136,7 +140,10 @@ public class GsonUtils {
             out.name("id").value(value.getId());
             out.name("username").value(value.getUsername());
             out.name("amount").value(value.getAmount());
-            out.name("timestamp").value(value.getTimestamp().toEpochSecond(ZoneOffset.UTC));
+
+            // ✅ ĐÃ SỬA: Thay thế phương thức lỗi bằng .getEpochSecond() do thuộc tính đã là kiểu Instant
+            out.name("timestamp").value(value.getTimestamp().getEpochSecond());
+
             out.name("status").value(value.getStatus());
             out.endObject();
         }
@@ -155,7 +162,10 @@ public class GsonUtils {
                     case "id": dt.setId(in.nextString()); break;
                     case "username": dt.setUsername(in.nextString()); break;
                     case "amount": dt.setAmount(in.nextDouble()); break;
-                    case "timestamp": dt.setTimestamp(LocalDateTime.ofEpochSecond(in.nextLong(), 0, ZoneOffset.UTC)); break;
+
+                    // ✅ ĐÃ TỐI ƯU: Khởi tạo trực tiếp Instant từ dữ liệu Long, loại bỏ việc chuyển đổi qua LocalDateTime trung gian
+                    case "timestamp": dt.setTimestamp(Instant.ofEpochSecond(in.nextLong())); break;
+
                     case "status": dt.setStatus(in.nextString()); break;
                     default: in.skipValue(); break;
                 }

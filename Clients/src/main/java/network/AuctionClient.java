@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Map;
 
 public class AuctionClient {
     private volatile Socket socket;
@@ -12,8 +13,6 @@ public class AuctionClient {
 
     private final Object writeLock = new Object();
     private final Object connectionLock = new Object();
-
-    // Đảm bảo thay đổi giữa các luồng được thấy ngay lập tức
     private volatile ServerListener currentListener;
 
     private static volatile AuctionClient instance;
@@ -44,7 +43,6 @@ public class AuctionClient {
 
             try {
                 socket = new Socket(serverIp, serverPort);
-                // Khởi tạo OutputStream trước và flush để tránh treo (Deadlock) ở phía Server khi tạo InputStream
                 out = new ObjectOutputStream(socket.getOutputStream());
                 out.flush();
                 in = new ObjectInputStream(socket.getInputStream());
@@ -60,7 +58,6 @@ public class AuctionClient {
         }
     }
 
-    // Hàm dùng để gửi DataPacket lên Server
     public void sendCommand(Command command, Object payload) throws IOException {
         synchronized (writeLock) {
             ObjectOutputStream localOut = this.out;
@@ -69,9 +66,9 @@ public class AuctionClient {
                 DataPacket packet = new DataPacket(command, payload);
                 localOut.writeObject(packet);
                 localOut.flush();
-                localOut.reset(); // Xóa cache để tránh tràn bộ nhớ khi chạy lâu dài
+                localOut.reset();
             } else {
-                throw new IOException("Chưa kết nối tới Server hoặc luồng ra đã bị đóng.");
+                throw new IOException("Chưa kết nối tới Server hoặc luồng dữ liệu đã bị đóng.");
             }
         }
     }
@@ -91,25 +88,21 @@ public class AuctionClient {
                 }
 
                 try {
-                    // Tác vụ blocking nằm ngoài khối synchronized -> Rất tốt!
                     Object obj = localIn.readObject();
-                    if (obj == null) {
-                        break;
-                    }
+                    if (obj == null) break;
 
                     if (obj instanceof DataPacket) {
                         handleServerResponse((DataPacket) obj);
                     } else {
-                        System.err.println("Dữ liệu nhận được không phải là DataPacket: " + obj.getClass().getName());
+                        System.err.println("Dữ liệu không hợp lệ: " + obj.getClass().getName());
                     }
 
                 } catch (ClassNotFoundException e) {
                     System.err.println("Không tìm thấy class gói tin: " + e.getMessage());
                 } catch (IOException e) {
-                    // Đẩy lỗi ra ngoài để rơi vào khối dọn dẹp tài nguyên
                     throw e;
                 } catch (Exception e) {
-                    System.err.println("Lỗi không nghiêm trọng khi xử lý logic gói tin: " + e.getMessage());
+                    System.err.println("Lỗi xử lý logic gói tin: " + e.getMessage());
                 }
             }
         } catch (EOFException e) {
@@ -120,50 +113,97 @@ public class AuctionClient {
             System.err.println("Lỗi kết nối I/O: " + e.getMessage());
         } finally {
             closeConnection();
-            System.out.println("Luồng lắng nghe đã kết thúc và dọn dẹp tài nguyên.");
+            System.out.println("Luồng lắng nghe đã kết thúc.");
         }
     }
 
     private void handleServerResponse(DataPacket response) {
-        // Gán vào biến local để tránh NullPointerException do lỗi "Check-then-Act" trong đa luồng
+        Command command = response.command();
+
+        // 1. XỬ LÝ LỆNH ĐĂNG XUẤT THÀNH CÔNG (LOGOUT_RESULT)
+        if (Command.LOGOUT_RESULT.equals(command)) {
+            System.out.println("[Global Clean] Đăng xuất thành công. Tiến hành dọn dẹp giao diện...");
+            Platform.runLater(() -> executeGlobalUiCleanup(null));
+            return;
+        }
+
+        // 2. XỬ LÝ KHI BỊ HỆ THỐNG ĐÁ (FORCE_LOGOUT)
+        if (Command.FORCE_LOGOUT.equals(command) || Command.FORCE_LOGOUT_MULTIPLE_USER.equals(command)) {
+            System.out.println("[Global SSO] Nhận lệnh FORCE_LOGOUT từ Server.");
+
+            String reason = "Tài khoản của bạn đã được đăng nhập từ một thiết bị khác.";
+            if (response.payload() instanceof Map<?, ?> data && data.containsKey("reason")) {
+                reason = String.valueOf(data.get("reason"));
+            }
+
+            final String finalReason = reason;
+            Platform.runLater(() -> executeGlobalUiCleanup(finalReason));
+            return;
+        }
+
+        // --- CHUYỂN TIẾP GÓI TIN ĐẾN CÁC GIAO DIỆN KHÁC ---
         ServerListener listener = this.currentListener;
         if (listener != null) {
             try {
                 listener.onServerResponse(response);
             } catch (Exception e) {
-                System.err.println("Lỗi xử lý logic của Listener: " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("Lỗi tại onServerResponse: " + e.getMessage());
             }
         }
     }
 
-    public void closeConnection() {
-        Socket socketToClose;
-        ObjectInputStream inToClose;
-        ObjectOutputStream outToClose;
+    private void executeGlobalUiCleanup(String alertMessage) {
+        // Hiển thị Popup cảnh báo nếu bị Server đá
+        if (alertMessage != null) {
+            try {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
+                alert.setTitle("Cảnh Báo Hệ Thống");
+                alert.setHeaderText(null);
+                alert.setContentText(alertMessage);
+                alert.showAndWait();
+            } catch (Exception ignored) {}
+        }
 
-        synchronized (connectionLock) {
-            if (socket == null && in == null && out == null) {
-                return;
+        // Xóa Session đăng nhập cũ
+        try {
+            model.User.UserSession.cleanUserSession();
+            model.Items.ItemSession.cleanItemSession();
+        } catch (Exception e) {
+            System.err.println("Lỗi dọn dẹp Session: " + e.getMessage());
+        }
+
+        // Ngắt kết nối socket hiện tại
+        closeConnection();
+
+        // Ép đóng toàn bộ cửa sổ phụ và đẩy cửa sổ chính về LoginView
+        try {
+            java.util.List<javafx.stage.Window> openWindows = new java.util.ArrayList<>(javafx.stage.Window.getWindows());
+            if (!openWindows.isEmpty()) {
+                javafx.stage.Stage primaryStage = (javafx.stage.Stage) openWindows.get(0);
+
+                for (int i = 1; i < openWindows.size(); i++) {
+                    if (openWindows.get(i) instanceof javafx.stage.Stage stage) {
+                        stage.close();
+                    }
+                }
+
+                controller.SceneHelper.changeScene(primaryStage.getScene().getRoot(), "/fxml/LoginView.fxml");
+                System.out.println("[Global Clean] Hệ thống đã quay về màn hình LoginView.");
             }
+        } catch (Exception e) {
+            System.err.println("Lỗi điều hướng JavaFX: " + e.getMessage());
+            System.exit(0);
+        }
+    }
+
+    public void closeConnection() {
+        synchronized (connectionLock) {
+            if (socket == null && in == null && out == null) return;
             System.out.println("Đang đóng kết nối Client...");
 
-            socketToClose = this.socket;
-            inToClose = this.in;
-            outToClose = this.out;
-
-            cleanUpVariables();
-        }
-
-        // Đóng các luồng stream trước một cách an toàn
-        if (outToClose != null) {
-            try { outToClose.close(); } catch (IOException e) { System.err.println("Lỗi đóng luồng ra: " + e.getMessage()); }
-        }
-        if (inToClose != null) {
-            try { inToClose.close(); } catch (IOException e) { System.err.println("Lỗi đóng luồng vào: " + e.getMessage()); }
-        }
-        if (socketToClose != null && !socketToClose.isClosed()) {
-            try { socketToClose.close(); } catch (IOException e) { System.err.println("Lỗi đóng socket: " + e.getMessage()); }
+            if (out != null) { try { out.close(); } catch (IOException ignored) {} out = null; }
+            if (in != null) { try { in.close(); } catch (IOException ignored) {} in = null; }
+            if (socket != null && !socket.isClosed()) { try { socket.close(); } catch (IOException ignored) {} socket = null; }
         }
     }
 
@@ -180,5 +220,4 @@ public class AuctionClient {
             socket = null;
         }
     }
-
 }
