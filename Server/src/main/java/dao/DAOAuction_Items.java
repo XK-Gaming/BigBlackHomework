@@ -250,4 +250,54 @@ public class DAOAuction_Items {
             return 0;
         }
     }
+
+    /**
+     * ✅ ĐÃ TỐI ƯU & SỬA LỖI: Trả về danh sách sản phẩm kèm trạng thái đấu giá đồng bộ JavaFX UI
+     */
+    public List<Item> selectAllWithAuction() {
+        List<Item> list = new ArrayList<>();
+        String sql = "SELECT i.my_row_id, i.name, i.auctionStartTime, i.auctionEndTime, i.imgdata, " +
+                "       a.id_item, a.status, a.currentPrice, a.leadingbider " +
+                "FROM items i " +
+                "LEFT JOIN auction_items a ON i.my_row_id = a.id_item";
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                Item item = new Item(); // Sử dụng constructor trống (đã bọc initDisplayStatus() an toàn)
+                item.setDatabaseId(rs.getInt("my_row_id"));
+                item.setName(rs.getString("name"));
+
+                // Map các dữ liệu thời gian của Item
+                Timestamp startTimestamp = rs.getTimestamp("auctionStartTime");
+                Timestamp endTimestamp = rs.getTimestamp("auctionEndTime");
+                if (startTimestamp != null) item.setAuctionStartTime(startTimestamp.toInstant());
+                if (endTimestamp != null) item.setAuctionEndTime(endTimestamp.toInstant());
+
+                // Map dữ liệu ảnh thô
+                byte[] imgBytes = rs.getBytes("imgdata");
+                if (imgBytes != null && imgBytes.length > 0) {
+                    item.setImg(new String(imgBytes, java.nio.charset.StandardCharsets.UTF_8));
+                }
+
+                // Nếu sản phẩm này đang hoặc đã từng được đưa lên sàn đấu giá
+                if (rs.getObject("id_item") != null) {
+                    item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
+
+                    // Gán trạng thái thông qua hàm bọc an toàn Thread của Model Item
+                    AuctionStatus status = parseAuctionStatus(rs.getString("status"));
+                    item.setAuctionStatus(status);
+                } else {
+                    // Sản phẩm lưu kho, chưa được tạo phiên đấu giá
+                    item.setAuctionStatus(null);
+                }
+                list.add(item);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
 }

@@ -125,19 +125,18 @@ public class UserService {
         }
     }
 
+    /**
+     * ✅ ĐÃ TỐI ƯU DỨT ĐIỂM N+1: Sử dụng hàm selectAllWithAuction() chạy duy nhất 1 câu SQL JOIN
+     */
     public ArrayList<Item> select_items(UserRole role) {
-        ArrayList<Item> list = itemDAO.selectAll();
-        for (Item item : list) {
-            Auction auction = auctionDAO.selectByItemId(item);
-            if (auction != null) {
-                auction.setItem(item);
-                syncAuctionStatusWithDatabase(auction);
-            }
-        }
+        // Tận dụng hàm JOIN từ DAO đã bọc sẵn cơ chế an toàn UI Thread
+        List<Item> sourceList = auctionDAO.selectAllWithAuction();
+        ArrayList<Item> list = new ArrayList<>(sourceList);
 
         if (role == UserRole.ADMIN) {
             return list;
         }
+        // Lọc an toàn không kích hoạt thêm câu lệnh DB phụ nào
         list.removeIf(item -> item.getAuctionStatus() == null);
         return list;
     }
@@ -340,6 +339,25 @@ public class UserService {
         return effectiveStatus;
     }
 
+    /**
+     * Hàm đồng bộ trạng thái "mềm" cục bộ trong bộ nhớ để tránh spam câu lệnh UPDATE SQL vào vòng lặp
+     */
+    private AuctionStatus calculateEffectiveStatusOnly(Auction auction) {
+        if (auction == null) return null;
+        AuctionStatus storedStatus = auction.getRawStatus();
+        if (storedStatus == AuctionStatus.CANCELLED || storedStatus == AuctionStatus.PAID) {
+            return storedStatus;
+        }
+        Item item = auction.getItem();
+        if (item == null || item.getAuctionStartTime() == null || item.getAuctionEndTime() == null) {
+            return storedStatus;
+        }
+        Instant now = Instant.now(clock);
+        if (!now.isBefore(item.getAuctionEndTime())) return AuctionStatus.FINISHED;
+        if (!now.isBefore(item.getAuctionStartTime())) return AuctionStatus.RUNNING;
+        return AuctionStatus.OPEN;
+    }
+
     private AuctionStatus effectiveAuctionStatus(Auction auction, Instant now) {
         return effectiveAuctionStatus(auction, now, auction == null ? null : auction.getRawStatus());
     }
@@ -381,19 +399,18 @@ public class UserService {
         return true;
     }
 
+    /**
+     * ✅ ĐÃ TỐI ƯU DỨT ĐIỂM N+1: Loại bỏ câu lệnh selectById đơn lẻ bên trong vòng lặp.
+     */
     public List<Auction> getAllAuctions() {
         List<Auction> auctions = auctionDAO.selectAll();
         if (auctions == null) {
             return new ArrayList<>();
         }
 
+        // Bản thân hàm auctionDAO.selectAll() hiện tại đã LEFT JOIN sẵn thực thể Item bên trong.
+        // Bạn không cần và không được gọi thêm itemDAO.selectById() ở đây nữa!
         for (Auction auction : auctions) {
-            if (auction.getItem() == null && auction.getItemId() != 0) {
-                Item item = itemDAO.selectById(String.valueOf(auction.getItemId()));
-                if (item != null) {
-                    auction.setItem(item);
-                }
-            }
             syncAuctionStatusWithDatabase(auction);
         }
         return auctions;
@@ -521,8 +538,11 @@ public class UserService {
         }
     }
 
+    /**
+     * ✅ ĐÃ TỐI ƯU TRIỆT ĐỂ N+1 & SPAM UPDATE: Chuyển đổi trạng thái mềm bằng bộ nhớ
+     */
     public List<BidHistoryDTO> getBidderHistory(String username) {
-        List<Auction> allAuctions = auctionDAO.selectAll();
+        List<Auction> allAuctions = auctionDAO.selectAll(); // Đã bao gồm cả Item được JOIN sẵn
         List<BidHistoryDTO> resultList = new ArrayList<>();
 
         for (Auction auction : allAuctions) {
@@ -552,7 +572,11 @@ public class UserService {
 
             double currentPrice = txList.get(txList.size() - 1).getAmount();
             boolean isLeading = username.equals(auction.getLeadingBidder());
-            AuctionStatus auctionStatus = syncAuctionStatusWithDatabase(auction);
+
+            // 🛑 Sửa đổi quan trọng: Chỉ tính toán trạng thái cục bộ để render UI lịch sử,
+            // KHÔNG gọi sync... để tránh spam hàng loạt lệnh UPDATE SQL gây treo đứng hệ thống.
+            AuctionStatus auctionStatus = calculateEffectiveStatusOnly(auction);
+
             String displayStatus = auctionStatus == AuctionStatus.RUNNING
                     ? (isLeading ? "WINNING" : "OUTBID")
                     : (isLeading ? "WON" : "LOST");

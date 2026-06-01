@@ -21,9 +21,6 @@ public class DAOItems implements DaoInterface<Item> {
         return new DAOItems();
     }
 
-    /**
-     * ✅ ĐÃ THÊM MỚI: Hàm Insert nhận kết nối Connection dùng chung của Transaction từ Service.
-     */
     public int Insert(Connection con, Item item) throws SQLException {
         ensureMinBidColumn(con);
         String sql = "INSERT INTO items (name, startingPrice, minBid, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -70,7 +67,7 @@ public class DAOItems implements DaoInterface<Item> {
     @Override
     public int Insert(Item item) {
         try (Connection con = JDBCUtil.getConnection()) {
-            return Insert(con, item); // Gọi lại hàm dùng chung ở trên
+            return Insert(con, item);
         } catch (SQLException e) {
             throw new RuntimeException("Lỗi kết nối khi chạy hệ thống tự động Insert độc lập", e);
         }
@@ -147,18 +144,28 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
+    /**
+     * Tối ưu hóa: Bổ sung LEFT JOIN lấy trạng thái đấu giá phòng hờ lỗi N+1 ở view Seller
+     */
     public ArrayList<Item> selectBySellerId(String sellerId) {
         ArrayList<Item> list = new ArrayList<>();
-        String sql = "SELECT * FROM items WHERE sellerId = ?";
+        String sql = "SELECT i.*, JSON_UNQUOTE(a.status) AS clean_status " +
+                "FROM items i " +
+                "LEFT JOIN auction_items a ON i.my_row_id = a.id_item " +
+                "WHERE i.sellerId = ?";
 
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
-
-            pstmt.setString(1, sellerId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Item item = mapResultSetToItem(rs);
-                    if (item != null) list.add(item);
+        try (Connection con = JDBCUtil.getConnection()) {
+            ensureMinBidColumn(con);
+            try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+                pstmt.setString(1, sellerId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        Item item = mapResultSetToItem(rs);
+                        if (item != null) {
+                            item.setAuctionStatus(parseAuctionStatus(rs.getString("clean_status")));
+                            list.add(item);
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -167,22 +174,22 @@ public class DAOItems implements DaoInterface<Item> {
         return list;
     }
 
+    /**
+     * Tối ưu hóa: Loại bỏ hoàn toàn câu lệnh SELECT truy vấn phụ lồng nhau (Dứt điểm N+1)
+     */
     public Item selectById(Connection con, String itemId) throws SQLException {
-        String sql = "SELECT * FROM items WHERE my_row_id = ? FOR UPDATE";
+        String sql = "SELECT i.*, JSON_UNQUOTE(a.status) AS clean_status " +
+                "FROM items i " +
+                "LEFT JOIN auction_items a ON i.my_row_id = a.id_item " +
+                "WHERE i.my_row_id = ? FOR UPDATE";
+
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, Integer.parseInt(itemId));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Item item = mapResultSetToItem(rs);
-
-                    String statusSql = "SELECT JSON_UNQUOTE(status) AS clean_status FROM auction_items WHERE id_item = ?";
-                    try (PreparedStatement statusPs = con.prepareStatement(statusSql)) {
-                        statusPs.setInt(1, item.getDatabaseId());
-                        try (ResultSet statusRs = statusPs.executeQuery()) {
-                            if (statusRs.next()) {
-                                item.setAuctionStatus(parseAuctionStatus(statusRs.getString("clean_status")));
-                            }
-                        }
+                    if (item != null) {
+                        item.setAuctionStatus(parseAuctionStatus(rs.getString("clean_status")));
                     }
                     return item;
                 }
