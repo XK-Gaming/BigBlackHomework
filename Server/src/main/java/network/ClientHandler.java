@@ -9,7 +9,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public class ClientHandler implements Runnable {
-    private final UserService userService = new UserService();
+    private static final UserService userService = new UserService();
     private final Socket socket;
 
     // Sử dụng volatile đảm bảo cập nhật luồng an toàn giữa các Thread
