@@ -18,7 +18,6 @@ public class DAOAuction_Items {
         return INSTANCE;
     }
 
-    // Đảm bảo class GsonUtils tồn tại và hoạt động đúng trong dự án của bạn
     private final Gson gson = GsonUtils.createGson();
 
     public int Insert(Auction auction, Item item) {
@@ -30,7 +29,6 @@ public class DAOAuction_Items {
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
 
-            // ✅ ĐÃ SỬA: Bọc Enum status thành chuỗi JSON hợp lệ bằng gson.toJson
             String rawStatus = auction.getStatus() != null ? auction.getStatus().name() : AuctionStatus.OPEN.name();
             pstmt.setString(3, gson.toJson(rawStatus));
 
@@ -58,9 +56,6 @@ public class DAOAuction_Items {
         }
     }
 
-    /**
-     * Phương thức mặc định lấy thông tin Auction (Tự tạo Connection ngắn hạn)
-     */
     public Auction selectByItemId(Item item) {
         try (Connection con = JDBCUtil.getConnection()) {
             return selectByItemId(con, item);
@@ -70,10 +65,6 @@ public class DAOAuction_Items {
         return null;
     }
 
-    /**
-     * ✅ ĐÃ SỬA LỖI & NÂNG CẤP CHÍ MẠNG: Sử dụng "FOR UPDATE" kết hợp Connection dùng chung từ Service.
-     * Khóa chặt hàng dữ liệu của phiên đấu giá này lại dưới DB, ép các luồng đặt giá đồng thời phải xếp hàng (Queue).
-     */
     public Auction selectByItemId(Connection con, Item item) throws SQLException {
         String sql = "SELECT * FROM auction_items WHERE id_item = ? FOR UPDATE";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -87,13 +78,9 @@ public class DAOAuction_Items {
         return null;
     }
 
-    /**
-     * ✅ TỐI ƯU CƠ CHẾ ĐỒNG BỘ TRANSACTION: Đồng bộ hàm Update_Status sử dụng connection tổng.
-     */
     public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            // ✅ ĐÃ SỬA: Convert enum status sang định dạng chuỗi JSON bằng gson.toJson
             pstmt.setString(1, gson.toJson(status.name()));
             pstmt.setLong(2, item1.getDatabaseId());
 
@@ -120,8 +107,6 @@ public class DAOAuction_Items {
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
             pstmt.setDouble(3, item.getCurrentHighestPrice());
-
-            // ✅ ĐÃ SỬA: Convert giá trị mặc định sang chuỗi JSON hợp lệ
             pstmt.setString(4, gson.toJson(AuctionStatus.OPEN.name()));
 
             return pstmt.executeUpdate();
@@ -246,16 +231,35 @@ public class DAOAuction_Items {
         }
     }
 
-    public int updatePriceByItemIdWhenEditItem(Item item) {
+    /**
+     * ✅ ĐÃ THÊM MỚI: Nhận Connection truyền vào từ Service để chạy chung Transaction.
+     * Giải quyết dứt điểm lỗi biên dịch "Expected 1 argument but found 2"
+     */
+    public int updatePriceByItemIdWhenEditItem(Connection con, Item item) throws SQLException {
         String sql = "UPDATE auction_items SET currentPrice = ? WHERE id_item = ?";
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, item.getCurrentHighestPrice());
             pstmt.setLong(2, item.getDatabaseId());
             return pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return 0;
         }
     }
+    public int Insert(Connection con, Auction auction, Item item) throws SQLException {
+        String sql = "INSERT INTO auction_items (id_item, sellerID, status, leadingbider, bidHistory, currentPrice) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setLong(1, item.getDatabaseId());
+            pstmt.setString(2, item.getSellerId());
+
+            // Đọc trạng thái enum dạng text thuần (Theo logic tối ưu hóa lưu trữ trực tiếp)
+            String rawStatus = auction.getStatus() != null ? auction.getStatus().name() : AuctionStatus.OPEN.name();
+            pstmt.setString(3, rawStatus);
+
+            pstmt.setString(4, auction.getLeadingBidder());
+            pstmt.setString(5, gson.toJson(new ArrayList<model.auction.BidTransaction>()));
+            pstmt.setDouble(6, item.getCurrentHighestPrice());
+
+            return pstmt.executeUpdate();
+        }
+    }
+
 }

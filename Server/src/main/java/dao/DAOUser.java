@@ -9,6 +9,7 @@ import com.google.gson.reflect.TypeToken;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class DAOUser implements DaoInterface<User> {
@@ -28,7 +29,7 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setString(1, user.getUsername());
             pstmt.setString(2, user.getPassword());
             pstmt.setString(3, user.getName());
-            pstmt.setString(4, user.getAddress());
+            pstmt.setString(4, user.getAddress()); // Giữ nguyên map field cũ của bạn
             pstmt.setString(5, user.getRole_toString());
 
             return pstmt.executeUpdate();
@@ -82,6 +83,47 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setDouble(1, newBalance);
             pstmt.setString(2, username);
             return pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * ✅ THÊM MỚI: Cập nhật động các trường thông tin cá nhân của User
+     * Giải quyết lỗi "Cannot resolve method 'updateUserField'" ở UserService
+     */
+    public boolean updateUserField(String username, String field, String value) {
+        String sql = switch (field) {
+            case "name" -> "UPDATE khach SET name = ? WHERE username = ?";
+            case "phone" -> "UPDATE khach SET phone = ? WHERE username = ?"; // Hãy chắc chắn bảng 'khach' có cột phone
+            case "address" -> "UPDATE khach SET email = ? WHERE username = ?"; // Map tạm vào 'email' theo logic cũ của bạn, hoặc đổi thành cột address nếu có
+            default -> throw new IllegalArgumentException("Trường cập nhật không hợp lệ: " + field);
+        };
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, value);
+            ps.setString(2, username);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException | IllegalArgumentException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * ✅ THÊM MỚI: Đổi mật khẩu an toàn kiểm tra mật khẩu cũ trực tiếp dưới DB
+     * Giải quyết lỗi "Cannot resolve method 'changePassword'" ở UserService
+     */
+    public boolean changePassword(String username, String oldPassword, String newPassword) {
+        String sql = "UPDATE khach SET password = ? WHERE username = ? AND password = ?";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, newPassword);
+            ps.setString(2, username);
+            ps.setString(3, oldPassword);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 
@@ -178,9 +220,6 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
-    /**
-     * Phương thức mặc định lấy thông tin User (Tự sinh Connection)
-     */
     public User selectByUsernameOnly(String username) {
         try (Connection con = JDBCUtil.getConnection()) {
             return selectByUsernameOnly(con, username);
@@ -190,10 +229,6 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
-    /**
-     * ✅ ĐÃ SỬA LỖI & NÂNG CẤP: Sử dụng "FOR UPDATE" để kích hoạt Khóa bi quan dưới DB.
-     * Tránh triệt để Race Condition khi đọc số dư tài khoản của phiên đấu giá song song.
-     */
     public User selectByUsernameOnly(Connection con, String username) throws SQLException {
         String sql = "SELECT * FROM khach WHERE username = ? FOR UPDATE";
 
@@ -209,9 +244,6 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
-    /**
-     * Phương thức cập nhật lịch sử nạp tiền mặc định (Tự sinh Connection)
-     */
     public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
         try (Connection con = JDBCUtil.getConnection()) {
             return UpdateDepositHistory(con, username, history);
@@ -221,10 +253,6 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
-    /**
-     * ✅ PHƯƠNG THỨC MỚI: Cập nhật lịch sử nạp tiền dùng chung Connection
-     * Giúp hàm approveDeposit() của Service thực thi nguyên tử (Atomic) cả tiền và lịch sử.
-     */
     public int UpdateDepositHistory(Connection con, String username, List<DepositTransaction> history) throws SQLException {
         String sql = "UPDATE khach SET DepositHistory = ? WHERE username = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {

@@ -68,11 +68,11 @@ class AuctionEngineTest {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<AuctionStatus> firstStatus = new AtomicReference<>();
 
-        String token = AuctionEngine.getInstance().watchItem(item, (status, seconds) -> {
+        String token = String.valueOf(AuctionEngine.getInstance().watchItem(item, (status, seconds) -> {
             if (firstStatus.compareAndSet(null, status)) {
                 latch.countDown();
             }
-        });
+        }));
 
         try {
             assertTrue(latch.await(1, TimeUnit.SECONDS));

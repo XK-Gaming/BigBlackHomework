@@ -21,65 +21,61 @@ public class DAOItems implements DaoInterface<Item> {
         return new DAOItems();
     }
 
-    @Override
-    public int Insert(Item item) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            ensureMinBidColumn(con);
-            String sql = "INSERT INTO items (name, startingPrice, minBid, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement pstmt = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    /**
+     * ✅ ĐÃ THÊM MỚI: Hàm Insert nhận kết nối Connection dùng chung của Transaction từ Service.
+     */
+    public int Insert(Connection con, Item item) throws SQLException {
+        ensureMinBidColumn(con);
+        String sql = "INSERT INTO items (name, startingPrice, minBid, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-                pstmt.setString(1, item.getName());
-                pstmt.setDouble(2, item.getStartingPrice());
-                pstmt.setDouble(3, item.getMinBid());
-                pstmt.setString(4, item.getSellerId());
+        try (PreparedStatement pstmt = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, item.getName());
+            pstmt.setDouble(2, item.getStartingPrice());
+            pstmt.setDouble(3, item.getMinBid());
+            pstmt.setString(4, item.getSellerId());
 
-                Map<String, String> payload = new HashMap<>();
-                payload.put("description", item.getDescription());
-                if (item.getProperties() != null) {
-                    payload.putAll(item.getProperties());
-                }
-                String combinedJson = mapper.writeValueAsString(payload);
-                pstmt.setString(5, combinedJson);
-
-                pstmt.setString(6, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
-
-                Instant inst1 = item.getAuctionStartTime();
-                if (inst1 != null) {
-                    pstmt.setTimestamp(7, java.sql.Timestamp.from(inst1));
-                } else {
-                    pstmt.setNull(7, java.sql.Types.TIMESTAMP);
-                }
-
-                Instant inst2 = item.getAuctionEndTime();
-                if (inst2 != null) {
-                    pstmt.setTimestamp(8, java.sql.Timestamp.from(inst2));
-                } else {
-                    pstmt.setNull(8, java.sql.Types.TIMESTAMP);
-                }
-
-                pstmt.setString(9, item.getImg());
-                pstmt.setDouble(10, item.getStartingPrice());
-
-                int rowsAffected = pstmt.executeUpdate();
-                try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        int generatedId = rs.getInt(1);
-                        item.setDatabaseId(generatedId);
-                    }
-                }
-                return rowsAffected;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return 0;
+            Map<String, String> payload = new HashMap<>();
+            payload.put("description", item.getDescription());
+            if (item.getProperties() != null) {
+                payload.putAll(item.getProperties());
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            String combinedJson = mapper.writeValueAsString(payload);
+            pstmt.setString(5, combinedJson);
+
+            pstmt.setString(6, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
+
+            Instant inst1 = item.getAuctionStartTime();
+            pstmt.setTimestamp(7, inst1 != null ? java.sql.Timestamp.from(inst1) : null);
+
+            Instant inst2 = item.getAuctionEndTime();
+            pstmt.setTimestamp(8, inst2 != null ? java.sql.Timestamp.from(inst2) : null);
+
+            pstmt.setString(9, item.getImg());
+            pstmt.setDouble(10, item.getStartingPrice());
+
+            int rowsAffected = pstmt.executeUpdate();
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    int generatedId = rs.getInt(1);
+                    item.setDatabaseId(generatedId);
+                }
+            }
+            return rowsAffected;
+        } catch (Exception e) {
+            if (e instanceof SQLException) throw (SQLException) e;
+            throw new SQLException("Lỗi serialize dữ liệu JSON sản phẩm khi tạo mới", e);
         }
     }
 
-    /**
-     * ✅ ĐÃ ĐỒNG BỘ: Sử dụng Connection từ Service và bọc cơ chế ghi đè dữ liệu cập nhật.
-     */
+    @Override
+    public int Insert(Item item) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return Insert(con, item); // Gọi lại hàm dùng chung ở trên
+        } catch (SQLException e) {
+            throw new RuntimeException("Lỗi kết nối khi chạy hệ thống tự động Insert độc lập", e);
+        }
+    }
+
     @Override
     public int Update(Connection con, Item item) throws SQLException {
         String sql = "UPDATE items SET currentHighestBid = ?, auctionEndTime = ? WHERE my_row_id = ?";
@@ -95,54 +91,57 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    public int UpdateWhenEdit(Item item) {
+    public int UpdateWhenEdit(Connection con, Item item) throws SQLException {
         String sql = "UPDATE items SET name = ?, description = ?, startingPrice = ?, minBid = ?, " +
                 "auctionStartTime = ?, auctionEndTime = ?, imgdata = ?, itemType = ?, " +
                 "currentHighestBid = ? WHERE my_row_id = ?";
 
-        try (Connection con = JDBCUtil.getConnection()) {
-            ensureMinBidColumn(con);
-            try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+        ensureMinBidColumn(con);
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, item.getName());
 
-                pstmt.setString(1, item.getName());
+            Map<String, String> payload = new HashMap<>();
+            payload.put("description", item.getDescription());
 
-                Map<String, String> payload = new HashMap<>();
-                payload.put("description", item.getDescription());
-
-                Map<String, String> currentProps = item.getProperties();
-
-                if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
-                    Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
-                    if (dbBackup != null && dbBackup.getProperties() != null) {
-                        currentProps = dbBackup.getProperties();
-                    }
+            Map<String, String> currentProps = item.getProperties();
+            if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
+                Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
+                if (dbBackup != null && dbBackup.getProperties() != null) {
+                    currentProps = dbBackup.getProperties();
                 }
-
-                if (currentProps != null) {
-                    payload.putAll(currentProps);
-                }
-
-                String combinedJson = mapper.writeValueAsString(payload);
-                pstmt.setString(2, combinedJson);
-
-                pstmt.setDouble(3, item.getStartingPrice());
-                pstmt.setDouble(4, item.getMinBid());
-
-                Instant startTime = item.getAuctionStartTime();
-                pstmt.setTimestamp(5, startTime != null ? java.sql.Timestamp.from(startTime) : null);
-
-                Instant endTime = item.getAuctionEndTime();
-                pstmt.setTimestamp(6, endTime != null ? java.sql.Timestamp.from(endTime) : null);
-
-                pstmt.setString(7, item.getImg());
-                pstmt.setString(8, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
-                pstmt.setDouble(9, item.getStartingPrice());
-                pstmt.setInt(10, item.getDatabaseId());
-
-                return pstmt.executeUpdate();
             }
+
+            if (currentProps != null) {
+                payload.putAll(currentProps);
+            }
+
+            String combinedJson = mapper.writeValueAsString(payload);
+            pstmt.setString(2, combinedJson);
+
+            pstmt.setDouble(3, item.getStartingPrice());
+            pstmt.setDouble(4, item.getMinBid());
+
+            Instant startTime = item.getAuctionStartTime();
+            pstmt.setTimestamp(5, startTime != null ? java.sql.Timestamp.from(startTime) : null);
+
+            Instant endTime = item.getAuctionEndTime();
+            pstmt.setTimestamp(6, endTime != null ? java.sql.Timestamp.from(endTime) : null);
+
+            pstmt.setString(7, item.getImg());
+            pstmt.setString(8, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
+            pstmt.setDouble(9, item.getStartingPrice());
+            pstmt.setInt(10, item.getDatabaseId());
+
+            return pstmt.executeUpdate();
         } catch (Exception e) {
-            System.err.println("Lỗi thực thi Update JSON tại sản phẩm có ID: " + item.getDatabaseId());
+            throw new SQLException("Lỗi thực thi dữ liệu JSON tại ID sản phẩm: " + item.getDatabaseId(), e);
+        }
+    }
+
+    public int UpdateWhenEdit(Item item) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return UpdateWhenEdit(con, item);
+        } catch (SQLException e) {
             e.printStackTrace();
             return 0;
         }
@@ -168,10 +167,6 @@ public class DAOItems implements DaoInterface<Item> {
         return list;
     }
 
-    /**
-     * ✅ ĐÃ SỬA LỖI CHÍ MẠNG: Kích hoạt Khóa bi quan "FOR UPDATE"
-     * Khóa chặt hàng dữ liệu này dưới Database, chặn đứng hoàn toàn hiện tượng Race Condition đa máy chủ.
-     */
     public Item selectById(Connection con, String itemId) throws SQLException {
         String sql = "SELECT * FROM items WHERE my_row_id = ? FOR UPDATE";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -180,7 +175,6 @@ public class DAOItems implements DaoInterface<Item> {
                 if (rs.next()) {
                     Item item = mapResultSetToItem(rs);
 
-                    // Lấy trạng thái đấu giá kèm theo từ bảng liên kết (nếu có)
                     String statusSql = "SELECT JSON_UNQUOTE(status) AS clean_status FROM auction_items WHERE id_item = ?";
                     try (PreparedStatement statusPs = con.prepareStatement(statusSql)) {
                         statusPs.setInt(1, item.getDatabaseId());
@@ -252,10 +246,6 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    /**
-     * ✅ TỐI ƯU HÓA & ĐỒNG BỘ logic map dữ liệu tập trung
-     * Giải quyết triệt để lỗi phân tách sai định dạng byte[] / String giữa các hàm khác nhau.
-     */
     private Item mapResultSetToItem(ResultSet rs) throws SQLException {
         String itemType = rs.getString("itemType");
         String name = rs.getString("name");
@@ -265,7 +255,6 @@ public class DAOItems implements DaoInterface<Item> {
         Timestamp startTime = rs.getTimestamp("auctionStartTime");
         Timestamp endTime = rs.getTimestamp("auctionEndTime");
 
-        // Đọc dữ liệu ảnh an toàn theo mảng byte rồi chuyển đổi chuỗi UTF-8
         byte[] imgBytes = rs.getBytes("imgdata");
         String imgData = (imgBytes != null && imgBytes.length > 0)
                 ? new String(imgBytes, java.nio.charset.StandardCharsets.UTF_8)

@@ -18,6 +18,7 @@ import model.User.User;
 import model.auction.BidHistoryDTO;
 import network.*;
 import java.io.IOException;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ public class ControllerManagerUser implements ServerListener {
     @FXML private ListView<String> listBidHistory;
     @FXML private ListView<String> listSellHistory;
     @FXML private ListView<String> listTransactionHistory;
+    @FXML private Button btnRefresh;
 
     private final AuctionClient client = AuctionClient.getInstance();
     private ObservableList<User> masterData = FXCollections.observableArrayList();
@@ -70,8 +72,7 @@ public class ControllerManagerUser implements ServerListener {
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
         colRole.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getRole_toString()));
-        
-        // Cột trạng thái Online/Offline
+
         TableColumn<User, String> statusCol = new TableColumn<>("Trạng thái");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         tableUsers.getColumns().add(statusCol);
@@ -95,25 +96,29 @@ public class ControllerManagerUser implements ServerListener {
         detailRole.setText("Vai trò: " + user.getRole_toString());
         paymentHistory.setText("Số dư: " + String.format("%,.0f VNĐ", user.getBalance()));
 
-        // Xóa dữ liệu cũ
         listBidHistory.getItems().clear();
         listSellHistory.getItems().clear();
         listTransactionHistory.getItems().clear();
 
-        // Gửi yêu cầu lấy chi tiết từ server
         try {
             client.sendCommand(network.Command.GET_BIDDER_HISTORY, (Object) user.getUsername());
             client.sendCommand(network.Command.GET_SELLER_ITEMS, (Object) user.getUsername());
-            
-            // Hiển thị lịch sử giao dịch nạp tiền nếu có
+
             if (user.getDepositHistory() != null) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                // ✅ SỬA LỖI: Tạo bộ formatter chuẩn hóa dựa trên múi giờ hiện tại của hệ thống máy khách
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+                        .withZone(ZoneId.systemDefault());
+
                 for (DepositTransaction dt : user.getDepositHistory()) {
-                    String info = String.format("[%s] %s: %,.0f VNĐ",
-                            dt.getTimestamp().format(formatter),
-                            dt.getStatus(),
-                            dt.getAmount());
-                    listTransactionHistory.getItems().add(info);
+                    if (dt.getTimestamp() != null) {
+                        // Sử dụng formatter.format() chính xác để chuyển đổi thực thể Instant thành String
+                        String formattedTime = formatter.format(dt.getTimestamp());
+                        String info = String.format("[%s] %s: %,.0f VNĐ",
+                                formattedTime,
+                                dt.getStatus(),
+                                dt.getAmount());
+                        listTransactionHistory.getItems().add(info);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -232,11 +237,10 @@ public class ControllerManagerUser implements ServerListener {
         alert.setContentText(content);
         alert.showAndWait();
     }
-    @FXML private Button btnRefresh; // Phải trùng khớp fx:id="btnRefresh" ở XML
 
     @FXML
     public void On_RefreshData(ActionEvent event) {
-        loadData(); // Tải lại toàn bộ dữ liệu từ Server
-        tableUsers.getSelectionModel().clearSelection(); // Reset vùng chọn bảng
+        loadData();
+        tableUsers.getSelectionModel().clearSelection();
     }
 }
