@@ -116,22 +116,12 @@ public final class AuctionEngine implements AutoCloseable {
             }
         }
 
-        // 🚀 BỔ SUNG LOG IN TOÀN BỘ (ĐÃ XÓA CHẶN ID):
-        System.out.println("\n--- [KIỂM TRA PHIÊN ID: " + auction.getItemId() + "] ---");
-        System.out.println("   + Trạng thái hiện tại trong DB: " + oldStatus);
-        System.out.println("   + Giờ máy tính hiện tại:       " + java.time.LocalDateTime.now());
-        System.out.println("   + Giờ Server lấy so sánh:      " + java.time.Instant.now());
-        System.out.println("   + Giờ BẮT ĐẦU đấu giá:         " + item.getAuctionStartTime());
-        System.out.println("   + Giờ KẾT THÚC đấu giá:        " + item.getAuctionEndTime());
 
         // 2. Ép hệ thống tính toán trạng thái mới dựa trên thời gian
         auction.updateStatusByTime();
 
         // 3. Đọc trạng thái mới sau khi áp dụng quy tắc
         AuctionStatus newStatus = auction.getRawStatus();
-        System.out.println("   => Kết quả sau khi tính toán:  " + newStatus);
-        System.out.println("------------------------------------------------");
-
 // 4. Kiểm tra sự dịch chuyển trạng thái vòng đời
         if (oldStatus != newStatus) {
             dao.DAOAuction_Items.getInstance().Update_Status(auction, item, newStatus);

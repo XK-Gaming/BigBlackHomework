@@ -426,7 +426,7 @@ public class ControllerAuction implements ServerListener {
         }
 
         try {
-            long bidAmount = Long.parseLong(priceText);
+            double bidAmount = parseMoney(priceText, "Giá đặt");
             double minAllowedBid = minimumBidForCurrentState();
             double currentPrice = item1.getCurrentHighestPrice();
 
@@ -441,17 +441,17 @@ public class ControllerAuction implements ServerListener {
                 j_notified.setText("Số dư không đủ để đấu giá");
                 j_notified.setVisible(true);
             } else {
-                pendingManualBidAmount = (double) bidAmount;
+                pendingManualBidAmount = bidAmount;
                 pendingManualBidPreviousPrice = currentPrice;
                 pendingManualBidWasLeading = p1.getUsername().equals(currentLeadingBidder());
                 client.sendCommand(Command.BID, Map.of(
                         "itemId", item1.getDatabaseId(),
                         "bidderId", p1.getUsername(),
-                        "amount", priceText
+                        "amount", bidAmount
                 ));
             }
-        } catch (NumberFormatException e) {
-            j_notified.setText("Giá đặt phải là số nguyên hợp lệ!");
+        } catch (IllegalArgumentException e) {
+            j_notified.setText("Giá đặt phải là số hợp lệ!");
             j_notified.setVisible(true);
         }
     }

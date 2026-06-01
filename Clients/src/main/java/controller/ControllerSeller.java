@@ -164,6 +164,16 @@ public class ControllerSeller implements ServerListener {
                 .toInstant();
     }
 
+    // Helper to parse money inputs tolerating commas/spaces and returning double
+    private double parseMoneyField(String value) throws NumberFormatException {
+        if (value == null || value.trim().isEmpty()) throw new NumberFormatException();
+        try {
+            return Double.parseDouble(value.replace(",", "").replace(" ", "").trim());
+        } catch (NumberFormatException e) {
+            throw e;
+        }
+    }
+
     @FXML
     void handle_Items() {
         // --- BẮT ĐẦU PHẦN KIỂM TRA THÔNG TIN BẮT BUỘC CHI TIẾT ---
@@ -240,7 +250,7 @@ public class ControllerSeller implements ServerListener {
                 double startingPrice;
                 double minBid;
                 try {
-                    startingPrice = Double.parseDouble(j_StartingPrice.getText());
+                    startingPrice = parseMoneyField(j_StartingPrice.getText());
                     if (startingPrice <= 0) throw new NumberFormatException();
                 } catch (NumberFormatException e) {
                     showErrorInUIThread("Giá khởi điểm phải là số dương hợp lệ!");
@@ -249,7 +259,7 @@ public class ControllerSeller implements ServerListener {
 
                 // Đóng gói extra fields dựa trên loại mặt hàng chọn
                 try {
-                    minBid = Double.parseDouble(j_MinBid.getText());
+                    minBid = parseMoneyField(j_MinBid.getText());
                     if (minBid <= 0) throw new NumberFormatException();
                     if (minBid > startingPrice * 0.2) {
                         showErrorInUIThread("MinBid khong duoc vuot qua 20% gia khoi diem!");
