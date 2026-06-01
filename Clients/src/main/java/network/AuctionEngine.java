@@ -36,9 +36,9 @@ public class AuctionEngine {
         return INSTANCE;
     }
 
-    public int watchItem(Item item, AuctionStatusListener listener) {
+    public Integer watchItem(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
-            return -1;
+            return null;
         }
         int itemId = item.getDatabaseId();
         registrations.put(itemId, new WatchRegistration(item, listener));
@@ -113,10 +113,18 @@ public class AuctionEngine {
             secondsToNextChange = 0;
         }
 
-        Platform.runLater(() -> {
+        runOnFxThreadOrNow(() -> {
             item.updateStatus(status);
             listener.onStatus(status, Math.max(0, secondsToNextChange));
         });
+    }
+
+    private void runOnFxThreadOrNow(Runnable action) {
+        try {
+            Platform.runLater(action);
+        } catch (IllegalStateException e) {
+            action.run();
+        }
     }
 
     private record WatchRegistration(Item item, AuctionStatusListener listener) {}

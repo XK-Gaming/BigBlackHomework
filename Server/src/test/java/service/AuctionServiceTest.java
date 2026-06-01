@@ -118,7 +118,7 @@ class AuctionServiceTest {
 
         private StaticStatusAuction(String id, Item item, String sellerId, Instant createdAt, AuctionStatus status) {
             super(id, item, sellerId, createdAt);
-            this.status = status;
+            setStatus(status);
         }
 
         @Override
@@ -129,6 +129,7 @@ class AuctionServiceTest {
         @Override
         public void setStatus(AuctionStatus status) {
             this.status = status;
+            super.setStatus(status);
         }
     }
 
