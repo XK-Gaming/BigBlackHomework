@@ -109,7 +109,7 @@ public class ControllerAuction implements ServerListener {
 
     @FXML
     public void initialize() throws IOException {
-        client.setListener(this);
+        client.addListener(this);
 
         // Nạp dữ liệu tài khoản
         p1 = UserSession.getLoggedInUser();
@@ -491,6 +491,7 @@ public class ControllerAuction implements ServerListener {
     @FXML
     void On_Return(ActionEvent event) throws IOException {
         cleanup();
+        client.removeListener(this);
         SceneHelper.changeScene(j_return, "/fxml/BidderView.fxml");
         ItemSession.cleanItemSession();
         if (p1 != null) {
@@ -963,6 +964,7 @@ public class ControllerAuction implements ServerListener {
                 }
                 javafx.stage.Stage stage = findValidStage();
                 if (stage != null) {
+                    client.removeListener(this);
                     SceneHelper.changeScene(stage, "/fxml/PayingView.fxml");
                 } else {
                     System.err.println("[CRITICAL] Không tìm thấy Stage nào đang mở để chuyển trang!");
@@ -982,6 +984,7 @@ public class ControllerAuction implements ServerListener {
                 }
                 javafx.stage.Stage stage = findValidStage();
                 if (stage != null) {
+                    client.removeListener(this);
                     SceneHelper.changeScene(stage, "/fxml/BidderView.fxml");
                 }
             });
@@ -1306,6 +1309,7 @@ public class ControllerAuction implements ServerListener {
                         alert.close();
                     }
                     if (j_notified != null && j_notified.getScene() != null) {
+                        client.removeListener(this);
                         SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
                     }
                 }));
@@ -1333,6 +1337,7 @@ public class ControllerAuction implements ServerListener {
                     alert.showAndWait();
 
                     if (j_notified != null && j_notified.getScene() != null) {
+                        client.removeListener(this);
                         SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
                     }
                 });
@@ -1401,7 +1406,7 @@ public class ControllerAuction implements ServerListener {
         });
 
         try {
-            client.setListener(this);
+            client.addListener(this);
             client.sendCommand(Command.GET_AUCTION, dto.getItemId());
             if (p1 != null) {
                 client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", dto.getItemId()));

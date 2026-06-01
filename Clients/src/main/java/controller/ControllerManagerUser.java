@@ -54,7 +54,7 @@ public class ControllerManagerUser implements ServerListener {
 
     @FXML
     public void initialize() {
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
         setupTable();
@@ -146,6 +146,7 @@ public class ControllerManagerUser implements ServerListener {
 
     @FXML
     public void On_LogOut(ActionEvent event) {
+        client.removeListener(this);
         SceneHelper.changeScene(LogOut, "/fxml/AdminView.fxml");
     }
 

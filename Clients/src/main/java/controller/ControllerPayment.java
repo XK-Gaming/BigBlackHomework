@@ -63,6 +63,7 @@ public class ControllerPayment implements ServerListener {
     private Label j_textSoDu;
 
     public void On_Return_History(ActionEvent actionEvent) {
+        client.removeListener(this);
         SceneHelper.changeScene(j_return_history, "/fxml/BidHistoryView.fxml");
 
         // Lưu ý: Không gọi cleanItemSession() ở đây nếu bạn muốn giữ lại trạng thái item vừa xem
@@ -80,6 +81,7 @@ public class ControllerPayment implements ServerListener {
     }
 
     public void On_Return(ActionEvent actionEvent){
+        client.removeListener(this);
         SceneHelper.changeScene(j_return, "/fxml/BidderView.fxml");
         model.Items.ItemSession.cleanItemSession();
     }
@@ -114,7 +116,7 @@ public class ControllerPayment implements ServerListener {
 
     @FXML
     public void initialize() throws IOException {
-        client.setListener(this);
+        client.addListener(this);
 
         // Nạp thông tin người dùng đăng nhập
         p1 = model.User.UserSession.getLoggedInUser();

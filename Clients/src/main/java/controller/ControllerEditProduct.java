@@ -82,7 +82,7 @@ public class ControllerEditProduct implements ServerListener {
 
     @FXML
     public void initialize() {
-        client.setListener(this);
+        client.addListener(this);
 
         initCloudinary();
 
@@ -177,6 +177,13 @@ public class ControllerEditProduct implements ServerListener {
     }
 
     private void applyPermissionRules() {
+        setCoreFieldsDisabled(false);
+        txtDescription.setDisable(false);
+        btnUploadImage.setDisable(false);
+        btnSave.setDisable(false);
+        vboxAppendNote.setVisible(false);
+        vboxAppendNote.setManaged(false);
+
         if (currentStatus == AuctionStatus.OPEN || currentStatus == AuctionStatus.CANCELLED) {
             return;
         }
@@ -195,6 +202,14 @@ public class ControllerEditProduct implements ServerListener {
                 vboxAppendNote.setManaged(true);
                 txtAppendNote.setPromptText("Nhập nội dung thông tin bổ sung đính kèm tại đây...");
             }
+            return;
+        }
+
+        if (currentStatus == AuctionStatus.FINISHED || currentStatus == AuctionStatus.PAID) {
+            setCoreFieldsDisabled(true);
+            txtDescription.setDisable(true);
+            btnUploadImage.setDisable(true);
+            btnSave.setDisable(true);
         }
     }
 
@@ -362,7 +377,7 @@ public class ControllerEditProduct implements ServerListener {
                     alert.showAndWait();
 
                     // ĐÃ SỬA: Giải phóng bộ nhớ và Listener cũ trước khi rời Scene
-                    client.setListener(null);
+                    client.removeListener(this);
 
                     if (currentEvent != null) {
                         On_Back(currentEvent);
@@ -379,8 +394,7 @@ public class ControllerEditProduct implements ServerListener {
             if (response.payload() instanceof Map<?, ?> map) {
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
-                        String itemIdStr = map.get("itemId").toString();
-                        long targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).longValue() : Long.parseLong(itemIdStr);
+                        long targetItemId = parseLongValue(map.get("itemId"));
                         String newStatusStr = map.get("newStatus") != null ? map.get("newStatus").toString() : "";
 
                         Platform.runLater(() -> {
@@ -390,6 +404,7 @@ public class ControllerEditProduct implements ServerListener {
                             if (currentItem != null && currentItem.getDatabaseId() == targetItemId) {
                                 try {
                                     this.currentStatus = AuctionStatus.valueOf(newStatusStr);
+                                    this.currentItem.setAuctionStatus(this.currentStatus);
 
                                     // Tự động kích hoạt lại các quy tắc khóa/mở trường nhập liệu (TextField)
                                     // dựa trên trạng thái mới mà không cần Seller phải F5 quay lại màn hình
@@ -408,6 +423,9 @@ public class ControllerEditProduct implements ServerListener {
                     System.err.println("Lỗi xử lý đồng bộ trạng thái phía Seller: " + e.getMessage());
                 }
             }
+        }
+        if (Command.BID_UPDATE.equals(response.command())) {
+            handleBidUpdate(response.payload());
         }
         if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
             User user = UserSession.getLoggedInUser();
@@ -465,12 +483,69 @@ public class ControllerEditProduct implements ServerListener {
         if (Command.LOGOUT_RESULT.equals(response.command())) {
             Platform.runLater(() -> {
                 // 1. Ngắt kết nối socket hiện tại ở máy khách
+                client.removeListener(this);
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
                 // 2. Chuyển về màn hình đăng nhập
             });
         }
+    }
+
+    private void handleBidUpdate(Object payload) {
+        if (!(payload instanceof Map<?, ?> map)) {
+            return;
+        }
+
+        try {
+            long targetItemId = parseLongValue(map.get("itemId"));
+            if (currentItem == null || currentItem.getDatabaseId() != targetItemId) {
+                return;
+            }
+
+            Platform.runLater(() -> {
+                Object itemPayload = map.get("item");
+                if (itemPayload instanceof Item updatedItem) {
+                    mergeRealtimeItem(updatedItem);
+                }
+
+                Object pricePayload = map.get("newPrice");
+                if (pricePayload instanceof Number number) {
+                    currentItem.setCurrentHighestPrice(number.doubleValue());
+                } else if (pricePayload != null) {
+                    try {
+                        currentItem.setCurrentHighestPrice(Double.parseDouble(String.valueOf(pricePayload)));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+
+                itemHasBids = true;
+                applyPermissionRules();
+                error_Label.setTextFill(Color.ORANGE);
+                error_Label.setText("Sáº£n pháº©m vá»«a cÃ³ lÆ°á»£t bid má»›i. Quyá»n chá»‰nh sá»­a Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t.");
+                error_Label.setVisible(true);
+            });
+        } catch (Exception e) {
+            System.err.println("Lá»—i xá»­ lÃ½ BID_UPDATE trong EditProduct: " + e.getMessage());
+        }
+    }
+
+    private void mergeRealtimeItem(Item updatedItem) {
+        currentItem.setCurrentHighestPrice(updatedItem.getCurrentHighestPrice());
+        currentItem.setAuctionStartTime(updatedItem.getAuctionStartTime());
+        currentItem.setAuctionEndTime(updatedItem.getAuctionEndTime());
+        if (updatedItem.getAuctionStatus() != null) {
+            currentStatus = updatedItem.getAuctionStatus();
+            currentItem.setAuctionStatus(currentStatus);
+        }
+    }
+
+    private long parseLongValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        String itemIdStr = String.valueOf(value);
+        return itemIdStr.contains(".") ? Double.valueOf(itemIdStr).longValue() : Long.parseLong(itemIdStr);
     }
 
     public Instant createInstantFromData(LocalDate date, String timeStr) throws DateTimeParseException {
@@ -507,12 +582,13 @@ public class ControllerEditProduct implements ServerListener {
 
     @FXML
     void On_Back(ActionEvent event) {
+        client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
     }
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        client.setListener(null); // ĐÃ SỬA: Giải phóng socket listener trước khi đăng xuất
+        client.removeListener(this);
         try {
             client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         } catch (IOException e) {

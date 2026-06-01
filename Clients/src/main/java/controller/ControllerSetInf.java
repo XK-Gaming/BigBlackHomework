@@ -73,7 +73,7 @@ public class ControllerSetInf implements ServerListener {
     private ConnectionStatusManager statusManager;
 
     public void initialize() {
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
@@ -104,6 +104,7 @@ public class ControllerSetInf implements ServerListener {
 
     @FXML
     void j_event_return(ActionEvent event) {
+        client.removeListener(this);
         if (p1.getRole().equals(UserRole.BIDDER)) {
             SceneHelper.changeScene((Node) j_return, "/fxml/BidderView.fxml");
         } else if (p1.getRole().equals(UserRole.SELLER)) {
@@ -405,6 +406,7 @@ public class ControllerSetInf implements ServerListener {
         if (Command.LOGOUT_RESULT.equals(command)) {
             Platform.runLater(() -> {
                 // 1. Ngắt kết nối socket hiện tại ở máy khách
+                client.removeListener(this);
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_buttonDangXuat, "/fxml/LoginView.fxml");

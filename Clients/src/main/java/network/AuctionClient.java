@@ -5,6 +5,8 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Map;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class AuctionClient {
     private volatile Socket socket;
@@ -13,7 +15,9 @@ public class AuctionClient {
 
     private final Object writeLock = new Object();
     private final Object connectionLock = new Object();
-    private volatile ServerListener currentListener;
+
+    // 🌟 SỬA: Thay đổi từ 1 biến đơn lẻ thành Danh sách Listener an toàn luồng
+    private final List<ServerListener> listeners = new CopyOnWriteArrayList<>();
 
     private static volatile AuctionClient instance;
 
@@ -30,8 +34,20 @@ public class AuctionClient {
         return instance;
     }
 
-    public void setListener(ServerListener listener) {
-        this.currentListener = listener;
+    // 🌟 SỬA: Thay thế hàm setListener cũ thành cơ chế ĐĂNG KÝ (Thêm vào danh sách)
+    public void addListener(ServerListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+            System.out.println("[AuctionClient] Đã thêm bộ lắng nghe: " + listener.getClass().getSimpleName() + " (Tổng số: " + listeners.size() + ")");
+        }
+    }
+
+    // 🌟 BỔ SUNG: Hàm HỦY ĐĂNG KÝ khi một màn hình bị đóng lại để giải phóng bộ nhớ
+    public void removeListener(ServerListener listener) {
+        if (listener != null) {
+            listeners.remove(listener);
+            System.out.println("[AuctionClient] Đã gỡ bỏ bộ lắng nghe: " + listener.getClass().getSimpleName() + " (Còn lại: " + listeners.size() + ")");
+        }
     }
 
     public void connect(String serverIp, int serverPort) {
@@ -141,19 +157,19 @@ public class AuctionClient {
             return;
         }
 
-        // --- CHUYỂN TIẾP GÓI TIN ĐẾN CÁC GIAO DIỆN KHÁC ---
-        ServerListener listener = this.currentListener;
-        if (listener != null) {
-            try {
-                listener.onServerResponse(response);
-            } catch (Exception e) {
-                System.err.println("Lỗi tại onServerResponse: " + e.getMessage());
+        // 🌟 SỬA: Phát tín hiệu cho TẤT CẢ các màn hình đang sống cùng nghe chung
+        if (!listeners.isEmpty()) {
+            for (ServerListener listener : listeners) {
+                try {
+                    listener.onServerResponse(response);
+                } catch (Exception e) {
+                    System.err.println("Lỗi chuyển tiếp gói tin tại " + listener.getClass().getSimpleName() + ": " + e.getMessage());
+                }
             }
         }
     }
 
     private void executeGlobalUiCleanup(String alertMessage) {
-        // Hiển thị Popup cảnh báo nếu bị Server đá
         if (alertMessage != null) {
             try {
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
@@ -164,7 +180,6 @@ public class AuctionClient {
             } catch (Exception ignored) {}
         }
 
-        // Xóa Session đăng nhập cũ
         try {
             model.User.UserSession.cleanUserSession();
             model.Items.ItemSession.cleanItemSession();
@@ -172,10 +187,11 @@ public class AuctionClient {
             System.err.println("Lỗi dọn dẹp Session: " + e.getMessage());
         }
 
-        // Ngắt kết nối socket hiện tại
         closeConnection();
 
-        // Ép đóng toàn bộ cửa sổ phụ và đẩy cửa sổ chính về LoginView
+        // 🌟 BỔ SUNG: Xóa sạch danh sách listener cũ khi đăng xuất hệ thống
+        listeners.clear();
+
         try {
             java.util.List<javafx.stage.Window> openWindows = new java.util.ArrayList<>(javafx.stage.Window.getWindows());
             if (!openWindows.isEmpty()) {

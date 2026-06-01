@@ -42,7 +42,7 @@ public class ControllerLogin implements ServerListener {
 
     public void initialize() {
         // Đăng ký controller này làm người nghe tin nhắn từ Server
-        client.setListener(this);
+        client.addListener(this);
         // Cấu hình hành động sau khi hết 5 giây: Ẩn thông báo lỗi và xóa toàn bộ viền đỏ
         errorDelay.setOnFinished(event -> clearAllErrors());
 
@@ -96,6 +96,7 @@ public class ControllerLogin implements ServerListener {
             Stage window = (Stage) jbutton_DangKy.getScene().getWindow();
             Scene scene = new Scene(root);
             SceneHelper.applyGlobalStyles(scene);
+            client.removeListener(this);
             window.setScene(scene);
         } catch (Exception e) {
             e.printStackTrace();
@@ -115,7 +116,7 @@ public class ControllerLogin implements ServerListener {
 
         ClientNetworkExecutor.execute(() -> {
             try {
-                client.setListener(this);
+                client.addListener(this);
                 ensureConnected();
                 client.sendCommand(network.Command.LOGIN, Map.of(
                         "username", this_username,
@@ -186,10 +187,13 @@ public class ControllerLogin implements ServerListener {
                         UserSession.setLoggedInUser(p1);
 
                         if (p1.getRole() == UserRole.BIDDER) {
+                            client.removeListener(this);
                             SceneHelper.changeScene(jbutton_DangNhap, "/fxml/BidderView.fxml");
                         } else if (p1.getRole() == UserRole.SELLER) {
+                            client.removeListener(this);
                             SceneHelper.changeScene(jbutton_DangNhap, "/fxml/SellerView.fxml");
                         } else {
+                            client.removeListener(this);
                             SceneHelper.changeScene(jbutton_DangNhap, "/fxml/AdminView.fxml");
                         }
                     } catch (ClassCastException e) {

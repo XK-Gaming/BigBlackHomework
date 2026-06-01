@@ -53,7 +53,7 @@ public class ControllerBidHistory implements ServerListener {
     @FXML
     public void initialize() {
         // Đảm bảo đăng ký listener với client khi vào màn hình này
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
@@ -420,7 +420,7 @@ public class ControllerBidHistory implements ServerListener {
             btnPayment.setPadding(new Insets(5, 10, 5, 10));
 
             btnPayment.setOnAction(e -> {
-                client.setListener(null); // Gỡ bỏ listener hiện tại trước khi chuyển màn hình
+                client.removeListener(this); // Gỡ bỏ listener hiện tại trước khi chuyển màn hình
 
                 var targetController = SceneHelper.changeSceneAndGetController(btnPayment, "/fxml/PayingView.fxml");
                 if (targetController instanceof ControllerPayment paymentCtrl) {
@@ -437,7 +437,7 @@ public class ControllerBidHistory implements ServerListener {
         btnGoToAuction.setPadding(new Insets(5, 10, 5, 10));
 
         btnGoToAuction.setOnAction(e -> {
-            client.setListener(null);
+            client.removeListener(this);
             ControllerAuction targetController = SceneHelper.changeSceneAndGetController(btnGoToAuction, "/fxml/BiddingView.fxml");
             if (targetController != null) {
                 targetController.initData(dto);
@@ -529,7 +529,7 @@ public class ControllerBidHistory implements ServerListener {
 
     @FXML
     private void handleBackAction(ActionEvent event) {
-        client.setListener(null);
+        client.removeListener(this);
         SceneHelper.changeScene(btnBack, "/fxml/BidderView.fxml");
     }
 }

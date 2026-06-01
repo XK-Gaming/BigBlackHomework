@@ -50,7 +50,7 @@ public class ControllerManagerItem implements ServerListener {
     private ObservableList<Item> allAssets = FXCollections.observableArrayList();
 
     public void initialize() throws IOException {
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
@@ -479,6 +479,7 @@ public class ControllerManagerItem implements ServerListener {
     @FXML
     void On_Return(ActionEvent event) {
         try {
+            client.removeListener(this);
             SceneHelper.changeScene(j_Return, "/fxml/AdminView.fxml");
         } catch (Exception e) {
             e.printStackTrace();

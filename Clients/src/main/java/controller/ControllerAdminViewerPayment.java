@@ -28,7 +28,7 @@ public class ControllerAdminViewerPayment implements ServerListener {
     private final ObservableList<DepositTransaction> masterData = FXCollections.observableArrayList();
 
     public void initialize() {
-        AuctionClient.getInstance().setListener(this);
+        AuctionClient.getInstance().addListener(this);
         colUser.setCellValueFactory(new PropertyValueFactory<>("username"));
         colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
@@ -77,6 +77,7 @@ public class ControllerAdminViewerPayment implements ServerListener {
 
     @FXML
     void handleReturn(ActionEvent event) {
+        AuctionClient.getInstance().removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/AdminView.fxml");
     }
 

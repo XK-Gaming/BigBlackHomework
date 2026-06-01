@@ -73,7 +73,7 @@ public class ControllerSeller implements ServerListener {
     @FXML private TextField j_brand;
 
     public void initialize() {
-        client.setListener(this);
+        client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
@@ -97,7 +97,7 @@ public class ControllerSeller implements ServerListener {
             j_textSoDu.setText(df.format(user.getBalance()) + " VNĐ");
         }
 
-        client.setListener(this);
+        client.addListener(this);
 
         // Chặn ngày hợp lệ (Giữ nguyên logic tốt của bạn)
         j_DateStart.setDayCellFactory(picker -> new DateCell() {
@@ -329,6 +329,7 @@ public class ControllerSeller implements ServerListener {
     }
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
+        client.removeListener(this);
         SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
     }
 
@@ -427,6 +428,7 @@ public class ControllerSeller implements ServerListener {
         }
         if (Command.LOGOUT_RESULT.equals(response.command())) {
             Platform.runLater(() -> {
+                client.removeListener(this);
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
@@ -438,6 +440,7 @@ public class ControllerSeller implements ServerListener {
 
     @FXML
     void On_ProductList(ActionEvent event) {
+        client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
 
 }

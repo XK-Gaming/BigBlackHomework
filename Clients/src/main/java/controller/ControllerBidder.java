@@ -86,6 +86,7 @@ public class ControllerBidder implements ServerListener {
     private final Map<Integer, ItemCardController> activeControllers = new HashMap<>();
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
+        client.removeListener(this);
         SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
     }
 
@@ -130,7 +131,7 @@ public class ControllerBidder implements ServerListener {
     }
 
     public void initialize() throws IOException {
-        client.setListener(this);
+        AuctionClient.getInstance().addListener(this);
 
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
@@ -266,6 +267,7 @@ public class ControllerBidder implements ServerListener {
 
                 card.setOnMouseClicked(event -> {
                     ItemSession.setLoggedInItem(data);
+                    client.removeListener(this);
                     SceneHelper.changeScene((Node) event.getSource(), "/fxml/BiddingView.fxml");
                 });
                 flowPane.getChildren().add(card);
@@ -378,6 +380,7 @@ public class ControllerBidder implements ServerListener {
                 // 1. Ngắt kết nối socket hiện tại ở máy khách
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
+                client.removeListener(this);
                 SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
                 // 2. Chuyển về màn hình đăng nhập
             });
@@ -534,6 +537,7 @@ public class ControllerBidder implements ServerListener {
                 customToast.setOnMouseClicked(event -> {
                     if (finalItemObj != null) {
                         ItemSession.setLoggedInItem(finalItemObj);
+                        client.removeListener(this);
                         SceneHelper.changeScene(j_textSoDu, "/fxml/BiddingView.fxml");
                     }
                 });
@@ -560,7 +564,7 @@ public class ControllerBidder implements ServerListener {
     }
 
     public void On_BidHistory(ActionEvent event) {
-        client.setListener(null);
+        client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/BidHistoryView.fxml");
     }
 

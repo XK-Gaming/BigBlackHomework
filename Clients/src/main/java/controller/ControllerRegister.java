@@ -62,7 +62,7 @@ public class ControllerRegister implements ServerListener {
         jComboBox_Role.setValue(list[0]);
 
         // Đăng ký nhận tin nhắn từ Server
-        client.setListener(this);
+        client.addListener(this);
 
         // Cấu hình khi hết 5 giây thì ẩn label thông báo
         delay.setOnFinished(event -> errorLabel1.setVisible(false));
@@ -95,6 +95,7 @@ public class ControllerRegister implements ServerListener {
     }
 
     public void setJbutton_TrangChu() throws IOException {
+        client.removeListener(this);
         SceneHelper.changeScene(jbuton_TrangChu, "/fxml/LoginView.fxml");
     }
 
@@ -191,6 +192,7 @@ public class ControllerRegister implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
+        client.removeListener(this);
         SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
 
