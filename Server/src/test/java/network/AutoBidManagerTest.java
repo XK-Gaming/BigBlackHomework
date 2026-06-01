@@ -228,13 +228,15 @@ class AutoBidManagerTest {
 
     private Auction auction(AuctionStatus status, String leadingBidder, double currentPrice, double minBid) {
         Instant now = Instant.now();
+        Instant start = status == AuctionStatus.OPEN ? now.plusSeconds(60) : now.minusSeconds(60);
+        Instant end = status == AuctionStatus.FINISHED ? now.minusSeconds(30) : now.plusSeconds(3600);
         Item item = new Item(
                 "Item",
                 "Description",
                 currentPrice,
                 minBid,
-                now.minusSeconds(60),
-                now.plusSeconds(3600),
+                start,
+                end,
                 "seller",
                 ItemType.ART,
                 "item.png");

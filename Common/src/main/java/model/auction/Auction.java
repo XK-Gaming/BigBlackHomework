@@ -36,6 +36,16 @@ public class Auction extends Entity implements Serializable {
     }
 
     // Cập nhật logic: Đồng bộ dữ liệu sang thực thể Item liên kết
+    public AuctionStatus getStoredStatus() {
+        return status;
+    }
+    /**
+     * Precondition: item có auctionStartTime và auctionEndTime.
+     * Postcondition: status thành FINISHED sau giờ kết thúc, RUNNING sau giờ bắt đầu, hoặc OPEN
+     * trước giờ bắt đầu. Thay đổi RUNNING/FINISHED được lưu xuống auction_items.status.
+     * Method không trả về giá trị.
+     * NOTE: CANCELED và PAID là trạng thái kết thúc, không tự động đổi.
+     */
     public void updateStatusByTime() {
         if (item == null) return;
         Instant now = Instant.now();

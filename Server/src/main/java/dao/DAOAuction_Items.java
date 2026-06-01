@@ -48,12 +48,14 @@ public class DAOAuction_Items {
     }
 
     public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) throws SQLException {
-        String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ? WHERE id_item = ?";
+        String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ?, status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, price);
             pstmt.setString(2, bidderId);
             pstmt.setString(3, gson.toJson(auction.getBidHistory()));
-            pstmt.setLong(4, itemId);
+            AuctionStatus status = auction.getRawStatus() != null ? auction.getRawStatus() : AuctionStatus.RUNNING;
+            pstmt.setString(4, gson.toJson(status.name()));
+            pstmt.setLong(5, itemId);
             return pstmt.executeUpdate();
         }
     }
@@ -94,7 +96,7 @@ public class DAOAuction_Items {
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             // ✅ ĐÃ SỬA: Convert enum status sang định dạng chuỗi JSON bằng gson.toJson
-            pstmt.setString(1, gson.toJson(status.name()));
+            pstmt.setString(1, status == null ? null : gson.toJson(status.name()));
             pstmt.setLong(2, item1.getDatabaseId());
 
             int rowsAffected = pstmt.executeUpdate();

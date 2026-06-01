@@ -36,7 +36,7 @@ public class AuctionService {
         if (auction == null || auction.getItem() == null) {
             return null;
         }
-        return auction.getStatus();
+        return auction.getRawStatus();
     }
 
     public String formatPrice(double price) {
