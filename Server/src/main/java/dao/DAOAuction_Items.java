@@ -34,9 +34,7 @@ public class DAOAuction_Items {
 
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
-
-            // Khởi tạo mặc định là OPEN thay vì để NULL
-            pstmt.setString(3, gson.toJson(AuctionStatus.OPEN));
+            pstmt.setString(3, gson.toJson(null));
 
             String leadingUsername = auction.getLeadingBidder();
             pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson
@@ -320,6 +318,27 @@ public class DAOAuction_Items {
             pstmt.setInt(1, item.getDatabaseId());
             return pstmt.executeUpdate();
         } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+    /**
+     * Thực hiện cập nhật lại giá hiện tại (currentPrice) trong bảng đấu giá
+     * dựa theo giá hiện tại mới của Item (khi phiên chưa bắt đầu).
+     */
+    public int updatePriceByItemIdWhenEditItem(Item item) {
+        String sql = "UPDATE auction_items SET currentPrice = ? WHERE id_item = ?";
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            // Vì chưa đấu giá, currentHighestPrice của đối tượng item chính là startingPrice mới
+            pstmt.setDouble(1, item.getCurrentHighestPrice());
+            pstmt.setLong(2, item.getDatabaseId());
+
+            return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Lỗi tại updatePriceByItemId: " + e.getMessage());
             e.printStackTrace();
             return 0;
         }

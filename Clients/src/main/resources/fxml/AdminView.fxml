@@ -18,10 +18,10 @@
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="Pane1" prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: #F0F2F5;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAdmin">
+<BorderPane fx:id="Pane1" prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerAdmin">
 
       <left>
-         <VBox alignment="TOP_CENTER" prefWidth="240.0" spacing="10.0" style="-fx-background-color: #1A2233;" BorderPane.alignment="CENTER">
+         <VBox alignment="TOP_CENTER" prefWidth="240.0" spacing="10.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d);" BorderPane.alignment="CENTER">
             <padding>
                <Insets bottom="20.0" left="15.0" right="15.0" top="40.0" />
             </padding>
@@ -37,19 +37,19 @@
 
                <Region prefHeight="30.0" />
 
-               <Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: transparent; -fx-text-fill: #A0AABF; -fx-cursor: hand;" text="📦 Quản lý sản phẩm">
+               <Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="📦 Quản lý sản phẩm">
                   <font><Font size="14.0" /></font>
                   <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
                </Button>
-               <Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: transparent; -fx-text-fill: #A0AABF; -fx-cursor: hand;" text="👥 Quản lý người dùng">
+               <Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="👥 Quản lý người dùng">
                   <font><Font size="14.0" /></font>
                   <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
                </Button>
-               <Button fx:id="j_PaymentManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_PaymentManager" style="-fx-background-color: transparent; -fx-text-fill: #A0AABF; -fx-cursor: hand;" text="💳 Xử lý thanh toán">
+               <Button fx:id="j_PaymentManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_PaymentManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="💳 Xử lý thanh toán">
                   <font><Font size="14.0" /></font>
                   <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
                </Button>
-               <Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" prefHeight="39.0" prefWidth="209.0" style="-fx-background-color: #3B4555; -fx-text-fill: white; -fx-background-radius: 5;" text="Đăng xuất" />
+               <Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" prefHeight="39.0" prefWidth="209.0" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-background-radius: 12;" text="Đăng xuất" />
 
                <Region VBox.vgrow="ALWAYS" />
             </children>
@@ -64,18 +64,18 @@
             <children>
                <HBox alignment="CENTER_LEFT" spacing="10.0">
                   <children>
-                     <Label text="TỔNG QUAN HỆ THỐNG" textFill="#1A2233">
+                     <Label text="TỔNG QUAN HỆ THỐNG" textFill="#111827">
                         <font><Font name="System Bold" size="22.0" /></font>
                      </Label>
                      <Region HBox.hgrow="ALWAYS" />
                      <HBox alignment="CENTER_LEFT" spacing="5.0">
                         <children>
-                           <Label fx:id="connectionText" text="Offline" textFill="#666666">
+                           <Label fx:id="connectionText" text="Offline" textFill="#64748b">
                               <font>
                                  <Font size="12.0" />
                               </font>
                            </Label>
-                           <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="5.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+                           <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
                         </children>
                      </HBox>
                   </children>
@@ -91,21 +91,21 @@
                      <RowConstraints minHeight="100.0" prefHeight="100.0" vgrow="SOMETIMES" />
                   </rowConstraints>
                   <children>
-                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.12), 10, 0, 0, 5);">
                         <padding><Insets left="20.0" /></padding>
                         <children>
-                           <Label text="Tổng đấu giá" textFill="#718096" />
-                           <Label text="1,284" textFill="#2D3748"><font><Font name="System Bold" size="24.0" /></font></Label>
+                           <Label text="Tổng đấu giá" textFill="#64748b" />
+                           <Label text="1,284" textFill="#111827"><font><Font name="System Bold" size="24.0" /></font></Label>
                         </children>
                      </VBox>
-                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);" GridPane.columnIndex="1">
+                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.12), 10, 0, 0, 5);" GridPane.columnIndex="1">
                         <padding><Insets left="20.0" /></padding>
                         <children>
-                           <Label text="Người dùng mới" textFill="#718096" />
-                           <Label text="+156" textFill="#4CAF50"><font><Font name="System Bold" size="24.0" /></font></Label>
+                           <Label text="Người dùng mới" textFill="#64748b" />
+                           <Label text="+156" textFill="#16a34a"><font><Font name="System Bold" size="24.0" /></font></Label>
                         </children>
                      </VBox>
-                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: #4A90E2; -fx-background-radius: 10;">
+                     <VBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: #2563eb; -fx-background-radius: 14;">
                         <padding><Insets left="20.0" /></padding>
                         <children>
                            <Label text="Doanh thu (VNĐ)" textFill="WHITE" />
@@ -117,10 +117,10 @@
 
                <HBox spacing="20.0" VBox.vgrow="ALWAYS">
                   <children>
-                     <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 10;" HBox.hgrow="ALWAYS">
+                     <VBox spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 14;" HBox.hgrow="ALWAYS">
                         <padding><Insets bottom="15.0" left="15.0" right="15.0" top="15.0" /></padding>
                         <children>
-                           <Label text="Xu hướng đấu giá theo thời gian" textFill="#2D3748">
+                           <Label text="Xu hướng đấu giá theo thời gian" textFill="#111827">
                               <font><Font name="System Bold" size="14.0" /></font>
                            </Label>
                            <LineChart fx:id="lineChart" createSymbols="true" legendVisible="false" VBox.vgrow="ALWAYS">

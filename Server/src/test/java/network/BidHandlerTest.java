@@ -2,6 +2,8 @@ package network;
 
 import model.Items.Item;
 import model.Items.ItemType;
+import model.User.Bidder;
+import model.User.User;
 import model.auction.Auction;
 import model.exception.BidRejectedException;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ class BidHandlerTest {
         assertEquals(true, payload.get("success"));
         assertEquals(150.0, payload.get("newPrice"));
         assertEquals("7", payload.get("itemId"));
+        assertEquals(850.0, payload.get("balance"));
+        assertEquals("bidder1", ((User) payload.get("user")).getUsername());
     }
 
     @Test
@@ -135,6 +139,7 @@ class BidHandlerTest {
         private RuntimeException failure;
         private double acceptedPrice;
         private Auction latestAuction;
+        private User updatedUser = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 850);
 
         @Override
         public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
@@ -146,6 +151,7 @@ class BidHandlerTest {
             result.put("item", latestAuction != null ? latestAuction.getItem() : null);
             result.put("latestAuction", latestAuction);
             result.put("newPrice", acceptedPrice);
+            result.put("user", updatedUser);
             result.put("bidHistory", new ArrayList<>());
             return result;
         }

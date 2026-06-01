@@ -3,6 +3,7 @@ package network;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import model.Items.Item;
+import model.auction.AuctionStatus;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
@@ -38,51 +39,55 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
 
                 // Gửi phản hồi thất bại về riêng cho Seller
                 sendResponse(out, Command.DELETE_ITEM_RESULT, response);
-            } else {
-                // Thực hiện xóa trong cơ sở dữ liệu
-                if (auctionItem != null) {
-                    DAOAuction_Items.getInstance().Delete(selectedItem);
-                }
-
-                int rowsAffected = DAOItems.getInstance().Delete(selectedItem);
-
-                if (rowsAffected > 0) {
-                    // Cấu hình phản hồi thành công trả về riêng cho Seller
-                    response.put("success", true);
-                    response.put("message", "Xóa sản phẩm thành công!");
-                    response.put("deletedItemId", itemId); // Gửi ID về lại cho Seller dọn giao diện riêng (nếu cần)
-
-                    // ------------------------------------------------------------------
-                    // LOGIC REALTIME: PHÁT TÍN HIỆU ĐẾN CÁC CLIENT KHÁC
-                    // ------------------------------------------------------------------
-                    // Tạo payload chứa thông tin xóa để gửi ra sảnh chính (Pagination công cộng)
-                    Map<String, Object> broadcastData = new HashMap<>();
-                    broadcastData.put("success", true);
-                    broadcastData.put("deletedItemId", itemId);
-
-                    System.out.println("[Server Realtime] Phát tín hiệu XÓA sản phẩm ra sảnh chính cho Item ID: " + itemId);
-
-                    // Gửi cập nhật ra sảnh chính (roomID = null) với Command là ITEMS_UPDATE
-                    // Khi nhận được gói tin này, ControllerBidder sẽ tự động kích hoạt hàm removeSingleItem(itemId)
-                    AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, broadcastData);
-                    // ------------------------------------------------------------------
-
-                } else {
-                    response.put("success", false);
-                    response.put("message", "Không tìm thấy sản phẩm trong cơ sở dữ liệu để xóa.");
-                }
-
-                // Gửi kết quả cuối cùng về cho Seller vừa gửi yêu cầu
-                sendResponse(out, Command.DELETE_ITEM_RESULT, response);
+                return; // Ngắt luồng luôn cho gọn sạch
             }
+
+            if (auctionItem != null) {
+                DAOAuction_Items.getInstance().Delete(selectedItem);
+            }
+
+            int rowsAffected = DAOItems.getInstance().Delete(selectedItem);
+
+            if (rowsAffected > 0) {
+                // 1. Chuẩn bị phản hồi thành công trả về riêng cho Seller
+                response.put("success", true);
+                response.put("message", "Xóa sản phẩm thành công!");
+                response.put("deletedItemId", itemId);
+                response.put("itemName", selectedItem.getName());
+
+                // 2. REALTIME SẢNH CHÍNH: Xóa item khỏi danh sách hiển thị công cộng
+                Map<String, Object> broadcastData = new HashMap<>();
+                broadcastData.put("success", true);
+                broadcastData.put("deletedItemId", itemId);
+                broadcastData.put("itemName", selectedItem.getName());
+
+                System.out.println("[Server Realtime] Phát tín hiệu XÓA sản phẩm ra sảnh chính cho Item ID: " + itemId);
+                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, broadcastData);
+
+                // 3. REALTIME PHÒNG ĐẤU GIÁ: Đuổi những người KHÁC đang xem ra ngoài
+                // Để an toàn, payload gửi đi nên thống nhất cấu trúc Map giống như phản hồi gốc,
+                // giúp Client dễ parse data trong hàm onServerResponse.
+                Map<String, Object> roomData = new HashMap<>();
+                roomData.put("success", false); // false vì đối với người xem thì đây là một sự cố/phiên bị hủy
+                roomData.put("message", "Sản phẩm (ID: " + itemId + ") đã bị gỡ bỏ bởi ban quản trị hoặc người bán.");
+                roomData.put("isForceClose", true); // Flag để Client biết mà văng ra màn hình chính
+
+                System.out.println("[Server] Đã gửi thông báo đóng phòng đấu giá " + itemId + " tới các client đang xem.");
+                AuctionServer.broadcastToSpecificAuction(String.valueOf(itemId), Command.DELETE_ITEM_RESULT, roomData);
+
+            } else {
+                response.put("success", false);
+                response.put("message", "Không tìm thấy sản phẩm trong cơ sở dữ liệu để xóa.");
+            }
+
+            // 4. Gửi phản hồi trực tiếp cho Seller (Nếu Seller đang xem phòng này, gói tin roomData ở trên sẽ được ghi đè/bổ sung bằng gói này, đảm bảo hiển thị đúng logic "Xóa thành công")
+            sendResponse(out, Command.DELETE_ITEM_RESULT, response);
 
         } catch (Exception e) {
             e.printStackTrace();
             fillErrorResponse(response, e);
             response.put("success", false);
             response.put("message", "Xóa thất bại do lỗi hệ thống.");
-
-            // Đảm bảo luôn phản hồi về cho Seller khi có lỗi ngoại lệ xảy ra
             sendResponse(out, Command.DELETE_ITEM_RESULT, response);
         }
     }

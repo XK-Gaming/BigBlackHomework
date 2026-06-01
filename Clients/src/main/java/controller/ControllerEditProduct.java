@@ -16,12 +16,14 @@ import javafx.stage.FileChooser;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
 import model.auction.AuctionStatus;
 import network.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DecimalFormat;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -54,6 +56,7 @@ public class ControllerEditProduct implements ServerListener {
     @FXML private DatePicker dpEndDate;
     @FXML private TextField txtTimeEnd;
     @FXML private TextField txtStartPrice;
+    @FXML private TextField txtMinBid;
     @FXML private TextArea txtDescription;
 
     @FXML private VBox vboxAppendNote;
@@ -96,7 +99,8 @@ public class ControllerEditProduct implements ServerListener {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             j_LabelName.setText(currentUser.getName());
-            j_textSoDu.setText("0 VNĐ");
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(currentUser.getBalance()) + " VNĐ");
         }
 
         setupDatePickerConstraints();
@@ -129,9 +133,16 @@ public class ControllerEditProduct implements ServerListener {
         this.itemHasBids = hasBids;
         this.uploadedImageUrl = item.getImg();
 
+        //set description
         txtName.setText(item.getName());
-        txtDescription.setText(item.getDescription());
+        String jsonString =  item.getDescription();
+        com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonString).getAsJsonObject();
+        String pureDescription = jsonObject.get("description").getAsString();
+        txtDescription.setText(pureDescription);
+
+
         txtStartPrice.setText(String.format("%.0f", item.getStartingPrice()));
+        txtMinBid.setText(String.format("%.0f", item.getMinBid()));
 
         parseAndSetAuctionTime(item.getAuctionStartTime(), dpStartDate, txtTimeStart);
         parseAndSetAuctionTime(item.getAuctionEndTime(), dpEndDate, txtTimeEnd);
@@ -190,6 +201,7 @@ public class ControllerEditProduct implements ServerListener {
     private void setCoreFieldsDisabled(boolean disabled) {
         txtName.setDisable(disabled);
         txtStartPrice.setDisable(disabled);
+        txtMinBid.setDisable(disabled);
         j_ItemType.setDisable(disabled);
         dpStartDate.setDisable(disabled);
         txtTimeStart.setDisable(disabled);
@@ -213,9 +225,15 @@ public class ControllerEditProduct implements ServerListener {
             return;
         }
 
+        if (!txtMinBid.isDisabled() && txtMinBid.getText().trim().isEmpty()) {
+            showError("Vui long nhap MinBid (*)");
+            return;
+        }
+
         String nameText = txtName.getText().trim();
         String descText = txtDescription.getText().trim();
         String startPriceText = txtStartPrice.getText().trim();
+        String minBidText = txtMinBid.getText().trim();
         String itemTypeVal = j_ItemType.getValue();
         String appendNoteText = txtAppendNote.getText().trim();
 
@@ -279,8 +297,14 @@ public class ControllerEditProduct implements ServerListener {
                             double startingPrice = Double.parseDouble(startPriceText);
                             if (startingPrice <= 0) throw new NumberFormatException();
                             currentItem.setStartingPrice(startingPrice);
+                            double minBid = Double.parseDouble(minBidText);
+                            if (minBid <= 0 || minBid > startingPrice * 0.2) {
+                                showErrorInUIThread("MinBid phai lon hon 0 va khong vuot qua 20% gia khoi diem!");
+                                return;
+                            }
+                            currentItem.setMinBid(minBid);
                         } catch (NumberFormatException e) {
-                            showErrorInUIThread("Giá khởi điểm nhập vào phải là số dương hợp lệ!");
+                            showErrorInUIThread("Gia khoi diem va MinBid phai la so duong hop le!");
                             return;
                         }
 
@@ -350,6 +374,68 @@ public class ControllerEditProduct implements ServerListener {
                 }
             });
         }
+        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+            User user = UserSession.getLoggedInUser();
+            Map<String, Object> notifData = (Map<String, Object>) response.payload();
+            Item item = (Item) notifData.get("item");
+            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+            });
+        }
+        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+            String itemName = "";
+            Object auctionObj = responsePayload.get("auction");
+            if (auctionObj instanceof Auction) {
+                Auction auction = (Auction) auctionObj;
+                if (auction.getItem() != null) {
+                    itemName = " \"" + auction.getItem().getName() + "\"";
+                }
+            }
+
+            String finalItemName = itemName;
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!", ButtonType.OK);
+                alert.showAndWait();
+                if (!isAllow) {
+                    On_Back(new ActionEvent(j_textSoDu, null));
+                }
+            });
+        }
+        if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+            Map<String, Object> resData = (Map<String, Object>) response.payload();
+            boolean success = (boolean) resData.get("success");
+            String itemName = (String) resData.get("itemName");
+            if (success) {
+                String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sản phẩm" + displayName + " này đã bị xóa!", ButtonType.OK);
+                    alert.showAndWait();
+                    On_Back(new ActionEvent(j_textSoDu, null));
+                });
+            }
+        }
+        if (Command.FORCE_LOGOUT.equals(response.command())) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(response.command())) {
+            Platform.runLater(() -> {
+                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
+                // 2. Chuyển về màn hình đăng nhập
+            });
+        }
     }
 
     public Instant createInstantFromData(LocalDate date, String timeStr) throws DateTimeParseException {
@@ -386,15 +472,18 @@ public class ControllerEditProduct implements ServerListener {
 
     @FXML
     void On_Back(ActionEvent event) {
-        client.setListener(null); // ĐÃ SỬA: Hủy lắng nghe để tránh rò rỉ RAM (Memory Leak)
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
     }
 
     @FXML
     void On_LogOut(ActionEvent event) {
         client.setListener(null); // ĐÃ SỬA: Giải phóng socket listener trước khi đăng xuất
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
+        try {
+            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+        } catch (IOException e) {
+            System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
+            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
+        }
     }
 
     private void parseAndSetAuctionTime(Instant instant, DatePicker datePicker, TextField timeField) {
@@ -469,4 +558,5 @@ public class ControllerEditProduct implements ServerListener {
             j_year.setText("");
         }
     }
+
 }

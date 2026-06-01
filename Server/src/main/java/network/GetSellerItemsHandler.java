@@ -12,11 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class GetSellerItemsHandler extends BaseHandler implements RequestHandler {
-    private final UserService userService;
-
-    public GetSellerItemsHandler(UserService userService) {
-        this.userService = userService;
-    }
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {

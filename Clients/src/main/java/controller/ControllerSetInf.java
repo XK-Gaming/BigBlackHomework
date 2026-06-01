@@ -4,10 +4,7 @@ import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
@@ -22,24 +19,10 @@ import network.ServerListener;
 import javafx.scene.shape.Circle;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TableColumn;
 import model.DepositTransaction;
 import java.util.Map;
-import java.util.List;
-
-import model.User.Admin;
-import model.User.Bidder;
-import model.User.Seller;
-import model.User.User;
-import model.User.UserSession;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
 
 public class ControllerSetInf implements ServerListener {
     User p1 = UserSession.getLoggedInUser();
@@ -169,8 +152,6 @@ public class ControllerSetInf implements ServerListener {
     void j_OnbuttonDangXuat(ActionEvent event) {
         try {
             client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
-            UserSession.cleanUserSession();
-            SceneHelper.changeScene((Node) j_buttonDangXuat, "View1.fxml");
         } catch (IOException e) {
             System.err.println("Lỗi khi đăng xuất: " + e.getMessage());
         }
@@ -409,6 +390,25 @@ public class ControllerSetInf implements ServerListener {
                 j_labelMessagePayment.setTextFill(Color.BLUE);
                 j_labelMessagePayment.setText(msg);
                 j_labelMessagePayment.setVisible(true);
+            });
+        }
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(command)) {
+            Platform.runLater(() -> {
+                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_buttonDangXuat, "/fxml/LoginView.fxml");
+                // 2. Chuyển về màn hình đăng nhập
             });
         }
     }

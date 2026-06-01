@@ -1,6 +1,7 @@
 package network;
 
 import model.Items.Item;
+import model.User.User;
 import model.auction.Auction;
 import model.auction.AuctionStatus;
 import service.UserService;
@@ -18,10 +19,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * AutoBid: lưu cấu hình đang bật trong bộ nhớ server và tự kiểm tra đặt giá mỗi 10 giây.
+ * AutoBid: lưu cấu hình đang bật trong bộ nhớ server và tự kiểm tra đặt giá mỗi 5 giây.
  */
 public final class AutoBidManager {
-    private static final long CHECK_INTERVAL_SECONDS = 10;
+    private static final long CHECK_INTERVAL_SECONDS = 5;
     private static final AutoBidManager INSTANCE = new AutoBidManager(new UserService());
     private static final AtomicInteger THREAD_SEQ = new AtomicInteger();
 
@@ -38,7 +39,7 @@ public final class AutoBidManager {
         return INSTANCE;
     }
 
-    // AutoBid: đăng ký cấu hình mới, tạo lịch kiểm tra 10 giây và chạy kiểm tra đầu tiên ngay.
+    // AutoBid: đăng ký cấu hình mới, tạo lịch kiểm tra 5 giây và chạy kiểm tra đầu tiên ngay.
     public Map<String, Object> enable(String itemId, String username, double maxBidAllow, double bidGap) {
         AutoBidConfig config = new AutoBidConfig(
                 normalize(itemId),
@@ -56,6 +57,9 @@ public final class AutoBidManager {
         double currentPrice = currentPrice(auction);
         if (currentPrice >= config.maxBidAllow()) {
             return errorResponse(config, "MaxBidAllow phai lon hon gia hien tai.");
+        }
+        if (config.bidGap() < minBid(auction)) {
+            return errorResponse(config, "BidGap phải lớn hơn hoặc bằng MinBid của sản phẩm.");
         }
 
         AutoBidKey key = config.key();
@@ -157,16 +161,26 @@ public final class AutoBidManager {
             return AutoBidAttempt.disabled("Gia hien tai da dat toi MaxBidAllow. AutoBid da tat.", true);
         }
 
+        double minAllowedBid = minAllowedBid(auction, currentPrice);
+        if (config.maxBidAllow() < minAllowedBid) {
+            disable(key);
+            return AutoBidAttempt.disabled("MaxBidAllow không đủ để đặt giá tối thiểu (giá hiện tại + MinBid). AutoBid đã tắt.", true);
+        }
+
         double bidAmount = Math.min(currentPrice + config.bidGap(), config.maxBidAllow());
         if (bidAmount <= currentPrice) {
             disable(key);
             return AutoBidAttempt.disabled("Gia AutoBid khong hop le. AutoBid da tat.", true);
         }
+        if (bidAmount < minAllowedBid) {
+            disable(key);
+            return AutoBidAttempt.disabled("Giá AutoBid thấp hơn bước MinBid. AutoBid đã tắt.", true);
+        }
 
         try {
             Map<String, Object> bidResult = userService.processBid(config.itemId(), config.username(), bidAmount);
             BidEventPublisher.publishSuccessfulBid(config.itemId(), config.username(), bidResult);
-            return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount);
+            return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount, bidResult);
         } catch (Exception e) {
             disable(key);
             return AutoBidAttempt.disabled("AutoBid dat gia that bai: " + e.getMessage(), true, false);
@@ -208,6 +222,25 @@ public final class AutoBidManager {
         return item != null ? item.getCurrentHighestPrice() : auction.getCurrentPrice();
     }
 
+    private static double minBid(Auction auction) {
+        Item item = auction.getItem();
+        return item == null ? 0 : Math.max(0, item.getMinBid());
+    }
+
+    private static double minAllowedBid(Auction auction, double currentPrice) {
+        if (isFirstBid(auction)) {
+            return Math.nextUp(currentPrice);
+        }
+        return currentPrice + minBid(auction);
+    }
+
+    private static boolean isFirstBid(Auction auction) {
+        String leadingBidder = auction.getLeadingBidder();
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasHistory = auction.getBidHistory() != null && !auction.getBidHistory().isEmpty();
+        return !hasLeader && !hasHistory;
+    }
+
     private static String normalize(String value) {
         return value == null ? "" : value.trim();
     }
@@ -240,6 +273,10 @@ public final class AutoBidManager {
         response.put("bidPlaced", attempt.bidPlaced());
         if (attempt.bidAmount() > 0) {
             response.put("bidAmount", attempt.bidAmount());
+        }
+        if (attempt.user() != null) {
+            response.put("user", attempt.user());
+            response.put("balance", attempt.user().getBalance());
         }
         return response;
     }
@@ -290,15 +327,17 @@ public final class AutoBidManager {
             boolean success,
             boolean bidPlaced,
             double bidAmount,
+            User user,
             String message,
             boolean shouldNotifyUser) {
 
-        static AutoBidAttempt placed(String message, double bidAmount) {
-            return new AutoBidAttempt(true, true, bidAmount, message, true);
+        static AutoBidAttempt placed(String message, double bidAmount, Map<String, Object> bidResult) {
+            User updatedUser = bidResult != null && bidResult.get("user") instanceof User user ? user : null;
+            return new AutoBidAttempt(true, true, bidAmount, updatedUser, message, true);
         }
 
         static AutoBidAttempt skipped(String message) {
-            return new AutoBidAttempt(true, false, 0, message, false);
+            return new AutoBidAttempt(true, false, 0, null, message, false);
         }
 
         static AutoBidAttempt disabled(String message, boolean shouldNotifyUser) {
@@ -306,7 +345,7 @@ public final class AutoBidManager {
         }
 
         static AutoBidAttempt disabled(String message, boolean shouldNotifyUser, boolean success) {
-            return new AutoBidAttempt(success, false, 0, message, shouldNotifyUser);
+            return new AutoBidAttempt(success, false, 0, null, message, shouldNotifyUser);
         }
     }
 }

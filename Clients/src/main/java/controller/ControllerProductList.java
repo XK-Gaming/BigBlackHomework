@@ -14,11 +14,13 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import model.Items.Item;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
 import model.auction.AuctionStatus;
 import network.*;
 import javafx.scene.shape.Circle;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -64,7 +66,8 @@ public class ControllerProductList implements ServerListener {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser != null) {
             j_LabelName.setText(currentUser.getName());
-            j_textSoDu.setText("0 VNĐ");
+            DecimalFormat df = new DecimalFormat("#,###");
+            j_textSoDu.setText(df.format(currentUser.getBalance()) + " VNĐ");
         }
 
         // 2. Cấu hình ánh xạ cột hiển thị danh sách
@@ -214,6 +217,7 @@ public class ControllerProductList implements ServerListener {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.get("success");
             String message = (String) resData.get("message");
+            String itemName = (String) resData.get("itemName");
 
             // Đồng bộ cập nhật giao diện trên JavaFX Application Thread
             Platform.runLater(() -> {
@@ -231,12 +235,59 @@ public class ControllerProductList implements ServerListener {
                         productList.remove(itemToRemove);
                         statusCache.remove(deletedItemId);
                     }
-
-                    showAlert(Alert.AlertType.INFORMATION, "Thành công", message);
+                    String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
+                    showAlert(Alert.AlertType.INFORMATION, "Thành công", "Sản phẩm" + displayName + " đã bị xóa!");
                 } else {
                     // Server từ chối xóa do không thỏa mãn điều kiện ràng buộc dữ liệu (ví dụ: đã có người đặt giá)
                     showAlert(Alert.AlertType.ERROR, "Không thể xóa", message);
                 }
+            });
+        }
+        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+            User user = UserSession.getLoggedInUser();
+            Map<String, Object> notifData = (Map<String, Object>) response.payload();
+            Item item = (Item) notifData.get("item");
+            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+            });
+        }
+        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+            String itemName = "";
+            Object auctionObj = responsePayload.get("auction");
+            if (auctionObj instanceof Auction) {
+                Auction auction = (Auction) auctionObj;
+                if (auction.getItem() != null) {
+                    itemName = " \"" + auction.getItem().getName() + "\"";
+                }
+            }
+
+            String finalItemName = itemName;
+            Platform.runLater(() -> {
+                showAlert(Alert.AlertType.INFORMATION, "Thông báo", isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!");
+                // Làm mới danh sách sản phẩm để cập nhật trạng thái
+                requestProductsFromNetwork();
+            });
+        }
+        if (Command.FORCE_LOGOUT.equals(response.command())) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(response.command())) {
+            Platform.runLater(() -> {
+                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
+                // 2. Chuyển về màn hình đăng nhập
             });
         }
     }
@@ -308,12 +359,17 @@ public class ControllerProductList implements ServerListener {
                 }
             });
         }
+
     }
 
     @FXML
-    void On_LogOut(ActionEvent event) {
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
+    void On_LogOut (ActionEvent event) {
+        try {
+            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+        } catch (IOException e) {
+            System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
+            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
+        }
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

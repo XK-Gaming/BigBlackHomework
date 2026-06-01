@@ -16,9 +16,10 @@ public class SetAllowHandler extends BaseHandler implements RequestHandler{
 
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        Map<String, Object> setAllow = (Map<String, Object>) payload;
-        String allow = String.valueOf(setAllow.get("allow"));
-        String itemId = String.valueOf(setAllow.get("itemId"));
+        Map<String, Object> Allow = (Map<String, Object>) payload;
+        String allow = String.valueOf(Allow.get("allow"));
+        System.out.println(allow);
+        String itemId = String.valueOf(Allow.get("itemId"));
 
         Map<String, Object> response = new HashMap<>();
         if (itemId == null || itemId.isBlank() || "null".equalsIgnoreCase(itemId)) {
@@ -32,6 +33,7 @@ public class SetAllowHandler extends BaseHandler implements RequestHandler{
         response.put("success", auction != null);
         response.put("itemId", itemId);
         response.put("auction", auction);
+        System.out.println(auction.getStatus());
 
         sendResponse(out, Command.SET_ALLOW_RESULT, response);
         AuctionServer.broadcastToSpecificAuction(itemId, Command.SET_ALLOW_RESULT, response);

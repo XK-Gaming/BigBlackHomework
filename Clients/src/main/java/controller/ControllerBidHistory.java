@@ -5,11 +5,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -128,11 +124,11 @@ public class ControllerBidHistory implements ServerListener {
                 updatedPrice = item.getCurrentHighestPrice();
             }
             // 3. ✅ SỬA ĐỔI: Gia cố bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
+// Thay thế đoạn bóc tách cấu trúc Map (Khối else if số 3) bằng đoạn mã sau:
             else if (payload instanceof Map<?, ?> map) {
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
                         String itemIdStr = map.get("itemId").toString();
-                        // Chống lỗi nếu itemId trả về là dạng số thực "12.0" hoặc chuỗi thuần "12"
                         if (itemIdStr.contains(".")) {
                             updatedItemId = Double.valueOf(itemIdStr).longValue();
                         } else {
@@ -150,6 +146,32 @@ public class ControllerBidHistory implements ServerListener {
                         } else if (map.get("username") != null) {
                             highestBidder = map.get("username").toString();
                         }
+
+                        // --- THÊM: BÓC TÁCH TÊN SẢN PHẨM TỪ MAP REALTIME ---
+                        String updatedItemName = "";
+                        if (map.get("name") != null) {
+                            updatedItemName = map.get("name").toString();
+                        } else if (map.get("itemName") != null) {
+                            updatedItemName = map.get("itemName").toString();
+                        }
+
+                        if (updatedItemId > 0) {
+                            final long targetId = updatedItemId;
+                            final double targetPrice = updatedPrice;
+                            final String topBidder = highestBidder;
+                            final String finalItemName = updatedItemName; // Gán biến final chuyển vào luồng UI
+
+                            Platform.runLater(() -> {
+                                // Truyền thêm tham số tên sản phẩm vào hàm cập nhật
+                                updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
+
+                                if (Command.BID_RESULT.equals(command)) {
+                                    hideQuickBidModal();
+                                    System.out.println("[Client History] Đã cập nhật xong kết quả BID_RESULT cho Item: " + targetId);
+                                }
+                            });
+                            return; // Ngăn luồng chạy xuống khối check updatedItemId phía dưới cũ
+                        }
                     }
                 } catch (Exception e) {
                     System.err.println("Không thể bóc tách payload Map lịch sử: " + e.getMessage());
@@ -159,14 +181,24 @@ public class ControllerBidHistory implements ServerListener {
             }
 
             // Tiến hành cập nhật luồng UI an toàn
+            // Khối xử lý luồng UI an toàn ở cuối hàm onServerResponse của bạn:
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
                 final String topBidder = highestBidder;
 
-                // ✅ SỬA ĐỔI: Chạy toàn bộ khối logic tính toán dữ liệu cục bộ vào luồng JavaFX
+                // Thu thập tên từ Auction hoặc Item nếu có
+                String tempName = "";
+                if (payload instanceof Auction auction && auction.getItem() != null) {
+                    tempName = auction.getItem().getName();
+                } else if (payload instanceof Item item) {
+                    tempName = item.getName();
+                }
+                final String finalItemName = tempName;
+
                 Platform.runLater(() -> {
-                    updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder);
+                    // Truyền thêm finalItemName vào hàm
+                    updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
 
                     if (Command.BID_RESULT.equals(command)) {
                         hideQuickBidModal();
@@ -174,6 +206,16 @@ public class ControllerBidHistory implements ServerListener {
                     }
                 });
             }
+        }
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
         }
     }
 
@@ -183,50 +225,42 @@ public class ControllerBidHistory implements ServerListener {
     /**
      * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp cả GIÁ và TRẠNG THÁI
      */
-    private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder) {
+    private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder, String newItemName) {
         boolean hasChanged = false;
 
         String currentTimeStr = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                 .withZone(java.time.ZoneId.systemDefault())
                 .format(java.time.Instant.now());
 
-        // Chuẩn hóa tên người dùng hiện tại để so sánh chính xác
         String safeCurrentUsername = (currentUsername != null) ? currentUsername.trim() : "";
 
         for (BidHistoryDTO dto : allHistoryData) {
             if (dto.getItemId() == itemId) {
 
+                // --- THÊM: CẬP NHẬT LẠI TÊN SẢN PHẨM NẾU TRÊN SERVER CÓ THAY ĐỔI HOẶC BỊ KHUYẾT ---
+                if (newItemName != null && !newItemName.isBlank()) {
+                    dto.setItemName(newItemName);
+                }
+
                 // 1. Cập nhật lại giá cao nhất trên thị trường hiện tại
                 dto.setCurrentHighestPrice(newPrice);
                 dto.setLastBidTime(currentTimeStr);
 
-                // Chuẩn hóa tên người người vừa đặt giá cao nhất từ server gửi về
+                // 2. BIỆN PHÁP ĐỊNH ĐOẠT TRẠNG THÁI CHÍNH XÁC
                 String safeTopBidder = (topBidder != null) ? topBidder.trim() : "";
 
-                // 2. BIỆN PHÁP ĐỊNH ĐOẠT TRẠNG THÁI CHÍNH XÁC
                 if (!safeTopBidder.isEmpty()) {
-                    // TRƯỜNG HỢP A: Nếu chính bạn là người vừa dẫn đầu (vừa bid thành công hoặc hệ thống ghi nhận bạn giữ top)
                     if (safeTopBidder.equalsIgnoreCase(safeCurrentUsername)) {
                         dto.setStatus("WINNING");
-
-                        // Cập nhật lại mức giá cao nhất của riêng bạn cho khớp với thị trường
                         if (newPrice > dto.getMyHighestBid()) {
                             dto.setMyHighestBid(newPrice);
                         }
-                    }
-                    // TRƯỜNG HỢP B: Nếu người dẫn đầu là người khác
-                    else {
-                        // Nếu giá thị trường đã vượt qua mức trả cao nhất của bạn -> Chắc chắn bị vượt mặt
-                        if (newPrice > dto.getMyHighestBid()) {
-                            dto.setStatus("OUTBID");
-                        }
-                        // Dự phòng: Nếu giá bằng nhau nhưng người giữ top không phải mình -> Vẫn tính là bị vượt mặt
-                        else if (newPrice == dto.getMyHighestBid()) {
+                    } else {
+                        if (newPrice >= dto.getMyHighestBid()) {
                             dto.setStatus("OUTBID");
                         }
                     }
                 } else {
-                    // TRƯỜNG HỢP C: Server không trả về tên người giữ top (Cơ chế tính toán dự phòng dựa trên giá tiền)
                     if (dto.getMyHighestBid() >= newPrice) {
                         dto.setStatus("WINNING");
                     } else {
@@ -236,13 +270,12 @@ public class ControllerBidHistory implements ServerListener {
 
                 hasChanged = true;
                 System.out.println("🔄 [UI Realtime] Đã đồng bộ Item ID: " + itemId
+                        + " | Tên: " + dto.getItemName()
                         + " | Giá mới: $" + newPrice
-                        + " | Người giữ top: " + (safeTopBidder.isEmpty() ? "Ẩn danh" : safeTopBidder)
                         + " | Trạng thái mới: " + dto.getStatus());
             }
         }
 
-        // Vẽ lại toàn bộ danh sách card lên giao diện JavaFX ngay khi trạng thái đổi
         if (hasChanged) {
             updateUIWithData(allHistoryData);
         }
@@ -276,6 +309,7 @@ public class ControllerBidHistory implements ServerListener {
         String statusColorStyle = "";
         String statusText = "";
         boolean showRebidButton = false;
+        boolean showPaymentButton = false; // Thêm biến cờ để kiểm soát nút thanh toán
 
         switch (dto.getStatus()) {
             case "WINNING" -> {
@@ -290,6 +324,7 @@ public class ControllerBidHistory implements ServerListener {
             case "WON" -> {
                 statusColorStyle = "-fx-background-color: #FFFDE7; -fx-border-color: #FFC107; -fx-border-radius: 10; -fx-border-width: 1.5;";
                 statusText = "🏆 Thắng cuộc";
+                showPaymentButton = true; // Bật hiển thị nút thanh toán khi đấu giá thành công
             }
             case "LOST" -> {
                 statusColorStyle = "-fx-background-color: #F5F5F5; -fx-border-color: #BDBDBD; -fx-border-radius: 10; -fx-border-width: 1.5;";
@@ -299,8 +334,24 @@ public class ControllerBidHistory implements ServerListener {
         card.setStyle(baseStyle + statusColorStyle);
 
         VBox txtSection = new VBox(6);
-        Label nameLabel = new Label(dto.getItemName());
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15px; -fx-text-fill: #212121;");
+
+        // ==================== ĐOẠN ĐÃ ĐƯỢC NÂNG CẤP HIỂN THỊ TÊN ====================
+        String rawName = dto.getItemName();
+        String finalDisplayName;
+
+        if (rawName != null && !rawName.isBlank() && !rawName.startsWith("Sản phẩm mã #")) {
+            finalDisplayName = rawName + " (Mã #" + dto.getItemId() + ")";
+        } else {
+            finalDisplayName = "Sản phẩm mã #" + dto.getItemId();
+        }
+
+        Label nameLabel = new Label(finalDisplayName);
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
+
+        nameLabel.setWrapText(false);
+        nameLabel.setMaxWidth(280);
+        // ===========================================================================
+
         Label timeLabel = new Label("Lượt đặt cuối: " + dto.getLastBidTime());
         timeLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #616161;");
         txtSection.getChildren().addAll(nameLabel, timeLabel);
@@ -320,6 +371,7 @@ public class ControllerBidHistory implements ServerListener {
         statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
         actionSection.getChildren().add(statusLabel);
 
+        // 1. NÚT RE-BID NHANH (KHI BỊ VƯỢT MẶT)
         if (showRebidButton) {
             Button rebidBtn = new Button("Re-bid nhanh");
             rebidBtn.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
@@ -328,6 +380,26 @@ public class ControllerBidHistory implements ServerListener {
             actionSection.getChildren().add(rebidBtn);
         }
 
+        // 2. NÚT VÀO THANH TOÁN (KHI ĐẤU GIÁ THÀNH CÔNG - WON)
+        if (showPaymentButton) {
+            Button btnPayment = new Button("Vào thanh toán");
+            // Giao diện màu Cam nổi bật phong cách Payment
+            btnPayment.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
+            btnPayment.setPadding(new Insets(5, 10, 5, 10));
+
+            btnPayment.setOnAction(e -> {
+                client.setListener(null); // Gỡ bỏ listener hiện tại trước khi chuyển màn hình
+
+                var targetController = SceneHelper.changeSceneAndGetController(btnPayment, "/fxml/PayingView.fxml");
+                if (targetController instanceof ControllerPayment paymentCtrl) {
+                    paymentCtrl.initData(dto); // Gọi hàm truyền dữ liệu vừa viết ở Bước 1
+                    System.out.println("[Chuyển hướng] Đã kích hoạt initData cho ControllerPayment thành công.");
+                }
+            });
+            actionSection.getChildren().add(btnPayment);
+        }
+
+        // 3. NÚT VÀO PHÒNG ĐẤU GIÁ (Nên ẩn đi hoặc giữ lại tùy bạn, ở đây giữ nguyên theo code cũ)
         Button btnGoToAuction = new Button("Vào phòng ĐG");
         btnGoToAuction.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
         btnGoToAuction.setPadding(new Insets(5, 10, 5, 10));

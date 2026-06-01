@@ -1,5 +1,6 @@
 package network;
 
+import model.User.User;
 import model.auction.Auction;
 import model.exception.AuctionException;
 import service.UserService;
@@ -36,6 +37,10 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                 response.put("message", "Đấu giá thành công");
                 response.put("newPrice", newPrice);
                 response.put("itemId", itemId);
+                if (result.get("user") instanceof User updatedUser) {
+                    response.put("user", updatedUser);
+                    response.put("balance", updatedUser.getBalance());
+                }
 
                 if (result.get("latestAuction") instanceof Auction latestAuction) {
                     Instant auctionEndTime = BidEventPublisher.extractAuctionEndTime(latestAuction);
@@ -62,4 +67,5 @@ public class BidHandler extends BaseHandler implements RequestHandler {
 
         sendResponse(out, Command.BID_RESULT, response);
     }
+
 }

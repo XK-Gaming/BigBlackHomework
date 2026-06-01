@@ -22,6 +22,7 @@ public class DAOItems implements DaoInterface<Item> {
 
     /** Jackson mapper dùng để serialize/deserialize các thuộc tính trong chuỗi JSON */
     static final ObjectMapper mapper = new ObjectMapper();
+    private static volatile boolean minBidColumnChecked;
 
     public static DAOItems getInstance() {
         return new DAOItems();
@@ -30,12 +31,14 @@ public class DAOItems implements DaoInterface<Item> {
     @Override
     public int Insert(Item item) {
         try (Connection con = JDBCUtil.getConnection()) {
-            String sql = "INSERT INTO items (name, startingPrice, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            ensureMinBidColumn(con);
+            String sql = "INSERT INTO items (name, startingPrice, minBid, sellerId, description, itemType, auctionStartTime, auctionEndTime, imgdata, currentHighestBid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             try (PreparedStatement pstmt = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
                 pstmt.setString(1, item.getName());
                 pstmt.setDouble(2, item.getStartingPrice());
-                pstmt.setString(3, item.getSellerId());
+                pstmt.setDouble(3, item.getMinBid());
+                pstmt.setString(4, item.getSellerId());
 
                 // 🌟 ĐỒNG BỘ JSON: Đóng gói cả description và các trường phụ (properties) vào chung 1 chuỗi JSON
                 Map<String, String> payload = new HashMap<>();
@@ -44,27 +47,27 @@ public class DAOItems implements DaoInterface<Item> {
                     payload.putAll(item.getProperties()); // Gom thêm artist, model, year,... vào chung payload
                 }
                 String combinedJson = mapper.writeValueAsString(payload);
-                pstmt.setString(4, combinedJson);
+                pstmt.setString(5, combinedJson);
 
                 // 🌟 ĐỒNG BỘ ITEMTYPE: Lưu trực tiếp chuỗi tiếng Việt có dấu của bạn ("Mỹ thuật",...) vào DB
-                pstmt.setString(5, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
+                pstmt.setString(6, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
 
                 Instant inst1 = item.getAuctionStartTime();
                 if (inst1 != null) {
-                    pstmt.setTimestamp(6, java.sql.Timestamp.from(inst1));
-                } else {
-                    pstmt.setNull(6, java.sql.Types.TIMESTAMP);
-                }
-
-                Instant inst2 = item.getAuctionEndTime();
-                if (inst2 != null) {
-                    pstmt.setTimestamp(7, java.sql.Timestamp.from(inst2));
+                    pstmt.setTimestamp(7, java.sql.Timestamp.from(inst1));
                 } else {
                     pstmt.setNull(7, java.sql.Types.TIMESTAMP);
                 }
 
-                pstmt.setString(8, item.getImg());
-                pstmt.setDouble(9, item.getStartingPrice());
+                Instant inst2 = item.getAuctionEndTime();
+                if (inst2 != null) {
+                    pstmt.setTimestamp(8, java.sql.Timestamp.from(inst2));
+                } else {
+                    pstmt.setNull(8, java.sql.Types.TIMESTAMP);
+                }
+
+                pstmt.setString(9, item.getImg());
+                pstmt.setDouble(10, item.getStartingPrice());
 
                 int rowsAffected = pstmt.executeUpdate();
                 try (ResultSet rs = pstmt.getGeneratedKeys()) {
@@ -99,55 +102,61 @@ public class DAOItems implements DaoInterface<Item> {
         }
     }
 
-    public int Update(Item item) {
-        String sql = "UPDATE items SET name = ?, description = ?, startingPrice = ?, auctionStartTime = ?, auctionEndTime = ?, imgdata = ?, itemType = ? WHERE my_row_id = ?";
+    public int UpdateWhenEdit(Item item) {
+        String sql = "UPDATE items SET name = ?, description = ?, startingPrice = ?, minBid = ?, " +
+                "auctionStartTime = ?, auctionEndTime = ?, imgdata = ?, itemType = ?, " +
+                "currentHighestBid = ? WHERE my_row_id = ?";
 
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            ensureMinBidColumn(con);
+            try (PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            pstmt.setString(1, item.getName());
+                pstmt.setString(1, item.getName());
 
-            // 🌟 GIẢI PHÁP AN TOÀN: Tạo bản đồ Payload để đóng gói JSON
-            Map<String, String> payload = new HashMap<>();
-            payload.put("description", item.getDescription()); // Luôn lấy mô tả mới nhất (bao gồm cả note nếu có)
+                // 🌟 GIẢI PHÁP AN TOÀN: Tạo bản đồ Payload để đóng gói JSON
+                Map<String, String> payload = new HashMap<>();
+                payload.put("description", item.getDescription());
 
-            // Lấy Map thuộc tính hiện tại của đối tượng item
-            Map<String, String> currentProps = item.getProperties();
+                Map<String, String> currentProps = item.getProperties();
 
-            // 🛡️ PHÒNG VỆ ĐA LUỒNG / TRÁNH MẤT DATA:
-            // Nếu các trường phụ bị null hoặc rỗng hoàn toàn (do UI khóa không truyền xuống khi Append Note),
-            // ta sẽ chủ động lấy lại các thuộc tính cũ đang nằm trong DB để không làm mất dữ liệu lịch sử của item.
-            if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
-                Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
-                if (dbBackup != null && dbBackup.getProperties() != null) {
-                    currentProps = dbBackup.getProperties();
+                // 🛡️ PHÒNG VỆ ĐA LUỒNG / TRÁNH MẤT DATA:
+                if (currentProps == null || (currentProps.get("artist") == null && currentProps.get("brand") == null && currentProps.get("manufacturer") == null)) {
+                    Item dbBackup = this.selectById(con, String.valueOf(item.getDatabaseId()));
+                    if (dbBackup != null && dbBackup.getProperties() != null) {
+                        currentProps = dbBackup.getProperties();
+                    }
                 }
+
+                if (currentProps != null) {
+                    payload.putAll(currentProps);
+                }
+
+                String combinedJson = mapper.writeValueAsString(payload);
+                pstmt.setString(2, combinedJson);
+
+                pstmt.setDouble(3, item.getStartingPrice());
+                pstmt.setDouble(4, item.getMinBid());
+
+                Instant startTime = item.getAuctionStartTime();
+                pstmt.setTimestamp(5, startTime != null ? java.sql.Timestamp.from(startTime) : null);
+
+                Instant endTime = item.getAuctionEndTime();
+                pstmt.setTimestamp(6, endTime != null ? java.sql.Timestamp.from(endTime) : null);
+
+                pstmt.setString(7, item.getImg());
+
+                pstmt.setString(8, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
+
+                // ⬇️ ĐÃ FIX THỨ TỰ TỪ ĐÂY ⬇️
+
+                // Tham số số 9: currentHighestBid (Lấy giá khởi điểm hoặc getter tương ứng của bạn)
+                pstmt.setDouble(9, item.getStartingPrice());
+
+                // Tham số số 10: Điều kiện WHERE my_row_id = ?
+                pstmt.setInt(10, item.getDatabaseId());
+
+                return pstmt.executeUpdate();
             }
-
-            // Đổ toàn bộ dữ liệu thuộc tính an toàn vào JSON payload
-            if (currentProps != null) {
-                payload.putAll(currentProps);
-            }
-
-            // Tiến hành chuyển đổi sang chuỗi JSON để lưu trữ vào trường description
-            String combinedJson = mapper.writeValueAsString(payload);
-            pstmt.setString(2, combinedJson);
-
-            pstmt.setDouble(3, item.getStartingPrice());
-
-            Instant startTime = item.getAuctionStartTime();
-            pstmt.setTimestamp(4, startTime != null ? java.sql.Timestamp.from(startTime) : null);
-
-            Instant endTime = item.getAuctionEndTime();
-            pstmt.setTimestamp(5, endTime != null ? java.sql.Timestamp.from(endTime) : null);
-
-            pstmt.setString(6, item.getImg());
-
-            // Đảm bảo lưu đúng giá trị chuỗi tiếng Việt hoặc giá trị chuỗi của Enum
-            pstmt.setString(7, item.getRawItemType() != null ? item.getRawItemType().toString() : null);
-            pstmt.setInt(8, item.getDatabaseId());
-
-            return pstmt.executeUpdate();
 
         } catch (Exception e) {
             System.err.println("Lỗi thực thi Update JSON tại sản phẩm có ID: " + item.getDatabaseId());
@@ -210,15 +219,16 @@ public class DAOItems implements DaoInterface<Item> {
     public ArrayList<Item> selectAll() {
         ArrayList<Item> list = new ArrayList<>();
 
-        String sql = "SELECT i.my_row_id AS item_id, i.name, i.startingPrice, i.sellerId, i.description, " +
+        String sql = "SELECT i.my_row_id AS item_id, i.name, i.startingPrice, i.minBid, i.sellerId, i.description, " +
                 "i.itemType, i.auctionStartTime, i.auctionEndTime, i.imgdata, i.currentHighestBid, " +
                 "JSON_UNQUOTE(a.status) AS clean_status " +
                 "FROM items i " +
                 "LEFT JOIN auction_items a ON i.my_row_id = a.id_item";
 
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            ensureMinBidColumn(con);
+            try (PreparedStatement pstmt = con.prepareStatement(sql);
+                 ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
                 Item item = new Item();
@@ -256,6 +266,9 @@ public class DAOItems implements DaoInterface<Item> {
                 double startingPrice = rs.getDouble("startingPrice");
                 item.setStartingPrice(rs.wasNull() ? null : startingPrice);
 
+                double minBid = rs.getDouble("minBid");
+                item.setMinBid(rs.wasNull() ? 0 : minBid);
+
                 double currentHighestBid = rs.getDouble("currentHighestBid");
                 item.setCurrentHighestPrice(rs.wasNull() ? null : currentHighestBid);
 
@@ -283,6 +296,7 @@ public class DAOItems implements DaoInterface<Item> {
                 list.add(item);
             }
 
+            }
             return list;
 
         } catch (SQLException e) {
@@ -332,6 +346,7 @@ public class DAOItems implements DaoInterface<Item> {
         Timestamp startTime = rs.getTimestamp("auctionStartTime");
         Timestamp endTime = rs.getTimestamp("auctionEndTime");
         String imgData = rs.getString("imgdata");
+        double minBid = readOptionalDouble(rs, "minBid", 0);
         double currentHighestPrice = rs.getDouble("currentHighestBid");
 
         // 🌟 SỬA TẠI ĐÂY: Ép kiểu Enum an toàn, chống crash luồng khi đọc dữ liệu từ DB
@@ -352,7 +367,7 @@ public class DAOItems implements DaoInterface<Item> {
         }
 
         // Khởi tạo Item với typeEnum an toàn đã được xử lý
-        Item item = new Item(name, description, startingPrice, sellerId, imgData, typeEnum);
+        Item item = new Item(name, description, startingPrice, minBid, sellerId, imgData, typeEnum);
 
         // Gán ID từ cột my_row_id
         item.setDatabaseId(rs.getInt("my_row_id"));
@@ -366,6 +381,34 @@ public class DAOItems implements DaoInterface<Item> {
 
         item.setCurrentHighestPrice(currentHighestPrice);
         return item;
+    }
+
+    private static double readOptionalDouble(ResultSet rs, String columnName, double fallback) {
+        try {
+            double value = rs.getDouble(columnName);
+            return rs.wasNull() ? fallback : value;
+        } catch (SQLException e) {
+            return fallback;
+        }
+    }
+
+    private static void ensureMinBidColumn(Connection con) throws SQLException {
+        if (minBidColumnChecked) {
+            return;
+        }
+        synchronized (DAOItems.class) {
+            if (minBidColumnChecked) {
+                return;
+            }
+            try (ResultSet rs = con.getMetaData().getColumns(con.getCatalog(), null, "items", "minBid")) {
+                if (!rs.next()) {
+                    try (Statement statement = con.createStatement()) {
+                        statement.executeUpdate("ALTER TABLE items ADD COLUMN minBid DOUBLE NOT NULL DEFAULT 0");
+                    }
+                }
+            }
+            minBidColumnChecked = true;
+        }
     }
 
 }

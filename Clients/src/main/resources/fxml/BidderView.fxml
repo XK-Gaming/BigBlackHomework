@@ -15,11 +15,11 @@
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: #F4F6F8;" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerBidder">
+<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerBidder">
 
    <left>
       <VBox alignment="TOP_CENTER" prefWidth="220.0" spacing="20.0"
-            style="-fx-background-color: #2B3442; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 2, 0);"
+            style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.18), 10, 0, 2, 0);"
             BorderPane.alignment="CENTER">
          <padding>
             <Insets bottom="20.0" left="15.0" right="15.0" top="40.0"/>
@@ -38,16 +38,16 @@
             </font>
          </Label>
 
-         <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: #3B4555; -fx-background-radius: 8;">
+         <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: #24334f; -fx-background-radius: 14;">
             <padding>
                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
             </padding>
-            <Label text="Số dư khả dụng" textFill="#B0B8C4">
+            <Label text="Số dư khả dụng" textFill="#94a3b8">
                <font>
                   <Font size="12.0"/>
                </font>
             </Label>
-            <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#4CAF50">
+            <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#16a34a">
                <font>
                   <Font name="System Bold" size="16.0"/>
                </font>
@@ -57,31 +57,19 @@
          <Region VBox.vgrow="ALWAYS"/>
 
          <VBox alignment="CENTER" maxWidth="Infinity" spacing="10.0">
-            <HBox alignment="CENTER" maxWidth="Infinity" spacing="10.0">
-               <Button fx:id="MyAuctions" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_MyAuctions"
-                       style="-fx-background-color: #3182CE; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;"
-                       text="Của tôi" HBox.hgrow="ALWAYS">
-                  <padding>
-                     <Insets bottom="10.0" top="10.0"/>
-                  </padding>
-                  <cursor>
-                     <Cursor fx:constant="HAND"/>
-                  </cursor>
-               </Button>
-               <Button fx:id="BidHistory" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_BidHistory"
-                       style="-fx-background-color: #4A5568; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;"
-                       text="Lịch sử bid" HBox.hgrow="ALWAYS">
-                  <padding>
-                     <Insets bottom="10.0" top="10.0"/>
-                  </padding>
-                  <cursor>
-                     <Cursor fx:constant="HAND"/>
-                  </cursor>
-               </Button>
-            </HBox>
+            <Button fx:id="BidHistory" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_BidHistory"
+                    style="-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
+                    text="Lịch sử bid" VBox.vgrow="ALWAYS">
+               <padding>
+                  <Insets bottom="10.0" top="10.0"/>
+               </padding>
+               <cursor>
+                  <Cursor fx:constant="HAND"/>
+               </cursor>
+            </Button>
 
             <Button fx:id="LogOut" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_LogOut"
-                    style="-fx-background-color: #E53935; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;"
+                    style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
                     text="Đăng xuất" VBox.vgrow="ALWAYS">
                <padding>
                   <Insets bottom="10.0" top="10.0"/>
@@ -101,31 +89,31 @@
          </padding>
 
          <HBox alignment="CENTER_LEFT" spacing="15.0">
-            <Label text="HỆ THỐNG ĐẤU GIÁ" textFill="#2B3442">
+            <Label text="HỆ THỐNG ĐẤU GIÁ" textFill="#111827">
                <font>
                   <Font name="System Bold" size="20.0"/>
                </font>
             </Label>
 
             <TextField fx:id="txtSearch" promptText="Tìm kiếm sản phẩm theo tên..."
-                       style="-fx-background-radius: 20; -fx-padding: 6 15 6 15; -fx-border-color: #CBD5E0; -fx-border-radius: 20; -fx-background-color: white;"
+                       style="-fx-background-radius: 16; -fx-padding: 6 15 6 15; -fx-border-color: #d7e0ef; -fx-border-radius: 16; -fx-background-color: white;"
                        prefWidth="250.0" />
 
             <Region HBox.hgrow="ALWAYS" />
 
             <HBox alignment="CENTER_LEFT" spacing="5.0">
                <children>
-                  <Label fx:id="connectionText" text="Offline" textFill="#666666">
+                  <Label fx:id="connectionText" text="Offline" textFill="#64748b">
                      <font>
                         <Font size="12.0" />
                      </font>
                   </Label>
-                  <Circle fx:id="connectionStatus" fill="#ff1f1f" radius="5.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.5" />
+                  <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
                </children>
             </HBox>
 
             <Button fx:id="btnReset" mnemonicParsing="false" onAction="#On_ResetItems"
-                    style="-fx-background-color: #718096; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;"
+                    style="-fx-background-color: #64748b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
                     text="Làm mới">
                <padding>
                   <Insets bottom="8.0" left="15.0" right="15.0" top="8.0"/>
@@ -137,7 +125,7 @@
          </HBox>
 
          <Pagination fx:id="List_Items_Bid"
-                     style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 5);"
+                     style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.08), 10, 0, 0, 5);"
                      VBox.vgrow="ALWAYS"/>
       </VBox>
    </center>

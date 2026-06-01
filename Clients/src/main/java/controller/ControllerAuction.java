@@ -1,6 +1,8 @@
 package controller;
 
+import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -13,6 +15,7 @@ import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -29,6 +32,7 @@ import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.Items.Item;
 import model.Items.ItemSession;
+import model.Items.ItemType;
 import model.User.User;
 import model.User.UserSession;
 import model.auction.Auction;
@@ -52,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import model.auction.BidHistoryDTO;
 
 public class ControllerAuction implements ServerListener {
     private final AuctionClient client = AuctionClient.getInstance();
@@ -70,6 +75,9 @@ public class ControllerAuction implements ServerListener {
     private static final Set<String> AUTO_BID_ENABLED_KEYS = new HashSet<>();
     private AutoBidSettings autoBidSettings;
     private boolean updatingAutoBidToggle;
+    private Double pendingManualBidAmount;
+    private Double pendingManualBidPreviousPrice;
+    private boolean pendingManualBidWasLeading;
 
     @FXML private TextField j_setPrice;
     @FXML private Button j_apply;
@@ -87,6 +95,7 @@ public class ControllerAuction implements ServerListener {
     @FXML private Button j_return;
     @FXML private Label j_textSoDu;
     @FXML private Label j_CurrentPrice;
+    @FXML private Label j_MinBid;
     @FXML private Label j_notified;
     @FXML private Label j_mins;
     @FXML private Label j_hours;
@@ -144,9 +153,10 @@ public class ControllerAuction implements ServerListener {
         if (item1 != null) {
             j_name.setText(item1.getName());
             DecimalFormat df = new DecimalFormat("#,###");
-            j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+            j_description.setText(getCustomDescription(item1));
             renderImage();
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
+            updateMinBidLabel();
         }
         j_status.setText("Đang tải phiên đấu giá...");
         j_status.setTextFill(Color.web("#bdc3c7"));
@@ -161,6 +171,7 @@ public class ControllerAuction implements ServerListener {
     }
 
     public void onAuctionDataLoaded(Auction auction) {
+        System.out.println("[DEBUG] Server trả về phiên đấu giá: " + auction);
         this_Auction = auction;
         Platform.runLater(() -> {
             if (this_Auction == null) {
@@ -170,7 +181,7 @@ public class ControllerAuction implements ServerListener {
                 // ĐÃ SỬA: Kiểm tra an toàn cho item1 tránh gây crash giao diện tại đây
                 if (item1 != null) {
                     j_name.setText(item1.getName());
-                    j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+                    j_description.setText(getCustomDescription(item1));
                     renderImage();
                 }
 
@@ -194,14 +205,101 @@ public class ControllerAuction implements ServerListener {
         if (j_countdown != null) {
             j_countdown.setVisible(true);
         }
+
+        // Hiển thị tên người dùng
         if (p1 != null) j_LabelName.setText(p1.getName());
+
+        // 🔥 SỬA CHỖ NÀY: Kiểm tra an toàn trước khi set tên sản phẩm
         if (item1 != null) {
-            j_name.setText(item1.getName());
-            j_description.setText(item1.getDescription() != null ? item1.getDescription() : "");
+            // Chỉ cập nhật tên lên UI nếu tên trong item1 thực sự có chữ
+            if (item1.getName() != null && !item1.getName().trim().isEmpty()) {
+                j_name.setText(item1.getName());
+            }
+
+            j_description.setText(getCustomDescription(item1));
             renderImage();
         }
+
         updatePriceAndLeader();
         startStatusEngine();
+    }
+    private String getCustomDescription(Item item) {
+        if (item == null || item.getDescription() == null) {
+            return "Không có mô tả cho sản phẩm này.";
+        }
+
+        String rawDesc = item.getDescription().trim();
+        if (rawDesc.isEmpty()) {
+            return "Không có mô tả cho sản phẩm này.";
+        }
+
+        // Nếu không bọc trong ngoặc nhọn JSON, hiển thị như text thường
+        if (!rawDesc.startsWith("{") || !rawDesc.endsWith("}")) {
+            return rawDesc;
+        }
+
+        try {
+            // Tạo Map để chứa dữ liệu sau khi bóc tách từ JSON
+            Map<String, String> map = new HashMap<>();
+
+            // Loại bỏ dấu ngoặc nhọn { và } ở hai đầu
+            String cleanDesc = rawDesc.substring(1, rawDesc.length() - 1);
+
+            // Tách các cặp thuộc tính bằng dấu phẩy
+            String[] pairs = cleanDesc.split(",");
+            for (String pair : pairs) {
+                String[] keyValue = pair.split(":");
+                if (keyValue.length >= 2) {
+                    // Lấy phần Key và loại bỏ toàn bộ dấu ngoặc kép '"' cũng như khoảng trắng
+                    String key = keyValue[0].replace("\"", "").trim().toLowerCase();
+
+                    // Lấy phần Value (gộp lại phòng trường hợp nội dung chứa dấu hai chấm ':')
+                    StringBuilder valueBuilder = new StringBuilder();
+                    for (int i = 1; i < keyValue.length; i++) {
+                        if (i > 1) valueBuilder.append(":");
+                        valueBuilder.append(keyValue[i]);
+                    }
+                    String value = valueBuilder.toString().replace("\"", "").trim();
+
+                    map.put(key, value);
+                }
+            }
+
+            // Lấy Loại sản phẩm chuẩn từ Enum có sẵn trong Model
+            ItemType type = item.getRawItemType();
+
+            // Hiển thị thông tin chính xác theo từng danh mục sản phẩm
+            if (type != null) {
+                switch (type) {
+                    case ART:
+                        String artDesc = map.getOrDefault("description", "Không có mô tả");
+                        String artist = map.getOrDefault("artist", "Không rõ");
+                        return "Mô tả: " + artDesc + "\nHọa sĩ: " + artist;
+
+                    case ELECTRONICS:
+                        String brand = map.getOrDefault("brand", "Không rõ");
+                        String model = map.getOrDefault("model", "Không rõ");
+                        return "Thương hiệu: " + brand + "\nModel: " + model;
+
+                    case VEHICLE:
+                        String year = map.getOrDefault("year", "Không rõ");
+                        String manufacturer = map.getOrDefault("manufacturer", "Không rõ");
+                        return "Năm sản xuất: " + year + "\nNhà sản xuất: " + manufacturer;
+                }
+            }
+
+            // Phương án dự phòng cuối cùng nếu không nhận diện được Type
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<String, String> entry : map.entrySet()) {
+                String keyFormatted = entry.getKey().substring(0, 1).toUpperCase() + entry.getKey().substring(1);
+                sb.append(keyFormatted).append(": ").append(entry.getValue()).append("\n");
+            }
+            return sb.toString().trim();
+
+        } catch (Exception e) {
+            System.err.println("Lỗi xử lý cú pháp JSON mô tả: " + e.getMessage());
+            return rawDesc; // Trả về chuỗi gốc từ DB để giao diện không bị trống
+        }
     }
 
     private void updatePriceAndLeader() {
@@ -214,7 +312,10 @@ public class ControllerAuction implements ServerListener {
             }
         } else if (item1 != null) {
             j_CurrentPrice.setText(df.format(item1.getCurrentHighestPrice()) + " VNĐ");
+            updateMinBidLabel();
         }
+
+        updateMinBidLabel();
 
         if (this_Auction == null) {
             j_leadingBidder.setText("—");
@@ -229,6 +330,41 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    private void updateMinBidLabel() {
+        if (j_MinBid == null) {
+            return;
+        }
+        DecimalFormat df = new DecimalFormat("#,###");
+        double minBid = item1 != null ? item1.getMinBid() : 0;
+        j_MinBid.setText("MinBid: " + df.format(minBid) + " VNĐ");
+    }
+
+    private double minimumBidForCurrentState() {
+        double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
+        if (isFirstBid()) {
+            return Math.nextUp(currentPrice);
+        }
+        double minBid = item1 != null ? Math.max(0, item1.getMinBid()) : 0;
+        return currentPrice + minBid;
+    }
+
+    private boolean isFirstBid() {
+        if (this_Auction == null) {
+            return false;
+        }
+        String leadingBidder = this_Auction.getLeadingBidder();
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasHistory = this_Auction.getBidHistory() != null && !this_Auction.getBidHistory().isEmpty();
+        return !hasLeader && !hasHistory;
+    }
+
+    private String currentLeadingBidder() {
+        if (this_Auction == null || this_Auction.getLeadingBidder() == null) {
+            return "";
+        }
+        return this_Auction.getLeadingBidder().replace("\"", "").trim();
+    }
+
     private void syncAuctionSnapshot(Auction auction) {
         if (auction == null || item1 == null) return;
         this_Auction = auction;
@@ -236,6 +372,13 @@ public class ControllerAuction implements ServerListener {
         if (auctionItem == null) return;
 
         item1.setCurrentHighestPrice(auctionItem.getCurrentHighestPrice());
+        item1.setMinBid(auctionItem.getMinBid());
+
+        // 🔥 CHỈ ghi đè tên nếu dữ liệu từ Server trả về có tên hợp lệ
+        if (auctionItem.getName() != null && !auctionItem.getName().trim().isEmpty()) {
+            item1.setName(auctionItem.getName());
+        }
+
         if (auctionItem.getAuctionStartTime() != null) {
             item1.setAuctionStartTime(auctionItem.getAuctionStartTime());
         }
@@ -281,14 +424,23 @@ public class ControllerAuction implements ServerListener {
 
         try {
             long bidAmount = Long.parseLong(priceText);
+            double minAllowedBid = minimumBidForCurrentState();
+            double currentPrice = item1.getCurrentHighestPrice();
 
-            if (bidAmount <= item1.getCurrentHighestPrice()) {
+            if (!isFirstBid() && bidAmount < minAllowedBid) {
+                DecimalFormat df = new DecimalFormat("#,###");
+                j_notified.setText("Giá đặt tối thiểu là " + df.format(minAllowedBid) + " VNĐ (giá hiện tại + MinBid).");
+                j_notified.setVisible(true);
+            } else if (bidAmount <= currentPrice) {
                 j_notified.setText("Giá đặt phải lớn hơn giá hiện tại!");
                 j_notified.setVisible(true);
             } else if (bidAmount > p1.getBalance()) {
                 j_notified.setText("Số dư không đủ để đấu giá");
                 j_notified.setVisible(true);
             } else {
+                pendingManualBidAmount = (double) bidAmount;
+                pendingManualBidPreviousPrice = currentPrice;
+                pendingManualBidWasLeading = p1.getUsername().equals(currentLeadingBidder());
                 client.sendCommand(Command.BID, Map.of(
                         "itemId", item1.getDatabaseId(),
                         "bidderId", p1.getUsername(),
@@ -508,10 +660,14 @@ public class ControllerAuction implements ServerListener {
         double currentPrice = item1 != null ? item1.getCurrentHighestPrice() : 0;
 
         if (maxBidAllow <= currentPrice) {
-            throw new IllegalArgumentException("MaxBidAllow must be greater than current price.");
+            throw new IllegalArgumentException("MaxBidAllow phải lớn hơn giá hiện tại.");
         }
         if (bidGap <= 0) {
-            throw new IllegalArgumentException("BidGap must be greater than 0.");
+            throw new IllegalArgumentException("BidGap phải lớn hơn 0.");
+        }
+        double minBid = item1 != null ? item1.getMinBid() : 0;
+        if (bidGap < minBid) {
+            throw new IllegalArgumentException("BidGap phải lớn hơn hoặc bằng MinBid.");
         }
         return new AutoBidSettings(maxBidAllow, bidGap);
     }
@@ -537,6 +693,11 @@ public class ControllerAuction implements ServerListener {
 
         if (enabled && autoBidSettings == null) {
             showTemporaryNotice("Please configure AutoBid first.");
+            setAutoBidToggleSelected(false);
+            return;
+        }
+        if (enabled && item1 != null && autoBidSettings.bidGap < item1.getMinBid()) {
+            showTemporaryNotice("BidGap phải lớn hơn hoặc bằng MinBid.");
             setAutoBidToggleSelected(false);
             return;
         }
@@ -582,6 +743,9 @@ public class ControllerAuction implements ServerListener {
         String message = result.get("message") != null ? String.valueOf(result.get("message")) : "";
 
         Platform.runLater(() -> {
+            if (success) {
+                syncLoggedInUserFromResponse(result);
+            }
             if (enabled) {
                 AUTO_BID_ENABLED_KEYS.add(autoBidKey());
             } else {
@@ -600,7 +764,77 @@ public class ControllerAuction implements ServerListener {
         return Boolean.TRUE.equals(value) || "true".equalsIgnoreCase(String.valueOf(value));
     }
 
+    private void syncLoggedInUserFromResponse(Map<?, ?> result) {
+        if (result == null) {
+            return;
+        }
+
+        boolean appliedAuthoritativeBalance = UserBalanceSync.applyBalancePayload(result);
+        p1 = UserSession.getLoggedInUser();
+
+        if (!appliedAuthoritativeBalance) {
+            applyManualBidBalanceFallback(result);
+        }
+
+        updateBalanceLabel();
+    }
+
+    private void syncLoggedInUserFromNotification(Map<?, ?> result) {
+        if (result == null) {
+            return;
+        }
+
+        if (UserBalanceSync.applyBalancePayload(result)) {
+            p1 = UserSession.getLoggedInUser();
+            updateBalanceLabel();
+        }
+    }
+
+    private void applyManualBidBalanceFallback(Map<?, ?> result) {
+        User currentUser = p1 != null ? p1 : UserSession.getLoggedInUser();
+        if (currentUser == null || pendingManualBidAmount == null) {
+            return;
+        }
+
+        Double bidAmount = numericValue(result.get("newPrice"));
+        if (bidAmount == null) {
+            bidAmount = pendingManualBidAmount;
+        }
+
+        double refund = pendingManualBidWasLeading && pendingManualBidPreviousPrice != null
+                ? pendingManualBidPreviousPrice
+                : 0;
+        currentUser.setBalance(currentUser.getBalance() + refund - bidAmount);
+        p1 = currentUser;
+        UserSession.setLoggedInUser(currentUser);
+    }
+
+    private Double numericValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value != null) {
+            try {
+                return Double.parseDouble(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void updateBalanceLabel() {
+        p1 = UserSession.getLoggedInUser();
+        UserBalanceSync.refreshBalanceLabel(j_textSoDu);
+    }
+
     // AutoBid availability: chỉ cho bật/tắt khi phiên đang RUNNING.
+    private void clearPendingManualBid() {
+        pendingManualBidAmount = null;
+        pendingManualBidPreviousPrice = null;
+        pendingManualBidWasLeading = false;
+    }
+
     private void setAutoBidAvailable(boolean available) {
         if (j_autoBidToggle != null) {
             j_autoBidToggle.setDisable(!available);
@@ -682,17 +916,48 @@ public class ControllerAuction implements ServerListener {
         }));
     }
 
+    private javafx.stage.Stage findValidStage() {
+        // Thử lấy stage từ các node hiện tại
+        if (j_return != null && j_return.getScene() != null) return (javafx.stage.Stage) j_return.getScene().getWindow();
+        if (j_apply != null && j_apply.getScene() != null) return (javafx.stage.Stage) j_apply.getScene().getWindow();
+
+        // Nếu chịu chết, lấy Stage đầu tiên đang hiển thị của ứng dụng
+        return javafx.stage.Window.getWindows().stream()
+                .filter(w -> w instanceof javafx.stage.Stage && w.isShowing())
+                .map(w -> (javafx.stage.Stage) w)
+                .findFirst()
+                .orElse(null);
+    }
+
     private void handleFinishedAuction() {
         if (p1 != null && this_Auction != null && this_Auction.getLeadingBidder() != null
                 && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
+
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
+
             PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> SceneHelper.changeScene(j_apply, "/fxml/PayingView.fxml"));
+            delay.setOnFinished(e -> {
+                javafx.stage.Stage stage = findValidStage();
+                if (stage != null) {
+                    SceneHelper.changeScene(stage, "/fxml/PayingView.fxml");
+                } else {
+                    System.err.println("[CRITICAL] Không tìm thấy Stage nào đang mở để chuyển trang!");
+                }
+            });
             delay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
             j_notified.setVisible(true);
+
+            PauseTransition delay = new PauseTransition(Duration.seconds(3));
+            delay.setOnFinished(e -> {
+                javafx.stage.Stage stage = findValidStage();
+                if (stage != null) {
+                    SceneHelper.changeScene(stage, "/fxml/BidderView.fxml");
+                }
+            });
+            delay.play();
         }
     }
 
@@ -897,9 +1162,12 @@ public class ControllerAuction implements ServerListener {
                 String message = (String) result.get("message");
                 Platform.runLater(() -> {
                     if (isSuccess) {
+                        syncLoggedInUserFromResponse(result);
+                        clearPendingManualBid();
                         syncAuctionEndTime(result.get("auctionEndTime"));
                         j_notified.setText("Đấu giá thành công");
                     } else {
+                        clearPendingManualBid();
                         j_notified.setText(message);
                     }
                     j_notified.setVisible(true);
@@ -928,8 +1196,37 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                j_notified.setText("Phiên đấu đã tạm dừng");
-                j_status.setText("CHƯA PHÊ DUYỆT");
+                // CHỐT CHẶN 1: Bỏ qua nếu giao diện này đã bị đóng hoặc ẩn ngầm
+                if (j_notified == null || j_notified.getScene() == null) {
+                    System.out.println(">>> [Bỏ qua] Nhận được tin SET_ALLOW_RESULT nhưng màn hình này không active.");
+                    return;
+                }
+
+                // 1. Tạo Alert dạng thông báo thuần túy (không block luồng)
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText("Phiên đấu giá bị tạm dừng!");
+                alert.setContentText("Hệ thống sẽ tự động đưa bạn về màn hình chính sau 4 giây...");
+
+                // Sử dụng show() thay vì showAndWait() để code tiếp tục chạy xuống dưới
+                alert.show();
+
+                // 2. Thiết lập đồng hồ đếm ngược 4 giây bằng Timeline của JavaFX
+                Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(4), event -> {
+                    // Đoạn code bên trong này sẽ TỰ ĐỘNG CHẠY sau khi hết 4 giây
+
+                    // Tự động đóng hộp thoại Alert lại (tránh việc nó treo trên màn hình mới)
+                    if (alert.isShowing()) {
+                        alert.close();
+                    }
+
+                    // Kiểm tra lại một lần nữa xem người dùng có tắt màn hình trong lúc đợi 4s không
+                    if (j_notified != null && j_notified.getScene() != null) {
+                        SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");}
+                }));
+
+                // Kích hoạt đồng hồ chạy
+                timeline.play();
             });
         }
 
@@ -939,13 +1236,59 @@ public class ControllerAuction implements ServerListener {
 
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                j_notified.setText("Sản phẩm đã bị xóa");
-                j_status.setText("KHÔNG TỒN TẠI");
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText("Sản phẩm đã bị xóa!");
+                alert.setContentText("Hệ thống sẽ chuyển bạn về màn hình chính.");
+                alert.showAndWait();
+                SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
             });
         }
 
         if (Command.NOTIFICATION.equals(command)) {
+            if (response.payload() instanceof Map<?, ?> notificationPayload) {
+                Platform.runLater(() -> syncLoggedInUserFromNotification(notificationPayload));
+            }
             handleIncomingToastNotification(response.payload());
+        }
+
+        if (Command.BALANCE_UPDATE.equals(command)) {
+            Platform.runLater(() -> {
+                if (UserBalanceSync.applyBalancePayload(response.payload())) {
+                    p1 = UserSession.getLoggedInUser();
+                    updateBalanceLabel();
+                }
+            });
+        }
+
+        if (Command.DELETE_ITEM_RESULT.equals(command)) {
+            if (response.payload() instanceof Map) {
+                Map<String, Object> result = (Map<String, Object>) response.payload();
+                boolean isSuccess = (boolean) result.getOrDefault("success", false);
+                String message = (String) result.getOrDefault("message", "Phiên đấu giá bị đóng.");
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(isSuccess ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText(message);
+                    alert.showAndWait();
+
+                    // Nếu không phải seller xóa thành công (tức là người xem bị ép đóng phiên)
+                    // hoặc kể cả seller xóa xong thì đều chuyển hướng về sảnh chính
+                    SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
+                });
+            }
+        }
+        if (Command.FORCE_LOGOUT.equals(command)) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
         }
     }
 
@@ -955,7 +1298,6 @@ public class ControllerAuction implements ServerListener {
     public void initData(model.auction.BidHistoryDTO dto) {
         if (dto == null) return;
 
-        // Tái tạo p1 và gán nóng đối tượng item1 cục bộ
         this.p1 = UserSession.getLoggedInUser();
         this.item1 = new model.Items.Item();
 
@@ -963,25 +1305,33 @@ public class ControllerAuction implements ServerListener {
         this.item1.setName(dto.getItemName());
         this.item1.setCurrentHighestPrice(dto.getCurrentHighestPrice());
 
-        // Đồng bộ dữ liệu mới tạo này vào Session của hệ thống
+        // Tạm thời giả định MinBid để tránh lỗi chia/cộng trừ khi chưa có dữ liệu server
+        this.item1.setMinBid(10000);
+
         model.Items.ItemSession.setLoggedInItem(this.item1);
         restoreAutoBidState();
 
-        // Hiển thị nhanh dữ liệu tĩnh lên màn hình
         Platform.runLater(() -> {
             j_name.setText(dto.getItemName());
             DecimalFormat df = new DecimalFormat("#,###");
             j_CurrentPrice.setText(df.format(dto.getCurrentHighestPrice()) + " VNĐ");
             j_status.setText("Đang kết nối Server...");
+
+            // Cập nhật các label cơ bản khác tránh bị trống rỗng text
+            j_description.setText(getCustomDescription(item1));
+            updateMinBidLabel();
         });
 
         try {
-            // Đăng ký Listener và kích hoạt đẩy lệnh Socket đồng bộ lên Server
             client.setListener(this);
             client.sendCommand(Command.GET_AUCTION, dto.getItemId());
             if (p1 != null) {
                 client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", dto.getItemId()));
             }
+
+            // 🔥 ĐỂ Ý DÒNG NÀY: Kích hoạt Engine quản lý trạng thái đếm ngược/bật tắt nút ngay lập tức
+            Platform.runLater(this::startStatusEngine);
+
         } catch (IOException e) {
             System.err.println("Lỗi đồng bộ phòng đấu giá từ lịch sử: " + e.getMessage());
         }

@@ -18,6 +18,7 @@ public class Item implements Serializable {
     private String name;
     private String description;
     private double startingPrice;
+    private double minBid;
     private double currentHighestPrice;
     private Instant auctionStartTime;
     private Instant auctionEndTime;
@@ -39,9 +40,24 @@ public class Item implements Serializable {
             ItemType itemType,
             String img
     ) {
+        this(name, description, startingPrice, 0, auctionStartTime, auctionEndTime, sellerId, itemType, img);
+    }
+
+    public Item(
+            String name,
+            String description,
+            double startingPrice,
+            double minBid,
+            Instant auctionStartTime,
+            Instant auctionEndTime,
+            String sellerId,
+            ItemType itemType,
+            String img
+    ) {
         this.name = name;
         this.description = description;
         this.startingPrice = startingPrice;
+        this.minBid = minBid;
         this.currentHighestPrice = startingPrice;
         this.auctionStartTime = auctionStartTime;
         this.auctionEndTime = auctionEndTime;
@@ -53,9 +69,14 @@ public class Item implements Serializable {
     public Item() {}
 
     public Item(String name, String description, double startingPrice, String sellerId, String imgData, ItemType itemType) {
+        this(name, description, startingPrice, 0, sellerId, imgData, itemType);
+    }
+
+    public Item(String name, String description, double startingPrice, double minBid, String sellerId, String imgData, ItemType itemType) {
         this.name = name;
         this.description = description;
         this.startingPrice = startingPrice;
+        this.minBid = minBid;
         this.sellerId = sellerId;
         this.img = imgData;
         this.itemType = itemType;
@@ -93,6 +114,10 @@ public class Item implements Serializable {
         return startingPrice;
     }
 
+    public double getMinBid() {
+        return minBid;
+    }
+
     public double getCurrentHighestPrice() {
         return currentHighestPrice;
     }
@@ -125,6 +150,10 @@ public class Item implements Serializable {
 
     public void setStartingPrice(double startingPrice) {
         this.startingPrice = startingPrice;
+    }
+
+    public void setMinBid(double minBid) {
+        this.minBid = minBid;
     }
 
     public void setCurrentHighestPrice(double currentHighestPrice) {

@@ -32,7 +32,22 @@ public final class Electronics extends Item implements Serializable {
             String model,
             String img
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.ELECTRONICS,img );
+        this(name, description, startingPrice, 0, auctionStartTime, auctionEndTime, sellerId, brand, model, img);
+    }
+
+    public Electronics(
+            String name,
+            String description,
+            double startingPrice,
+            double minBid,
+            Instant auctionStartTime,
+            Instant auctionEndTime,
+            String sellerId,
+            String brand,
+            String model,
+            String img
+    ) {
+        super(name, description, startingPrice, minBid, auctionStartTime, auctionEndTime, sellerId, ItemType.ELECTRONICS,img );
         this.brand = brand;
         this.model = model;
     }

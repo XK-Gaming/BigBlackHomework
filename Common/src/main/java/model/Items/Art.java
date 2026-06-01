@@ -28,7 +28,21 @@ public final class Art extends Item implements Serializable {
             String artist,
             String img
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.ART, img);
+        this(name, description, startingPrice, 0, auctionStartTime, auctionEndTime, sellerId, artist, img);
+    }
+
+    public Art(
+            String name,
+            String description,
+            double startingPrice,
+            double minBid,
+            Instant auctionStartTime,
+            Instant auctionEndTime,
+            String sellerId,
+            String artist,
+            String img
+    ) {
+        super(name, description, startingPrice, minBid, auctionStartTime, auctionEndTime, sellerId, ItemType.ART, img);
         this.artist = artist;
     }
 

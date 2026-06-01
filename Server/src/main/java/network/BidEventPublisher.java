@@ -1,6 +1,7 @@
 package network;
 
 import model.Items.Item;
+import model.User.User;
 import model.auction.Auction;
 import model.auction.BidTransaction;
 
@@ -52,8 +53,23 @@ final class BidEventPublisher {
         // Bid event: gửi thêm BID_UPDATE ra sảnh chung để các màn hình nền như lịch sử bid cũng bắt được giá mới.
         AuctionServer.broadcastToSpecificAuction(null, Command.BID_UPDATE, bidUpdate);
 
+        sendBalanceUpdate(bidderId, userValue(bidResult.get("user")), null);
+        sendBalanceUpdate(
+                stringValue(bidResult.get("refundedBidderId")),
+                userValue(bidResult.get("refundedUser")),
+                bidResult.get("refundedBalance"));
+
         String oldBidder = findPreviousBidder(bidResult, bidderId);
-        AuctionServer.sendToSpecificUser(oldBidder, Command.NOTIFICATION, notifPayload);
+        if (oldBidder != null && !oldBidder.isBlank() && !oldBidder.equals(bidderId)) {
+            Map<String, Object> oldBidderPayload = new HashMap<>(notifPayload);
+            if (oldBidder.equals(String.valueOf(bidResult.get("refundedBidderId")))) {
+                oldBidderPayload.put("balance", bidResult.get("refundedBalance"));
+                if (bidResult.get("refundedUser") instanceof User refundedUser) {
+                    oldBidderPayload.put("user", refundedUser);
+                }
+            }
+            AuctionServer.sendToSpecificUser(oldBidder, Command.NOTIFICATION, oldBidderPayload);
+        }
         if (item != null && item.getSellerId() != null) {
             AuctionServer.sendToSpecificUser(item.getSellerId(), Command.NOTIFICATION, notifPayload);
         }
@@ -68,6 +84,11 @@ final class BidEventPublisher {
 
     @SuppressWarnings("unchecked")
     private static String findPreviousBidder(Map<String, Object> bidResult, String bidderId) {
+        String refundedBidderId = stringValue(bidResult.get("refundedBidderId"));
+        if (refundedBidderId != null) {
+            return refundedBidderId;
+        }
+
         try {
             List<BidTransaction> bidHistory = (List<BidTransaction>) bidResult.get("bidHistory");
             if (bidHistory != null && bidHistory.size() >= 2) {
@@ -77,5 +98,46 @@ final class BidEventPublisher {
             // Keep the previous behavior: fall back to the new bidder when history is unavailable.
         }
         return bidderId;
+    }
+
+    private static void sendBalanceUpdate(String username, User user, Object balanceValue) {
+        String targetUsername = stringValue(username);
+        if (targetUsername == null && user != null) {
+            targetUsername = stringValue(user.getUsername());
+        }
+        if (targetUsername == null) {
+            return;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("username", targetUsername);
+        if (user != null) {
+            payload.put("user", user);
+            payload.put("balance", user.getBalance());
+        } else if (balanceValue instanceof Number number) {
+            payload.put("balance", number.doubleValue());
+        } else if (balanceValue != null) {
+            try {
+                payload.put("balance", Double.parseDouble(String.valueOf(balanceValue)));
+            } catch (NumberFormatException ignored) {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        AuctionServer.sendToSpecificUser(targetUsername, Command.BALANCE_UPDATE, payload);
+    }
+
+    private static User userValue(Object value) {
+        return value instanceof User user ? user : null;
+    }
+
+    private static String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() || "null".equalsIgnoreCase(text) ? null : text;
     }
 }

@@ -28,6 +28,7 @@ public enum Command {
     // client đã đấu giá sau khi có người đặt giá mới
     BID,
     BID_RESULT,
+    BALANCE_UPDATE,
 
     // AutoBid: client gửi cấu hình bật/tắt và server trả trạng thái hiện tại.
     SET_AUTO_BID,
@@ -85,9 +86,13 @@ public enum Command {
     APPROVE_DEPOSIT_RESULT,
     REJECT_DEPOSIT,
     REJECT_DEPOSIT_RESULT,
+
     DELETE_DEPOSIT_HISTORY,
     DELETE_DEPOSIT_HISTORY_RESULT,
+
     GET_USER_INFO,
-    GET_USER_INFO_RESULT;
+    GET_USER_INFO_RESULT, BIDDER_PAIED, BIDDER_PAY, BIDDER_PAY_RESULT, NOTIFICATION_NEW_PAY,
+    GET_ALL_USERS, GET_ALL_USERS_RESULT, DELETE_USER, DELETE_USER_RESULT,
+    FORCE_LOGOUT;
 
 }

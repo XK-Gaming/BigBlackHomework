@@ -32,7 +32,22 @@ public final class Vehicle extends Item implements Serializable {
             String year,
             String img
     ) {
-        super(name, description, startingPrice, auctionStartTime, auctionEndTime, sellerId, ItemType.VEHICLE, img);
+        this(name, description, startingPrice, 0, auctionStartTime, auctionEndTime, sellerId, manufacturer, year, img);
+    }
+
+    public Vehicle(
+            String name,
+            String description,
+            double startingPrice,
+            double minBid,
+            Instant auctionStartTime,
+            Instant auctionEndTime,
+            String sellerId,
+            String manufacturer,
+            String year,
+            String img
+    ) {
+        super(name, description, startingPrice, minBid, auctionStartTime, auctionEndTime, sellerId, ItemType.VEHICLE, img);
         this.manufacturer = manufacturer;
         this.year = year;
     }

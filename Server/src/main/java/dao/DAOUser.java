@@ -47,7 +47,22 @@ public class DAOUser implements DaoInterface<User> {
 
     @Override
     public int Delete(User user) {
-        return 0;
+        int result = 0;
+        String sql = "DELETE FROM khach WHERE username = ?";
+
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstm = con.prepareStatement(sql)) {
+
+            pstm.setString(1, user.getUsername());
+
+            result = pstm.executeUpdate();
+
+        } catch (SQLException e) {
+            System.err.println("Lỗi SQL khi xóa user [" + user.getUsername() + "]: " + e.getMessage());
+            // e.printStackTrace(); // Bạn có thể mở dòng này nếu muốn xem chi tiết dòng lỗi
+            return 0;
+        }
+        return result;
     }
     public int UpdateBalance(String username, double newBalance) {
         // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)
@@ -76,7 +91,39 @@ public class DAOUser implements DaoInterface<User> {
 
     @Override
     public ArrayList<User> selectAll()  {
-        return null;
+        ArrayList<User> ketQua = new ArrayList<>();
+        String sql = "SELECT * FROM khach";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                String role = rs.getString("role");
+                String name = rs.getString("name");
+                String email = rs.getString("email");
+                double balance = rs.getDouble("balance");
+                String depositJson = rs.getString("DepositHistory");
+
+                User user = null;
+                if ("Người bán".equals(role)) {
+                    user = new Seller(username, password, name, email, balance);
+                } else if ("Người đấu giá".equals(role)) {
+                    user = new Bidder(username, password, name, email, balance);
+                } else if ("Admin".equals(role)) {
+                    user = new Admin(username, password, name, email);
+                }
+
+                if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                    List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                    user.setDepositHistory(history);
+                }
+                if (user != null) ketQua.add(user);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ketQua;
     }
 
     @Override

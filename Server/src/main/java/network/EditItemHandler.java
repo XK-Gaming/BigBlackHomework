@@ -25,7 +25,7 @@ public class EditItemHandler extends BaseHandler implements RequestHandler {
                 sendResponse(out, Command.EDIT_ITEM_RESULT, true);
 
                 Object allAuctionsLatest = userService.getAllAuctions();
-                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, allAuctionsLatest);
+                AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, item);
 
             } catch (PersistenceException e) {
                 System.err.println("[EditItemHandler] " + e.getMessage());

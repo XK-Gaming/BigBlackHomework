@@ -14,6 +14,7 @@ import model.Items.Item;
 import model.Items.ItemFactory;
 import model.User.User;
 import model.User.UserSession;
+import model.auction.Auction;
 import network.*;
 
 import java.io.File;
@@ -47,6 +48,7 @@ public class ControllerSeller implements ServerListener {
     @FXML private ComboBox<String> j_ItemType;
     @FXML private Label j_LabelName;
     @FXML private TextField j_StartingPrice;
+    @FXML private TextField j_MinBid;
     @FXML private TextArea j_description;
     @FXML private TextField j_name;
     @FXML private DatePicker j_DateEnd;
@@ -190,6 +192,11 @@ public class ControllerSeller implements ServerListener {
             j_StartingPrice.requestFocus();
             return;
         }
+        if (j_MinBid.getText().trim().isEmpty()) {
+            showError("Vui long nhap MinBid (*)");
+            j_MinBid.requestFocus();
+            return;
+        }
         // --- KẾT THÚC KIỂM TRA THÔNG TIN BẮT BUỘC ---
 
         j_ApplyItem.setDisable(true);
@@ -231,6 +238,7 @@ public class ControllerSeller implements ServerListener {
 
                 // Kiểm tra Logic giá tiền
                 double startingPrice;
+                double minBid;
                 try {
                     startingPrice = Double.parseDouble(j_StartingPrice.getText());
                     if (startingPrice <= 0) throw new NumberFormatException();
@@ -240,6 +248,18 @@ public class ControllerSeller implements ServerListener {
                 }
 
                 // Đóng gói extra fields dựa trên loại mặt hàng chọn
+                try {
+                    minBid = Double.parseDouble(j_MinBid.getText());
+                    if (minBid <= 0) throw new NumberFormatException();
+                    if (minBid > startingPrice * 0.2) {
+                        showErrorInUIThread("MinBid khong duoc vuot qua 20% gia khoi diem!");
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    showErrorInUIThread("MinBid phai la so duong hop le!");
+                    return;
+                }
+
                 String itemType = j_ItemType.getValue();
                 Map<String, String> extraFields = new HashMap<>();
                 extraFields.put("brand", j_brand.getText());
@@ -249,7 +269,7 @@ public class ControllerSeller implements ServerListener {
                 extraFields.put("artist", j_artist.getText());
 
                 Item item = ItemFactory.createItem(
-                        itemType, j_name.getText(), j_description.getText(), startingPrice,
+                        itemType, j_name.getText(), j_description.getText(), startingPrice, minBid,
                         start, end, user != null ? user.getUsername() : "Unknown",
                         extraFields, uploadedImageUrl
                 );
@@ -300,8 +320,12 @@ public class ControllerSeller implements ServerListener {
 
     @FXML
     void On_LogOut(ActionEvent event) {
-        UserSession.cleanUserSession();
-        SceneHelper.changeScene((Node) event.getSource(), "/fxml/LoginView.fxml");
+        try {
+            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+        } catch (IOException e) {
+            System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
+            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
+        }
     }
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
@@ -338,6 +362,74 @@ public class ControllerSeller implements ServerListener {
         if (Command.NOTIFICATION.equals(response.command())) {
             Platform.runLater(() -> {
                 ControllerNotificationSeller.handleIncomingToastNotificationSeller(response.payload(), j_textSoDu);
+            });
+        }
+        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+            User user = UserSession.getLoggedInUser();
+            Map<String, Object> notifData = (Map<String, Object>) response.payload();
+            Item item = (Item) notifData.get("item");
+            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+            });
+        }
+        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+            String itemName = "";
+            Object auctionObj = responsePayload.get("auction");
+            if (auctionObj instanceof Auction) {
+                Auction auction = (Auction) auctionObj;
+                if (auction.getItem() != null) {
+                    itemName = " \"" + auction.getItem().getName() + "\"";
+                }
+            }
+
+            String finalItemName = itemName;
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Thông báo");
+                alert.setHeaderText(null);
+                if (!isAllow) {
+                    alert.setContentText("Phiên đấu giá sản phẩm" + finalItemName + " của bạn đã bị tạm dừng!");
+                    j_ApplyItem.setDisable(true);
+                } else {
+                    alert.setContentText("Phiên đấu giá sản phẩm" + finalItemName + " của bạn đã được phê duyệt!");
+                    j_ApplyItem.setDisable(false);
+                }
+                alert.showAndWait();
+            });
+        }
+        if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+            boolean success = (boolean) responsePayload.get("success");
+            String itemName = (String) responsePayload.get("itemName");
+            if (success) {
+                String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Sản phẩm" + displayName + " của bạn đã bị xóa!");
+                    alert.showAndWait();
+                });
+            }
+        }
+        if (Command.FORCE_LOGOUT.equals(response.command())) {
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Tài khoản bị xóa");
+                alert.setHeaderText(null);
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.showAndWait();
+                System.exit(0);
+            });
+        }
+        if (Command.LOGOUT_RESULT.equals(response.command())) {
+            Platform.runLater(() -> {
+                AuctionClient.getInstance().closeConnection();
+                UserSession.cleanUserSession();
+                SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
             });
         }
     }

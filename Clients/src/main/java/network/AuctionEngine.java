@@ -77,20 +77,39 @@ public class AuctionEngine {
 
     // Phương thức quyết định trạng thái của sản phẩm
     private void notifySingle(Item item, AuctionStatusListener listener) {
+        if (item == null || listener == null) {
+            return;
+        }
+
         Instant now = Instant.now();
         AuctionStatus status;
         long secondsToNextChange;
-        if (now.isBefore(item.getAuctionStartTime())) {
-            status = AuctionStatus.OPEN;
-            secondsToNextChange = Duration.between(now, item.getAuctionStartTime()).getSeconds();
-        } else if (now.isBefore(item.getAuctionEndTime())) {
-            status = AuctionStatus.RUNNING;
-            secondsToNextChange = Duration.between(now, item.getAuctionEndTime()).getSeconds();
+
+        Instant startTime = item.getAuctionStartTime();
+        Instant endTime = item.getAuctionEndTime();
+
+        // Trường hợp 1: Nếu dữ liệu lỗi, thiếu cả thời gian bắt đầu và kết thúc
+        if (startTime == null || endTime == null) {
+            status = AuctionStatus.FINISHED; // Mặc định coi như kết thúc để đóng phòng
+            secondsToNextChange = 0;
         }
+        // Trường hợp 2: Chưa đến giờ bắt đầu đấu giá
+        else if (now.isBefore(startTime)) {
+            status = AuctionStatus.OPEN;
+            secondsToNextChange = Duration.between(now, startTime).getSeconds();
+        }
+        // Trường hợp 3: Đang trong thời gian đấu giá
+        else if (now.isBefore(endTime)) {
+            status = AuctionStatus.RUNNING;
+            secondsToNextChange = Duration.between(now, endTime).getSeconds();
+        }
+        // Trường hợp 4: Đã quá giờ kết thúc
         else {
             status = AuctionStatus.FINISHED;
             secondsToNextChange = 0;
         }
+
+        // Đảm bảo không truyền số âm vào listener
         listener.onStatus(status, Math.max(0, secondsToNextChange));
     }
 
