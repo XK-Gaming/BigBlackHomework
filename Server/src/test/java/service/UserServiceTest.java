@@ -284,10 +284,16 @@ class UserServiceTest {
      */
     @Test
     void processBidRejectsAuctionThatIsNotRunning() throws Exception {
-        Item item = item("seller", 100);
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Item item = item("seller", 100, now.minusSeconds(3600), now.minusSeconds(60));
         Auction auction = new Auction("auction-1", item, "seller", Instant.now());
         auction.setStatus(AuctionStatus.FINISHED);
-        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), new FakeAuctionDao(auction));
+        UserService service = serviceWith(
+                new FakeUserDao(),
+                new FakeItemDao(item),
+                new FakeAuctionDao(auction),
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
 
         BidRejectedException exception = assertThrows(BidRejectedException.class,
                 () -> service.processBid("1", "bidder1", 120));
@@ -749,6 +755,37 @@ class UserServiceTest {
     }
 
     /**
+     * ## Test anti-sniping: neu DB da co endTime moi nhung status con FINISHED cu, lich su phai coi phien van RUNNING.
+     */
+    @Test
+    void getBidderHistoryTreatsExtendedAuctionAsRunningWhenStoredStatusIsFinished() throws Exception {
+        Instant now = Instant.now();
+        Item item = item("seller", 100, now.minusSeconds(3600), now.plusSeconds(60));
+        item.setDatabaseId(5);
+        item.setName("Extended Auction");
+        Auction auction = new Auction("auction-5", item, "seller", now.minusSeconds(3600));
+        auction.setItemId(5);
+        auction.setStatus(AuctionStatus.FINISHED);
+        auction.setLeadingBidder("bidder1");
+        auction.setBidHistory(List.of(new BidTransaction("bid-extended", "bidder1", 150, now.minusSeconds(10))));
+
+        FakeAuctionDao auctionDao = new FakeAuctionDao(null);
+        auctionDao.addAuction(auction);
+        UserService service = serviceWith(
+                new FakeUserDao(),
+                new FakeItemDao(null),
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        List<BidHistoryDTO> history = service.getBidderHistory("bidder1");
+
+        assertEquals(1, history.size());
+        assertEquals("WINNING", history.get(0).getStatus());
+        assertEquals(AuctionStatus.RUNNING, auctionDao.updatedStatus);
+    }
+
+    /**
      * ## Test update user: field khong hop le thi service tra false va khong goi DAO update.
      */
     @Test
@@ -832,7 +869,9 @@ class UserServiceTest {
 
     private Auction historyAuction(long itemId, String itemName, AuctionStatus status, String leadingBidder,
                                    List<BidTransaction> history) {
-        Item item = item("seller", 100);
+        Instant now = Instant.now();
+        Instant end = status == AuctionStatus.FINISHED ? now.minusSeconds(60) : now.plusSeconds(3600);
+        Item item = item("seller", 100, now.minusSeconds(3600), end);
         item.setDatabaseId((int) itemId);
         item.setName(itemName);
         Auction auction = new StaticStatusAuction("auction-" + itemId, item, "seller", Instant.now(), status);
@@ -902,7 +941,7 @@ class UserServiceTest {
 
         private StaticStatusAuction(String id, Item item, String sellerId, Instant createdAt, AuctionStatus status) {
             super(id, item, sellerId, createdAt);
-            this.status = status;
+            setStatus(status);
         }
 
         @Override
@@ -913,6 +952,7 @@ class UserServiceTest {
         @Override
         public void setStatus(AuctionStatus status) {
             this.status = status;
+            super.setStatus(status);
         }
 
     }

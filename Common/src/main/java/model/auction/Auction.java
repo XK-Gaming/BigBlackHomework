@@ -88,6 +88,10 @@ public class Auction extends Entity implements Serializable {
         updateStatusByTime();
         return status;
     }
+
+    public AuctionStatus getStoredStatus() {
+        return status;
+    }
     /**
      * Precondition: item có auctionStartTime và auctionEndTime.
      * Postcondition: status thành FINISHED sau giờ kết thúc, RUNNING sau giờ bắt đầu, hoặc OPEN

@@ -69,6 +69,7 @@ public class ControllerAuction implements ServerListener {
     static Auction this_Auction;
     private String watchToken;
     private boolean finishHandled;
+    private PauseTransition finishRedirectDelay;
 
     // AutoBid UI state: lưu cấu hình/toggle theo user-item trong lúc client còn mở.
     private static final Map<String, AutoBidSettings> AUTO_BID_SETTINGS_BY_KEY = new HashMap<>();
@@ -385,6 +386,7 @@ public class ControllerAuction implements ServerListener {
         if (auctionItem.getAuctionEndTime() != null) {
             item1.setAuctionEndTime(auctionItem.getAuctionEndTime());
             finishHandled = false;
+            cancelFinishRedirect();
         }
     }
 
@@ -394,6 +396,7 @@ public class ControllerAuction implements ServerListener {
         }
         item1.setAuctionEndTime(auctionEndTime);
         finishHandled = false;
+        cancelFinishRedirect();
     }
 
     private void renderImage() {
@@ -521,6 +524,7 @@ public class ControllerAuction implements ServerListener {
             auctionEngine.unwatch(watchToken);
             watchToken = null;
         }
+        cancelFinishRedirect();
     }
 
     private void restoreAutoBidState() {
@@ -881,6 +885,14 @@ public class ControllerAuction implements ServerListener {
     private void startStatusEngine() {
         if (item1 == null) return;
         cleanup();
+        if (!hasAuctionSchedule()) {
+            j_status.setText("Đang tải phiên đấu giá...");
+            j_status.setTextFill(Color.web("#bdc3c7"));
+            updateTimerLabels(0);
+            j_apply.setDisable(true);
+            setAutoBidAvailable(false);
+            return;
+        }
         finishHandled = false;
         watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
             if (this_Auction != null) {
@@ -894,6 +906,7 @@ public class ControllerAuction implements ServerListener {
                     setAutoBidAvailable(false);
                 }
                 case RUNNING -> {
+                    cancelFinishRedirect();
                     j_status.setText("ĐANG DIỄN RA");
                     j_apply.setDisable(false);
                     setAutoBidAvailable(true);
@@ -930,14 +943,24 @@ public class ControllerAuction implements ServerListener {
     }
 
     private void handleFinishedAuction() {
+        if (!isAuctionReallyFinished()) {
+            finishHandled = false;
+            return;
+        }
+
         if (p1 != null && this_Auction != null && this_Auction.getLeadingBidder() != null
                 && this_Auction.getLeadingBidder().equals(p1.getUsername())) {
 
             j_notified.setText("Chúc mừng! Bạn đã thắng. Đang chuyển đến trang thanh toán...");
             j_notified.setVisible(true);
 
-            PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> {
+            finishRedirectDelay = new PauseTransition(Duration.seconds(3));
+            finishRedirectDelay.setOnFinished(e -> {
+                finishRedirectDelay = null;
+                if (!isAuctionReallyFinished()) {
+                    finishHandled = false;
+                    return;
+                }
                 javafx.stage.Stage stage = findValidStage();
                 if (stage != null) {
                     SceneHelper.changeScene(stage, "/fxml/PayingView.fxml");
@@ -945,19 +968,43 @@ public class ControllerAuction implements ServerListener {
                     System.err.println("[CRITICAL] Không tìm thấy Stage nào đang mở để chuyển trang!");
                 }
             });
-            delay.play();
+            finishRedirectDelay.play();
         } else {
             j_notified.setText("Phiên đấu giá đã kết thúc.");
             j_notified.setVisible(true);
 
-            PauseTransition delay = new PauseTransition(Duration.seconds(3));
-            delay.setOnFinished(e -> {
+            finishRedirectDelay = new PauseTransition(Duration.seconds(3));
+            finishRedirectDelay.setOnFinished(e -> {
+                finishRedirectDelay = null;
+                if (!isAuctionReallyFinished()) {
+                    finishHandled = false;
+                    return;
+                }
                 javafx.stage.Stage stage = findValidStage();
                 if (stage != null) {
                     SceneHelper.changeScene(stage, "/fxml/BidderView.fxml");
                 }
             });
-            delay.play();
+            finishRedirectDelay.play();
+        }
+    }
+
+    private boolean hasAuctionSchedule() {
+        return item1 != null
+                && item1.getAuctionStartTime() != null
+                && item1.getAuctionEndTime() != null;
+    }
+
+    private boolean isAuctionReallyFinished() {
+        return item1 != null
+                && item1.getAuctionEndTime() != null
+                && !Instant.now().isBefore(item1.getAuctionEndTime());
+    }
+
+    private void cancelFinishRedirect() {
+        if (finishRedirectDelay != null) {
+            finishRedirectDelay.stop();
+            finishRedirectDelay = null;
         }
     }
 
@@ -1328,9 +1375,6 @@ public class ControllerAuction implements ServerListener {
             if (p1 != null) {
                 client.sendCommand(Command.SET_AUCTION, Map.of("userId", p1.getUsername(), "itemId", dto.getItemId()));
             }
-
-            // 🔥 ĐỂ Ý DÒNG NÀY: Kích hoạt Engine quản lý trạng thái đếm ngược/bật tắt nút ngay lập tức
-            Platform.runLater(this::startStatusEngine);
 
         } catch (IOException e) {
             System.err.println("Lỗi đồng bộ phòng đấu giá từ lịch sử: " + e.getMessage());

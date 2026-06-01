@@ -57,12 +57,13 @@ public class DAOAuction_Items{
      * NOTE: leading bidder rỗng sẽ bị từ chối trước khi chạy SQL.
      */
     public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) throws SQLException {
-        String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ? WHERE id_item = ?";
+        String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ?, status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, price);
             pstmt.setString(2, bidderId);
             pstmt.setString(3, gson.toJson(auction.getBidHistory()));
-            pstmt.setLong(4, itemId);
+            pstmt.setString(4, gson.toJson(auction.getStoredStatus()));
+            pstmt.setLong(5, itemId);
             return pstmt.executeUpdate();
         }
     }

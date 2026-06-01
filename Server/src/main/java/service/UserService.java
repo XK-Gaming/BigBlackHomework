@@ -141,7 +141,9 @@ public class UserService {
     public Auction getAuctionByItemId(String itemId) {
         Item item = itemDAO.selectById(itemId);
         if (item == null) return null;
-        return auctionDAO.selectByItemId(item);
+        Auction auction = auctionDAO.selectByItemId(item);
+        syncAuctionStatusWithDatabase(auction);
+        return auction;
     }
 
     public void SetAuctionByItemId(String itemId, String userid) {
@@ -182,7 +184,9 @@ public class UserService {
             }
             txAuction.setItem(txItem);
 
-            if (txAuction.getStatus() != AuctionStatus.RUNNING) {
+            AuctionStatus currentStatus = effectiveAuctionStatus(txAuction, Instant.now(clock));
+            txAuction.setStatus(currentStatus);
+            if (currentStatus != AuctionStatus.RUNNING) {
                 throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
                         "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
             }
@@ -253,6 +257,7 @@ public class UserService {
             txAuction.setLeadingBidder(bidderId);
 
             applyAntiSnipingExtension(txItem);
+            txAuction.setStatus(AuctionStatus.RUNNING);
 
             // 5. UPDATE CÁC BẢNG DATABASE
             int auctionResult = auctionDAO.Update(con, txAuction, txItem.getDatabaseId(), bidderId, amount);
@@ -316,6 +321,47 @@ public class UserService {
                 auctionDAO.Update_Status(auction,item, auctionStatus);
             }
         }
+    }
+
+    private AuctionStatus syncAuctionStatusWithDatabase(Auction auction) {
+        if (auction == null) {
+            return null;
+        }
+
+        AuctionStatus storedStatus = auction.getStoredStatus();
+        AuctionStatus effectiveStatus = effectiveAuctionStatus(auction, Instant.now(clock), storedStatus);
+        if (effectiveStatus != storedStatus) {
+            auction.setStatus(effectiveStatus);
+            if (auction.getItem() != null) {
+                auctionDAO.Update_Status(auction, auction.getItem(), effectiveStatus);
+            }
+        }
+        return effectiveStatus;
+    }
+
+    private AuctionStatus effectiveAuctionStatus(Auction auction, Instant now) {
+        return effectiveAuctionStatus(auction, now, auction.getStoredStatus());
+    }
+
+    private AuctionStatus effectiveAuctionStatus(Auction auction, Instant now, AuctionStatus storedStatus) {
+        if (auction == null || storedStatus == null
+                || storedStatus == AuctionStatus.CANCELLED
+                || storedStatus == AuctionStatus.PAID) {
+            return storedStatus;
+        }
+
+        Item item = auction.getItem();
+        if (item == null || item.getAuctionStartTime() == null || item.getAuctionEndTime() == null) {
+            return storedStatus;
+        }
+
+        if (!now.isBefore(item.getAuctionEndTime())) {
+            return AuctionStatus.FINISHED;
+        }
+        if (!now.isBefore(item.getAuctionStartTime())) {
+            return AuctionStatus.RUNNING;
+        }
+        return AuctionStatus.OPEN;
     }
 
     private boolean applyAntiSnipingExtension(Item item) {
@@ -462,7 +508,7 @@ public class UserService {
                 String displayStatus = "LOST";
                 double currentPrice = txList.get(txList.size() - 1).getAmount();
                 boolean isLeading = username.equals(auction.getLeadingBidder());
-                AuctionStatus auctionStatus = auction.getStatus();
+                AuctionStatus auctionStatus = syncAuctionStatusWithDatabase(auction);
 
                 if (auctionStatus == AuctionStatus.RUNNING) {
                     if (isLeading) {
@@ -509,6 +555,7 @@ public class UserService {
                     auction.setItem(item);
                 }
             }
+            syncAuctionStatusWithDatabase(auction);
         }
         return auctions;
     }
