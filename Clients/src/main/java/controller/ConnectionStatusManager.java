@@ -15,7 +15,7 @@ import network.AuctionClient;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-
+//hello
 public class ConnectionStatusManager {
     private final Circle statusCircle;
     private final Label statusLabel;
