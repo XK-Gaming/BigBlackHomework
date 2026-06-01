@@ -6,6 +6,7 @@ import model.DepositTransaction;
 import model.User.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -208,7 +209,7 @@ public class DAOUser implements DaoInterface<User> {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     User user = mapUserFromResultSet(rs);
-                    if (user != null && user.getPassword().equals(password)) {
+                    if (user != null && BCrypt.checkpw(password, user.getPassword())) {
                         return user;
                     }
                 }

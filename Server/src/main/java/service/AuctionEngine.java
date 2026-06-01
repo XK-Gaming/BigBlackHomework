@@ -92,59 +92,71 @@ public final class AuctionEngine implements AutoCloseable {
     private void applyTimeRules(Auction auction) {
         if (auction == null) return;
 
-        AuctionStatus oldStatus = auction.getRawStatus();
-        Item item = auction.getItem();
+        // Acquire per-item lock to avoid races with concurrent bidding logic which
+        // also locks per-item in UserService.processBid(...).
+        java.util.concurrent.locks.ReentrantLock lock = null;
+        String itemIdStr = String.valueOf(auction.getItemId());
+        try {
+            lock = userService.getItemLock(itemIdStr);
+            if (lock != null) lock.lock();
 
-        if (item == null) {
-            long pk = auction.getItemId();
-            if (pk <= 0) return;
-
-            try {
-                item = items.selectById(String.valueOf(pk));
-            } catch (Exception e) {
-                System.err.println("[AuctionEngine] Lỗi khi nạp Item cho Phiên ID " + pk + ": " + e.getMessage());
-                return;
-            }
+            AuctionStatus oldStatus = auction.getRawStatus();
+            Item item = auction.getItem();
 
             if (item == null) {
-                System.out.println("[AuctionEngine] Không tìm thấy Item trong DB cho Phiên ID " + pk);
-                return;
+                long pk = auction.getItemId();
+                if (pk <= 0) return;
+
+                try {
+                    item = items.selectById(String.valueOf(pk));
+                } catch (Exception e) {
+                    System.err.println("[AuctionEngine] Lỗi khi nạp Item cho Phiên ID " + pk + ": " + e.getMessage());
+                    return;
+                }
+
+                if (item == null) {
+                    System.out.println("[AuctionEngine] Không tìm thấy Item trong DB cho Phiên ID " + pk);
+                    return;
+                }
+                auction.setItem(item);
+                if (oldStatus == null) {
+                    oldStatus = auction.getRawStatus();
+                }
             }
-            auction.setItem(item);
-            if (oldStatus == null) {
-                oldStatus = auction.getRawStatus();
+
+            // 2. Ép hệ thống tính toán trạng thái mới dựa trên thời gian
+            auction.updateStatusByTime();
+
+            // 3. Đọc trạng thái mới sau khi áp dụng quy tắc
+            AuctionStatus newStatus = auction.getRawStatus();
+            // 4. Kiểm tra sự dịch chuyển trạng thái vòng đời
+            if (oldStatus != newStatus) {
+                // Update status inside a locked section to avoid races with bids
+                dao.DAOAuction_Items.getInstance().Update_Status(auction, item, newStatus);
+                System.out.printf("[AuctionEngine] Đã cập nhật trạng thái phiên id_item %d: %s -> %s%n",
+                        auction.getItemId(), oldStatus, newStatus);
+
+                try {
+                    java.util.Map<String, Object> updatePayload = new java.util.HashMap<>();
+
+                    // Ép kiểu int để khớp với colId (Integer) bên Client
+                    updatePayload.put("itemId", (int) auction.getItemId());
+                    updatePayload.put("newStatus", newStatus.name());
+
+                    // 1. Phát vào phòng cụ thể (giữ nguyên của bạn)
+                    network.AuctionServer.broadcastToSpecificAuction(itemIdStr, network.Command.UPDATE_AUCTION_STATUS, updatePayload);
+
+                    // 🌟 SỬA/BỔ SUNG DÒNG NÀY: Phát ra SẢNH CHUNG (null) để màn hình danh sách nhận được!
+                    network.AuctionServer.broadcastToSpecificAuction(null, network.Command.UPDATE_AUCTION_STATUS, updatePayload);
+
+                    System.out.println("[AuctionEngine] -> Đã phát tín hiệu Real-time trạng thái ra sảnh chung.");
+                } catch (Exception e) {
+                    System.err.println("[AuctionEngine] Không thể broadcast trạng thái: " + e.getMessage());
+                }
             }
-        }
-
-
-        // 2. Ép hệ thống tính toán trạng thái mới dựa trên thời gian
-        auction.updateStatusByTime();
-
-        // 3. Đọc trạng thái mới sau khi áp dụng quy tắc
-        AuctionStatus newStatus = auction.getRawStatus();
-// 4. Kiểm tra sự dịch chuyển trạng thái vòng đời
-        if (oldStatus != newStatus) {
-            dao.DAOAuction_Items.getInstance().Update_Status(auction, item, newStatus);
-            System.out.printf("[AuctionEngine] Đã cập nhật trạng thái phiên id_item %d: %s -> %s%n",
-                    auction.getItemId(), oldStatus, newStatus);
-
-            try {
-                String itemIdStr = String.valueOf(auction.getItemId());
-                java.util.Map<String, Object> updatePayload = new java.util.HashMap<>();
-
-                // Ép kiểu int để khớp với colId (Integer) bên Client
-                updatePayload.put("itemId", (int) auction.getItemId());
-                updatePayload.put("newStatus", newStatus.name());
-
-                // 1. Phát vào phòng cụ thể (giữ nguyên của bạn)
-                network.AuctionServer.broadcastToSpecificAuction(itemIdStr, network.Command.UPDATE_AUCTION_STATUS, updatePayload);
-
-                // 🌟 SỬA/BỔ SUNG DÒNG NÀY: Phát ra SẢNH CHUNG (null) để màn hình danh sách nhận được!
-                network.AuctionServer.broadcastToSpecificAuction(null, network.Command.UPDATE_AUCTION_STATUS, updatePayload);
-
-                System.out.println("[AuctionEngine] -> Đã phát tín hiệu Real-time trạng thái ra sảnh chung.");
-            } catch (Exception e) {
-                System.err.println("[AuctionEngine] Không thể broadcast trạng thái: " + e.getMessage());
+        } finally {
+            if (lock != null && lock.isHeldByCurrentThread()) {
+                lock.unlock();
             }
         }
     }

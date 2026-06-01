@@ -87,15 +87,48 @@ public class DAOAuction_Items {
     }
 
     public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
-        String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
-        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            pstmt.setString(1, status == null ? null : gson.toJson(status.name()));
-            pstmt.setLong(2, item1.getDatabaseId());
+        // Use an explicit transaction and SELECT ... FOR UPDATE to lock the row and avoid
+        // race conditions with concurrent bidders or background engine updates.
+        boolean previousAutoCommit = con.getAutoCommit();
+        try {
+            con.setAutoCommit(false);
 
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0 && auction != null) {
-                auction.setStatus(status);
+            String selectSql = "SELECT status FROM auction_items WHERE id_item = ? FOR UPDATE";
+            try (PreparedStatement sel = con.prepareStatement(selectSql)) {
+                sel.setLong(1, item1.getDatabaseId());
+                try (ResultSet rs = sel.executeQuery()) {
+                    if (rs.next()) {
+                        String current = rs.getString("status");
+                        String newStatusJson = status == null ? null : gson.toJson(status.name());
+
+                        // If no change in status, nothing to do.
+                        if (current == null && newStatusJson == null) {
+                            con.commit();
+                            return;
+                        }
+                        if (current != null && current.equals(newStatusJson)) {
+                            con.commit();
+                            return;
+                        }
+
+                        String updateSql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
+                        try (PreparedStatement upd = con.prepareStatement(updateSql)) {
+                            upd.setString(1, newStatusJson);
+                            upd.setLong(2, item1.getDatabaseId());
+                            int rowsAffected = upd.executeUpdate();
+                            if (rowsAffected > 0 && auction != null) {
+                                auction.setStatus(status);
+                            }
+                        }
+                    }
+                }
             }
+            con.commit();
+        } catch (SQLException e) {
+            try { con.rollback(); } catch (SQLException ex) { /* ignore rollback error */ }
+            throw e;
+        } finally {
+            try { con.setAutoCommit(previousAutoCommit); } catch (SQLException ignored) {}
         }
     }
 

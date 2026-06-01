@@ -1,7 +1,7 @@
 package service;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import dao.DAOUser;
@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import org.mindrot.jbcrypt.BCrypt;
 
 @FunctionalInterface
 interface ConnectionProvider {
@@ -40,9 +41,7 @@ public class UserService {
     static final long ANTI_SNIPING_EXTENSION_SECONDS = 90;
     private static final double MAX_MIN_BID_RATIO = 0.20;
 
-    private static final Cache<String, ReentrantLock> itemLocks = CacheBuilder.newBuilder()
-            .expireAfterAccess(10, TimeUnit.MINUTES)
-            .build();
+    private static final ConcurrentMap<String, ReentrantLock> itemLocks = new ConcurrentHashMap<>();
 
     private final DAOUser userDAO;
     private final DAOItems itemDAO;
@@ -70,18 +69,47 @@ public class UserService {
     }
 
     private ReentrantLock getLockForItem(String itemId) {
-        try {
-            return itemLocks.get(itemId, () -> new ReentrantLock(true));
-        } catch (Exception e) {
-            return new ReentrantLock(true);
-        }
+        return itemLocks.computeIfAbsent(itemId, k -> new ReentrantLock(true));
+    }
+
+    /**
+     * Public accessor to obtain the per-item lock used by bidding logic.
+     * AuctionEngine and other background workers should use this to synchronize
+     * operations on the same item to avoid race conditions.
+     */
+    public ReentrantLock getItemLock(String itemId) {
+        return getLockForItem(itemId);
     }
 
     public User loginAndGetUser(String username, String password) {
-        User user = userDAO.selectByUsername(username, password);
-        if (user != null && user.getPassword().equals(password)) {
-            return user;
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user == null) {
+            throw new UnauthorizedException("Sai ten dang nhap hoac mat khau.");
         }
+
+        String dbPassword = user.getPassword();
+        // Try bcrypt check first; if stored password has unsupported salt/version
+        // (e.g., legacy plain text or different bcrypt prefix), handle fallback.
+        try {
+            if (dbPassword != null && BCrypt.checkpw(password, dbPassword)) {
+                return user;
+            }
+        } catch (IllegalArgumentException e) {
+            // Likely an unsupported salt/version or malformed hash.
+            // Fallback: compare plaintext (legacy storage). If it matches, migrate to bcrypt.
+            if (dbPassword != null && dbPassword.equals(password)) {
+                String newHash = BCrypt.hashpw(password, BCrypt.gensalt());
+                user.setPassword(newHash);
+                try {
+                    userDAO.Update(user);
+                } catch (Exception ex) {
+                    // Log but do not fail login for migration
+                    ex.printStackTrace();
+                }
+                return user;
+            }
+        }
+
         throw new UnauthorizedException("Sai ten dang nhap hoac mat khau.");
     }
 
@@ -98,6 +126,8 @@ public class UserService {
         }
 
         try {
+            // Hash password before persisting
+            user.setPassword(BCrypt.hashpw(user.getPassword(), BCrypt.gensalt()));
             userDAO.Insert(user);
             response.put("success", "TRUE");
             return response;
@@ -212,16 +242,20 @@ public class UserService {
 
             String oldBidder = txAuction.getLeadingBidder();
             double oldHighestPrice = txItem.getCurrentHighestPrice();
-            double bidderBalanceBeforeCharge = user.getBalance();
+
+            double actualCashNeeded = amount;
             String refundedBidderId = null;
             Double refundedBalance = null;
             User refundedUser = null;
 
             if (oldBidder != null && !oldBidder.isEmpty()) {
                 if (oldBidder.equals(bidderId)) {
-                    bidderBalanceBeforeCharge = user.getBalance() + oldHighestPrice;
-                    userDAO.UpdateBalance(con, bidderId, bidderBalanceBeforeCharge);
-                    user.setBalance(bidderBalanceBeforeCharge);
+                    // If bidder is raising their own bid, they only need to pay the delta
+                    actualCashNeeded = amount - oldHighestPrice;
+                    if (actualCashNeeded < 0) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                                "Gia dat phai lon hon gia hien tai.");
+                    }
                 } else {
                     User userOldBidder = userDAO.selectByUsernameOnly(con, oldBidder);
                     if (userOldBidder != null) {
@@ -235,17 +269,18 @@ public class UserService {
                 }
             }
 
-            if (amount > bidderBalanceBeforeCharge) {
+            // Ensure bidder has enough balance to cover only the required additional amount
+            if (user.getBalance() < actualCashNeeded) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
                         "So du tai khoan khong du de thuc hien luot dat gia nay.");
             }
 
-            double newBidderBalance = bidderBalanceBeforeCharge - amount;
+            double newBidderBalance = user.getBalance() - actualCashNeeded;
             userDAO.UpdateBalance(con, bidderId, newBidderBalance);
             user.setBalance(newBidderBalance);
 
             List<BidTransaction> newHistory = new ArrayList<>(txAuction.getBidHistory());
-            String transactionId = "BID-" + System.nanoTime() + "-" + bidderId;
+            String transactionId = "BID-" + clock.millis() + "-" + bidderId;
             BidTransaction newBid = new BidTransaction(transactionId, bidderId, amount, Instant.now(clock));
             newHistory.add(newBid);
             txAuction.setBidHistory(newHistory);
@@ -499,16 +534,25 @@ public class UserService {
     }
 
     public boolean changePassword(String username, String oldPassword, String newPassword) {
-        try (Connection con = connectionProvider.getConnection();
-             PreparedStatement ps = con.prepareStatement(
-                     "UPDATE khach SET password = ? WHERE username = ? AND password = ?")) {
-            ps.setString(1, newPassword);
-            ps.setString(2, username);
-            ps.setString(3, oldPassword);
-            return ps.executeUpdate() > 0;
+        Connection con = null;
+        try {
+            con = connectionProvider.getConnection();
+            con.setAutoCommit(false);
+            User user = userDAO.selectByUsernameOnly(con, username);
+            if (user == null) return false;
+            if (!BCrypt.checkpw(oldPassword, user.getPassword())) return false;
+            user.setPassword(BCrypt.hashpw(newPassword, BCrypt.gensalt()));
+            userDAO.Update(con, user);
+            con.commit();
+            return true;
         } catch (SQLException e) {
+            rollbackQuietly(con);
             e.printStackTrace();
             return false;
+        } finally {
+            if (con != null) {
+                try { con.setAutoCommit(true); con.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
         }
     }
 
@@ -673,16 +717,48 @@ public class UserService {
     }
 
     public boolean rejectDeposit(String username, String transactionId) {
-        User user = userDAO.selectByUsernameOnly(username);
-        if (user != null) {
+        Connection con = null;
+        try {
+            con = connectionProvider.getConnection();
+            con.setAutoCommit(false);
+
+            User user = userDAO.selectByUsernameOnly(con, username);
+            if (user == null) {
+                con.rollback();
+                return false;
+            }
+
+            boolean transactionFound = false;
             for (DepositTransaction dt : user.getDepositHistory()) {
                 if (dt.getId().equals(transactionId) && "PENDING".equals(dt.getStatus())) {
                     dt.setStatus("REJECTED");
-                    return userDAO.UpdateDepositHistory(username, user.getDepositHistory()) > 0;
+                    userDAO.UpdateDepositHistory(con, username, user.getDepositHistory());
+                    transactionFound = true;
+                    break;
+                }
+            }
+
+            if (transactionFound) {
+                con.commit();
+                return true;
+            }
+
+            con.rollback();
+            return false;
+        } catch (SQLException e) {
+            rollbackQuietly(con);
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (con != null) {
+                try {
+                    con.setAutoCommit(true);
+                    con.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
             }
         }
-        return false;
     }
 
     public boolean deleteDepositHistory(String username, String transactionId) {
