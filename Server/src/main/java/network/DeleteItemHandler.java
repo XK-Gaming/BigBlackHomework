@@ -3,7 +3,6 @@ package network;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import model.Items.Item;
-import model.auction.AuctionStatus;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;

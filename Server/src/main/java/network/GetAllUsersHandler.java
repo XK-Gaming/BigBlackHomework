@@ -4,7 +4,6 @@ import model.User.User;
 import service.UserService;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.List;
 
 public class GetAllUsersHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;

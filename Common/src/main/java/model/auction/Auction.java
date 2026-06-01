@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import dao.DAOAuction_Items;
 import model.Entity.Entity;
 import model.Items.Item;
 
@@ -110,16 +109,12 @@ public class Auction extends Entity implements Serializable {
         if (now.isAfter(item.getAuctionEndTime()) || now.equals(item.getAuctionEndTime())) {
             if (this.status != AuctionStatus.FINISHED) {
                 this.status = AuctionStatus.FINISHED;
-                // Gọi DAO để đồng bộ xuống Database ngay lập tức
-                DAOAuction_Items.getInstance().Update_Status(this, this.item, AuctionStatus.FINISHED);
             }
         }
         // 3. Kiểm tra mốc bắt đầu
         else if (now.isAfter(item.getAuctionStartTime()) || now.equals(item.getAuctionStartTime())) {
             if (this.status == AuctionStatus.OPEN) {
                 this.status = AuctionStatus.RUNNING;
-                // Đồng bộ trạng thái RUNNING xuống Database
-                DAOAuction_Items.getInstance().Update_Status(this, this.item, AuctionStatus.RUNNING);
             }
         }
         // 4. Mặc định vẫn là OPEN nếu chưa tới giờ
@@ -239,6 +234,10 @@ public class Auction extends Entity implements Serializable {
         if (obj == null || getClass() != obj.getClass()) return false;
         Auction other = (Auction) obj;
         return this.itemId == other.itemId;
+    }
+
+    public AuctionStatus getRawStatus() {
+        return this.status;
     }
 
     @Override

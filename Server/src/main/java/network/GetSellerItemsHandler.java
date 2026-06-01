@@ -3,14 +3,11 @@ package network;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import model.Items.Item;
-import model.User.User;
 import model.auction.AuctionStatus;
-import service.UserService;
 
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class GetSellerItemsHandler extends BaseHandler implements RequestHandler {
