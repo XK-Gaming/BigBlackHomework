@@ -88,28 +88,32 @@
                                     </font>
                                 </Label>
                                 <HBox alignment="CENTER_LEFT" spacing="5.0">
-                                   <children>
-                                      <Label fx:id="connectionText" text="Offline" textFill="#64748b">
-                                         <font>
-                                            <Font size="11.0" />
-                                         </font>
-                                      </Label>
-                                      <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
-                                   </children>
+                                    <children>
+                                        <Label fx:id="connectionText" text="Offline" textFill="#64748b">
+                                            <font>
+                                                <Font size="11.0" />
+                                            </font>
+                                        </Label>
+                                        <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
+                                    </children>
                                 </HBox>
-                                <HBox HBox.hgrow="ALWAYS" /> <TextField fx:id="txtSearch" prefHeight="35.0" prefWidth="250.0" promptText="Tìm kiếm sản phẩm..." style="-fx-background-radius: 12;" />
+                                <HBox HBox.hgrow="ALWAYS" />
+                                <TextField fx:id="txtSearch" prefHeight="35.0" prefWidth="250.0" promptText="Tìm kiếm sản phẩm..." style="-fx-background-radius: 12;" />
                             </children>
                         </HBox>
 
                         <TableView fx:id="tableProducts" prefHeight="200.0" prefWidth="200.0" style="-fx-background-radius: 12;" VBox.vgrow="ALWAYS">
                             <columns>
-                                <TableColumn fx:id="colId" prefWidth="70.0" text="Mã SP" />
-                                <TableColumn fx:id="colName" prefWidth="200.0" text="Tên sản phẩm" />
-                                <TableColumn fx:id="colCategory" prefWidth="130.0" text="Loại mặt hàng" />
-                                <TableColumn fx:id="colPrice" prefWidth="120.0" text="Giá khởi điểm" />
-                                <TableColumn fx:id="colTimeStart" prefWidth="140.0" text="Thời gian bắt đầu" />
-                                <TableColumn fx:id="colTimeEnd" prefWidth="140.0" text="Thời gian kết thúc" />
-                                <TableColumn fx:id="colSessionStatus" prefWidth="120.0" text="Trạng thái phiên" />
+                                <TableColumn fx:id="colId" prefWidth="60.0" text="Mã SP" />
+                                <TableColumn fx:id="colName" prefWidth="180.0" text="Tên sản phẩm" />
+                                <TableColumn fx:id="colCategory" prefWidth="120.0" text="Loại mặt hàng" />
+                                <TableColumn fx:id="colPrice" prefWidth="110.0" text="Giá khởi điểm" />
+
+                                <TableColumn fx:id="colCurrentPrice" prefWidth="120.0" text="Giá hiện tại" />
+
+                                <TableColumn fx:id="colTimeStart" prefWidth="130.0" text="Thời gian bắt đầu" />
+                                <TableColumn fx:id="colTimeEnd" prefWidth="130.0" text="Thời gian kết thúc" />
+                                <TableColumn fx:id="colSessionStatus" prefWidth="110.0" text="Trạng thái phiên" />
                             </columns>
                             <columnResizePolicy>
                                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

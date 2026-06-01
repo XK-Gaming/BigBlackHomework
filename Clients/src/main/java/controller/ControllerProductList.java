@@ -1,4 +1,4 @@
-package controller;
+package controller; // Thêm gói package tương ứng nếu cần
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -32,7 +32,11 @@ public class ControllerProductList implements ServerListener {
     @FXML private TableColumn<Item, Integer> colId;
     @FXML private TableColumn<Item, String> colName;
     @FXML private TableColumn<Item, String> colCategory;
-    @FXML private TableColumn<Item, Double> colPrice;
+    @FXML private TableColumn<Item, Double> colPrice; // Đây là giá khởi điểm (Starting Price)
+
+    // 🚀 BỔ SUNG: Cột hiển thị Giá hiện tại
+    @FXML private TableColumn<Item, Double> colCurrentPrice;
+
     @FXML private TableColumn<Item, String> colTimeStart;
     @FXML private TableColumn<Item, String> colTimeEnd;
     @FXML private TableColumn<Item, AuctionStatus> colSessionStatus;
@@ -51,6 +55,9 @@ public class ControllerProductList implements ServerListener {
 
     // Bộ nhớ đệm quản lý trạng thái đồng bộ dữ liệu nhận từ mạng
     private final Map<Integer, AuctionStatus> statusCache = new HashMap<>();
+
+    // 🚀 BỔ SUNG: Bộ nhớ đệm quản lý giá hiện tại (Real-time Price Cache)
+    private final Map<Integer, Double> currentPriceCache = new HashMap<>();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
@@ -75,11 +82,20 @@ public class ControllerProductList implements ServerListener {
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colPrice.setCellValueFactory(new PropertyValueFactory<>("startingPrice"));
 
+        // 🚀 BỔ SUNG: Ánh xạ dữ liệu động cho cột Giá hiện tại từ Cache
+        colCurrentPrice.setCellValueFactory(cellData -> {
+            Item item = cellData.getValue();
+            // Nếu trong cache chưa có giá hiện tại, mặc định lấy giá cao nhất hiện có từ item hoặc giá khởi điểm
+            Double currentPrice = currentPriceCache.getOrDefault(item.getDatabaseId(), item.getCurrentHighestPrice());
+            return new SimpleObjectProperty<>(currentPrice);
+        });
+
         colCategory.setCellValueFactory(cellData -> {
             String type = cellData.getValue().getItemType();
             return new SimpleStringProperty(type != null ? type : "");
         });
 
+        // Định dạng tiền tệ cho cột Giá khởi điểm
         colPrice.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(Double price, boolean empty) {
@@ -88,6 +104,21 @@ public class ControllerProductList implements ServerListener {
                     setText(null);
                 } else {
                     setText(String.format("%,.0f VNĐ", price));
+                }
+            }
+        });
+
+        // 🚀 BỔ SUNG: Định dạng tiền tệ và kiểu dáng (Bold màu cam) cho cột Giá hiện tại
+        colCurrentPrice.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(Double price, boolean empty) {
+                super.updateItem(price, empty);
+                if (empty || price == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.format("%,.0f VNĐ", price));
+                    setStyle("-fx-text-fill: #fd7e14; -fx-font-weight: bold;"); // Màu cam nổi bật cho giá hiện tại
                 }
             }
         });
@@ -160,17 +191,12 @@ public class ControllerProductList implements ServerListener {
         requestProductsFromNetwork();
     }
 
-    /**
-     * THAY THẾ LUỒNG NGẦM CŨ: Gửi yêu cầu dữ liệu thông qua lệnh mạng lên ServerHandler
-     */
     private void requestProductsFromNetwork() {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser == null) return;
 
-        // Trạng thái chờ đợi phản hồi
         tableProducts.setPlaceholder(new ProgressIndicator());
 
-        // Gửi lệnh không gây nghẽn UI mạng
         ClientNetworkExecutor.execute(() -> {
             try {
                 client.sendCommand(Command.GET_SELLER_ITEMS, currentUser.getUsername());
@@ -180,12 +206,6 @@ public class ControllerProductList implements ServerListener {
         });
     }
 
-    /**
-     * Hàm nhận và xử lý tập trung toàn bộ dữ liệu trả về bất đồng bộ từ các Handler của Server
-     */
-    /**
-     * Hàm nhận và xử lý tập trung toàn bộ dữ liệu trả về bất đồng bộ từ các Handler của Server
-     */
     @Override
     public void onServerResponse(DataPacket response) {
         if (response == null || response.command() == null) return;
@@ -204,13 +224,21 @@ public class ControllerProductList implements ServerListener {
 
                     // Làm sạch và đồng bộ dữ liệu trạng thái mới
                     statusCache.clear();
+                    currentPriceCache.clear(); // Đột phá làm sạch cache giá cũ
+
                     if (stringStatusCache != null) {
                         stringStatusCache.forEach((id, statusStr) -> {
                             statusCache.put(id, AuctionStatus.valueOf(statusStr));
                         });
                     }
 
-                    // Đổ dữ liệu mới nhận lên TableView
+                    // Khởi tạo giá trị ban đầu cho `currentPriceCache` từ danh sách Items nhận về
+                    if (serverItems != null) {
+                        for (Item item : serverItems) {
+                            currentPriceCache.put(item.getDatabaseId(), item.getCurrentHighestPrice());
+                        }
+                    }
+
                     productList.setAll(serverItems != null ? serverItems : new ArrayList<>());
                     tableProducts.setPlaceholder(new Label("Không có sản phẩm nào."));
                 } else {
@@ -220,28 +248,35 @@ public class ControllerProductList implements ServerListener {
             });
         }
 
-        // 🚀 --- CASE MỚI: Đón nhận cập nhật trạng thái tự động từ Engine quét định kỳ ---
+        // 🚀 --- CASE 2: Đón nhận cập nhật trạng thái tự động và Cập nhật GIÁ MỚI nếu có ---
         else if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
             if (response.payload() instanceof Map<?, ?> map) {
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
                         String itemIdStr = map.get("itemId").toString();
-                        // Trích xuất ID an toàn (hỗ trợ cả số thực của GSON lẫn số nguyên thông thường)
                         int targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).intValue() : Integer.parseInt(itemIdStr);
-                        String newStatusStr = map.get("newStatus") != null ? map.get("newStatus").toString() : "";
 
                         Platform.runLater(() -> {
-                            System.out.println("[Product List Realtime] Sản phẩm " + targetItemId + " chuyển trạng thái sang: " + newStatusStr);
+                            // 1. Cập nhật trạng thái
+                            if (map.containsKey("newStatus") && map.get("newStatus") != null) {
+                                String newStatusStr = map.get("newStatus").toString();
+                                statusCache.put(targetItemId, AuctionStatus.valueOf(newStatusStr));
+                                System.out.println("[Product List] Sản phẩm " + targetItemId + " đổi trạng thái: " + newStatusStr);
+                            }
 
-                            // Cập nhật giá trị trạng thái mới vào bộ nhớ đệm Cache của bảng dữ liệu
-                            statusCache.put(targetItemId, AuctionStatus.valueOf(newStatusStr));
+                            // 🚀 2. Cập nhật Giá hiện tại theo thời gian thực (Nếu Server đẩy kèm giá mới trong gói Update)
+                            if (map.containsKey("currentPrice") && map.get("currentPrice") != null) {
+                                double newPrice = Double.parseDouble(map.get("currentPrice").toString());
+                                currentPriceCache.put(targetItemId, newPrice);
+                                System.out.println("[Product List] Sản phẩm " + targetItemId + " cập nhật giá mới: " + newPrice);
+                            }
 
-                            // Ép TableView của JavaFX quét và vẽ lại toàn bộ các hàng để cập nhật giao diện (màu sắc, text) ngay lập tức
+                            // Ép TableView vẽ lại để cập nhật cả Trạng thái lẫn Giá hiện tại lên UI ngay lập tức
                             tableProducts.refresh();
                         });
                     }
                 } catch (Exception e) {
-                    System.err.println("Lỗi xử lý đồng bộ trạng thái Real-time tại danh sách: " + e.getMessage());
+                    System.err.println("Lỗi xử lý đồng bộ trạng thái & giá Real-time: " + e.getMessage());
                 }
             }
         }
@@ -253,13 +288,10 @@ public class ControllerProductList implements ServerListener {
             String message = (String) resData.get("message");
             String itemName = (String) resData.get("itemName");
 
-            // Đồng bộ cập nhật giao diện trên JavaFX Application Thread
             Platform.runLater(() -> {
                 if (success) {
-                    // Trích xuất ID an toàn qua lớp Number để tránh xung đột Integer/Long từ dòng mạng
                     int deletedItemId = ((Number) resData.get("deletedItemId")).intValue();
 
-                    // Tìm kiếm sản phẩm trong danh sách hiển thị hiện tại để xóa cục bộ
                     Item itemToRemove = productList.stream()
                             .filter(item -> item.getDatabaseId() == deletedItemId)
                             .findFirst()
@@ -268,11 +300,11 @@ public class ControllerProductList implements ServerListener {
                     if (itemToRemove != null) {
                         productList.remove(itemToRemove);
                         statusCache.remove(deletedItemId);
+                        currentPriceCache.remove(deletedItemId); // Xóa khỏi cache giá
                     }
                     String displayName = (itemName != null) ? " \"" + itemName + "\"" : "";
                     showAlert(Alert.AlertType.INFORMATION, "Thành công", "Sản phẩm" + displayName + " đã bị xóa!");
                 } else {
-                    // Server từ chối xóa do không thỏa mãn điều kiện ràng buộc dữ liệu (ví dụ: đã có người đặt giá)
                     showAlert(Alert.AlertType.ERROR, "Không thể xóa", message);
                 }
             });
@@ -289,8 +321,8 @@ public class ControllerProductList implements ServerListener {
                     user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
                     Platform.runLater(() -> {
                         ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
-                        // Tự động cập nhật lại dòng trạng thái của Item vừa được thanh toán thành PAID
                         statusCache.put(item.getDatabaseId(), AuctionStatus.PAID);
+                        currentPriceCache.put(item.getDatabaseId(), item.getCurrentHighestPrice()); // Đồng bộ giá cuối
                         tableProducts.refresh();
                     });
                 }
@@ -314,7 +346,6 @@ public class ControllerProductList implements ServerListener {
                 String finalItemName = itemName;
                 Platform.runLater(() -> {
                     showAlert(Alert.AlertType.INFORMATION, "Thông báo", isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!");
-                    // Làm mới danh sách sản phẩm để cập nhật trạng thái
                     requestProductsFromNetwork();
                 });
             }
@@ -335,7 +366,6 @@ public class ControllerProductList implements ServerListener {
         // --- CASE 7: Kết quả đăng xuất thủ công thành công ---
         else if (Command.LOGOUT_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                // Ngắt kết nối socket hiện tại ở máy khách và làm sạch phiên làm việc
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
@@ -364,7 +394,6 @@ public class ControllerProductList implements ServerListener {
         AuctionStatus status = statusCache.get(selectedItem.getDatabaseId());
         if (status == null) status = AuctionStatus.OPEN;
 
-        // Kiểm tra luật trạng thái
         if (status == AuctionStatus.FINISHED || status == AuctionStatus.PAID) {
             showAlert(Alert.AlertType.ERROR, "Bị từ chối", "Phiên đấu giá đã kết thúc/thanh toán. Không thể sửa!");
             return;
@@ -389,7 +418,6 @@ public class ControllerProductList implements ServerListener {
             return;
         }
 
-        // Hiển thị hộp thoại xác nhận trên luồng UI chính
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("Xác nhận xóa");
         confirmAlert.setHeaderText(null);
@@ -398,7 +426,6 @@ public class ControllerProductList implements ServerListener {
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
 
-            // Phát lệnh mạng bất đồng bộ bằng Network Executor chuyên dụng
             ClientNetworkExecutor.execute(() -> {
                 try {
                     client.sendCommand(Command.DELETE_ITEM, selectedItem);
@@ -410,7 +437,6 @@ public class ControllerProductList implements ServerListener {
                 }
             });
         }
-
     }
 
     @FXML
@@ -419,7 +445,6 @@ public class ControllerProductList implements ServerListener {
             client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         } catch (IOException e) {
             System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
-            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
         }
     }
 
