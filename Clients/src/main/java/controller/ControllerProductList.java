@@ -183,10 +183,17 @@ public class ControllerProductList implements ServerListener {
     /**
      * Hàm nhận và xử lý tập trung toàn bộ dữ liệu trả về bất đồng bộ từ các Handler của Server
      */
+    /**
+     * Hàm nhận và xử lý tập trung toàn bộ dữ liệu trả về bất đồng bộ từ các Handler của Server
+     */
     @Override
     public void onServerResponse(DataPacket response) {
+        if (response == null || response.command() == null) return;
+
+        Command command = response.command();
+
         // --- CASE 1: Nhận danh sách sản phẩm ---
-        if (Command.GET_SELLER_ITEMS_RESULT.equals(response.command())) {
+        if (Command.GET_SELLER_ITEMS_RESULT.equals(command)) {
             Map<String, Object> data = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) data.get("success");
 
@@ -212,8 +219,35 @@ public class ControllerProductList implements ServerListener {
                 }
             });
         }
-        // --- CASE 2: Nhận kết quả phản hồi xóa sản phẩm ---
-        else if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
+
+        // 🚀 --- CASE MỚI: Đón nhận cập nhật trạng thái tự động từ Engine quét định kỳ ---
+        else if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
+            if (response.payload() instanceof Map<?, ?> map) {
+                try {
+                    if (map.containsKey("itemId") && map.get("itemId") != null) {
+                        String itemIdStr = map.get("itemId").toString();
+                        // Trích xuất ID an toàn (hỗ trợ cả số thực của GSON lẫn số nguyên thông thường)
+                        int targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).intValue() : Integer.parseInt(itemIdStr);
+                        String newStatusStr = map.get("newStatus") != null ? map.get("newStatus").toString() : "";
+
+                        Platform.runLater(() -> {
+                            System.out.println("[Product List Realtime] Sản phẩm " + targetItemId + " chuyển trạng thái sang: " + newStatusStr);
+
+                            // Cập nhật giá trị trạng thái mới vào bộ nhớ đệm Cache của bảng dữ liệu
+                            statusCache.put(targetItemId, AuctionStatus.valueOf(newStatusStr));
+
+                            // Ép TableView của JavaFX quét và vẽ lại toàn bộ các hàng để cập nhật giao diện (màu sắc, text) ngay lập tức
+                            tableProducts.refresh();
+                        });
+                    }
+                } catch (Exception e) {
+                    System.err.println("Lỗi xử lý đồng bộ trạng thái Real-time tại danh sách: " + e.getMessage());
+                }
+            }
+        }
+
+        // --- CASE 3: Nhận kết quả phản hồi xóa sản phẩm ---
+        else if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.get("success");
             String message = (String) resData.get("message");
@@ -243,35 +277,51 @@ public class ControllerProductList implements ServerListener {
                 }
             });
         }
-        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
+
+        // --- CASE 4: Thông báo thanh toán hóa đơn thành công (Nhận tiền về số dư) ---
+        else if (Command.NOTIFICATION_NEW_PAY.equals(command)) {
             User user = UserSession.getLoggedInUser();
-            Map<String, Object> notifData = (Map<String, Object>) response.payload();
-            Item item = (Item) notifData.get("item");
-            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
-            Platform.runLater(() -> {
-                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
-            });
-        }
-        if (Command.SET_ALLOW_RESULT.equals(response.command())) {
-            Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
-            boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
-            String itemName = "";
-            Object auctionObj = responsePayload.get("auction");
-            if (auctionObj instanceof Auction) {
-                Auction auction = (Auction) auctionObj;
-                if (auction.getItem() != null) {
-                    itemName = " \"" + auction.getItem().getName() + "\"";
+            if (user != null && response.payload() instanceof Map) {
+                Map<String, Object> notifData = (Map<String, Object>) response.payload();
+                Object itemObj = notifData.get("item");
+
+                if (itemObj instanceof Item item) {
+                    user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
+                    Platform.runLater(() -> {
+                        ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
+                        // Tự động cập nhật lại dòng trạng thái của Item vừa được thanh toán thành PAID
+                        statusCache.put(item.getDatabaseId(), AuctionStatus.PAID);
+                        tableProducts.refresh();
+                    });
                 }
             }
-
-            String finalItemName = itemName;
-            Platform.runLater(() -> {
-                showAlert(Alert.AlertType.INFORMATION, "Thông báo", isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!");
-                // Làm mới danh sách sản phẩm để cập nhật trạng thái
-                requestProductsFromNetwork();
-            });
         }
-        if (Command.FORCE_LOGOUT.equals(response.command())) {
+
+        // --- CASE 5: Phản hồi phê duyệt từ Admin ---
+        else if (Command.SET_ALLOW_RESULT.equals(command)) {
+            if (response.payload() instanceof Map) {
+                Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
+                boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
+                String itemName = "";
+                Object auctionObj = responsePayload.get("auction");
+                if (auctionObj instanceof Auction) {
+                    Auction auction = (Auction) auctionObj;
+                    if (auction.getItem() != null) {
+                        itemName = " \"" + auction.getItem().getName() + "\"";
+                    }
+                }
+
+                String finalItemName = itemName;
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.INFORMATION, "Thông báo", isAllow ? "Phiên đấu giá" + finalItemName + " đã được phê duyệt!" : "Phiên đấu giá" + finalItemName + " đã bị tạm dừng!");
+                    // Làm mới danh sách sản phẩm để cập nhật trạng thái
+                    requestProductsFromNetwork();
+                });
+            }
+        }
+
+        // --- CASE 6: Tài khoản bị xóa cưỡng chế ---
+        else if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Tài khoản bị xóa");
@@ -281,13 +331,14 @@ public class ControllerProductList implements ServerListener {
                 System.exit(0);
             });
         }
-        if (Command.LOGOUT_RESULT.equals(response.command())) {
+
+        // --- CASE 7: Kết quả đăng xuất thủ công thành công ---
+        else if (Command.LOGOUT_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                // 1. Ngắt kết nối socket hiện tại ở máy khách
+                // Ngắt kết nối socket hiện tại ở máy khách và làm sạch phiên làm việc
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
-                // 2. Chuyển về màn hình đăng nhập
             });
         }
     }

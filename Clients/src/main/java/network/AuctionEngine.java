@@ -1,33 +1,26 @@
 package network;
 
+import javafx.application.Platform;
 import model.Items.Item;
 import model.auction.AuctionStatus;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Engine client-side cập nhật trạng thái phiên đấu giá theo thời gian.
- * Dùng cho UI danh sách để tự đổi trạng thái OPEN/RUNNING/FINISHED realtime.
- */
 public class AuctionEngine {
     public interface AuctionStatusListener {
         void onStatus(AuctionStatus status, long secondsToNextChange);
     }
-    private final Map<String, WatchRegistration> registrations = new ConcurrentHashMap<>();
+
+    private final Map<Integer, WatchRegistration> registrations = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
-
-    // Có trển khai Singleton đảm bảo chỉ có một instance của
-    // AuctionEngine chạy trong toàn bộ ứng dụng client
     private static final AuctionEngine INSTANCE = new AuctionEngine();
-
 
     private AuctionEngine() {
         ThreadFactory factory = r -> {
@@ -35,82 +28,96 @@ public class AuctionEngine {
             t.setDaemon(true);
             return t;
         };
-        // Tạo một luồng chạy ngầm (Daemon Thread)
         scheduler = Executors.newSingleThreadScheduledExecutor(factory);
-        // Cứ mỗi 1 giây (TimeUnit.SECONDS), hàm tick() sẽ được gọi một lần
         scheduler.scheduleAtFixedRate(this::tick, 0, 1, TimeUnit.SECONDS);
     }
 
     public static AuctionEngine getInstance() {
         return INSTANCE;
     }
-    // Đăng ký theo dõi
-    // Nó tạo ra một token (mã định danh duy nhất).
-    //Nó lưu item và một cái listener (hành động sẽ thực hiện khi trạng thái thay đổi).
-    public String watchItem(Item item, AuctionStatusListener listener) {
+
+    public int watchItem(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
-            return null;
+            return -1;
         }
-        String token = UUID.randomUUID().toString();
-        registrations.put(token, new WatchRegistration(item, listener));
+        int itemId = item.getDatabaseId();
+        registrations.put(itemId, new WatchRegistration(item, listener));
+
         notifySingle(item, listener);
-        return token;
+        return itemId;
     }
 
-    //Khi bạn đóng cửa sổ hoặc chuyển trang, gọi cái này để giải phóng bộ nhớ
-    public void unwatch(String token) {
-        if (token != null) {
-            registrations.remove(token);
-        }
-    }
-
-    private void tick() {
-        for (WatchRegistration reg : registrations.values()) {
-            notifySingle(reg.item(), reg.listener());
-        }
-    }
     public void unwatchItem(Item item) {
         if (item != null) {
             registrations.remove(item.getDatabaseId());
         }
     }
 
-    // Phương thức quyết định trạng thái của sản phẩm
+    // =================================================================
+    // 🔥 BỔ SUNG CÁC HÀM NÀY VÀO ĐỂ KHẮC PHỤC TRIỆT ĐỂ LỖI BIÊN DỊCH
+    // =================================================================
+
+    /**
+     * Hủy theo dõi bằng ID của Item dưới dạng chuỗi String
+     * (Giải quyết trường hợp Controller nhận ID từ text/mạng)
+     */
+    public void unwatch(String itemIdStr) {
+        if (itemIdStr != null) {
+            try {
+                int itemId = Integer.parseInt(itemIdStr.trim());
+                registrations.remove(itemId);
+            } catch (NumberFormatException e) {
+                System.err.println("[AuctionEngine] Không thể unwatch vì chuỗi ID không hợp lệ: " + itemIdStr);
+            }
+        }
+    }
+
+    /**
+     * Hủy theo dõi bằng ID kiểu số nguyên int trực tiếp
+     */
+    public void unwatch(int itemId) {
+        registrations.remove(itemId);
+    }
+
+    // =================================================================
+
+    private void tick() {
+        for (WatchRegistration reg : registrations.values()) {
+            notifySingle(reg.item(), reg.listener());
+        }
+    }
+
     private void notifySingle(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
             return;
         }
 
         Instant now = Instant.now();
-        AuctionStatus status;
-        long secondsToNextChange;
+        final AuctionStatus status;
+        final long secondsToNextChange;
 
         Instant startTime = item.getAuctionStartTime();
         Instant endTime = item.getAuctionEndTime();
 
-        // Trường hợp 1: Nếu dữ liệu lỗi, thiếu cả thời gian bắt đầu và kết thúc
         if (startTime == null || endTime == null) {
-            status = AuctionStatus.FINISHED; // Mặc định coi như kết thúc để đóng phòng
+            status = AuctionStatus.FINISHED;
             secondsToNextChange = 0;
-        }
-        // Trường hợp 2: Chưa đến giờ bắt đầu đấu giá
-        else if (now.isBefore(startTime)) {
+        } else if (now.isBefore(startTime)) {
             status = AuctionStatus.OPEN;
             secondsToNextChange = Duration.between(now, startTime).getSeconds();
-        }
-        // Trường hợp 3: Đang trong thời gian đấu giá
-        else if (now.isBefore(endTime)) {
+        } else if (now.isBefore(endTime)) {
             status = AuctionStatus.RUNNING;
             secondsToNextChange = Duration.between(now, endTime).getSeconds();
-        }
-        // Trường hợp 4: Đã quá giờ kết thúc
-        else {
+        } else {
             status = AuctionStatus.FINISHED;
             secondsToNextChange = 0;
         }
 
-        // Đảm bảo không truyền số âm vào listener
-        listener.onStatus(status, Math.max(0, secondsToNextChange));
+        Platform.runLater(() -> {
+            item.updateStatus(status);
+            listener.onStatus(status, Math.max(0, secondsToNextChange));
+        });
     }
 
-    private record WatchRegistration(Item item, AuctionStatusListener listener) {}}
+    private record WatchRegistration(Item item, AuctionStatusListener listener) {}
+}

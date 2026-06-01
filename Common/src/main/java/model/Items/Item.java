@@ -2,7 +2,6 @@ package model.Items;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import model.Entity.Entity;
 import model.auction.AuctionStatus;
 
 import java.io.Serializable;
@@ -13,7 +12,7 @@ import java.util.Map;
 public class Item implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private int databaseId;  // Tự động tăng khi lưu vào DB
+    private int databaseId;
     private String name;
     private String description;
     private double startingPrice;
@@ -25,34 +24,17 @@ public class Item implements Serializable {
     private ItemType itemType;
     private String img;
 
-    // Thêm biến để lưu trữ các thuộc tính động (JSON)
     private Map<String, String> properties = new HashMap<>();
-
     private AuctionStatus auctionStatus;
-    public Item(
-            String name,
-            String description,
-            double startingPrice,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
-            String sellerId,
-            ItemType itemType,
-            String img
-    ) {
+
+    // PROPERTY JAVAFX ĐỂ BINDING LÊN TABLEVIEW
+    private transient StringProperty displayStatus = new SimpleStringProperty("");
+
+    public Item(String name, String description, double startingPrice, Instant auctionStartTime, Instant auctionEndTime, String sellerId, ItemType itemType, String img) {
         this(name, description, startingPrice, 0, auctionStartTime, auctionEndTime, sellerId, itemType, img);
     }
 
-    public Item(
-            String name,
-            String description,
-            double startingPrice,
-            double minBid,
-            Instant auctionStartTime,
-            Instant auctionEndTime,
-            String sellerId,
-            ItemType itemType,
-            String img
-    ) {
+    public Item(String name, String description, double startingPrice, double minBid, Instant auctionStartTime, Instant auctionEndTime, String sellerId, ItemType itemType, String img) {
         this.name = name;
         this.description = description;
         this.startingPrice = startingPrice;
@@ -81,151 +63,36 @@ public class Item implements Serializable {
         this.itemType = itemType;
     }
 
-    public Map<String, String> getProperties() {
-        if (this.properties == null) {
-            this.properties = new HashMap<>();
+    // HÀM QUAN TRỌNG: Đồng bộ trạng thái Enum sang Text Tiếng Việt cho JavaFX UI
+    public void updateStatus(AuctionStatus status) {
+        this.auctionStatus = status;
+        String statusText = "";
+        if (status != null) {
+            switch (status) {
+                case OPEN -> statusText = "Sắp diễn ra";
+                case RUNNING -> statusText = "Đang diễn ra";
+                case FINISHED -> statusText = "Đã kết thúc";
+                case CANCELLED -> statusText = "Đã hủy bỏ";
+                case PAID -> statusText = "Đã thanh toán";
+            }
         }
-        return this.properties;
+        setDisplayStatus(statusText);
     }
 
-    // ✅ Đã thêm: Giúp ControllerEditProduct nạp thông tin động khi bấm nút Save
-    public void setProperties(Map<String, String> properties) {
-        this.properties = properties;
-    }
-
-    public void setDatabaseId(int id) {
-        this.databaseId = id;
-    }
-
-    public int getDatabaseId() {
-        return databaseId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public double getStartingPrice() {
-        return startingPrice;
-    }
-
-    public double getMinBid() {
-        return minBid;
-    }
-
-    public double getCurrentHighestPrice() {
-        return currentHighestPrice;
-    }
-
-    public void updateCurrentHighestPrice(double currentHighestPrice) {
-        this.currentHighestPrice = currentHighestPrice;
-    }
-
-    public Instant getAuctionStartTime() {
-        return auctionStartTime;
-    }
-
-    public Instant getAuctionEndTime() {
-        return auctionEndTime;
-    }
-
-    public void updateAuctionEndTime(Instant auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
-
-    public String getSellerId() {
-        return sellerId;
-    }
-
-    public String getImg(){
-        return img;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setStartingPrice(double startingPrice) {
-        this.startingPrice = startingPrice;
-    }
-
-    public void setMinBid(double minBid) {
-        this.minBid = minBid;
-    }
-
-    public void setCurrentHighestPrice(double currentHighestPrice) {
-        this.currentHighestPrice = currentHighestPrice;
-    }
-
-    public void setAuctionStartTime(Instant auctionStartTime) {
-        this.auctionStartTime = auctionStartTime;
-    }
-
-    public void setAuctionEndTime(Instant auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
-
-    public void setSellerId(String sellerId) {
-        this.sellerId = sellerId;
-    }
-
-    public void setItemType(ItemType itemType) {
-        this.itemType = itemType;
-    }
-
-    public void setImg(String img) {
-        this.img = img;
-    }
-
-    // Lấy đối tượng Enum gốc (Rất quan trọng cho việc kiểm tra logic)
-    public ItemType getRawItemType() {
-        return this.itemType;
-    }
-
-
-    // ✅ Giữ nguyên phục vụ TableView hiển thị Tiếng Việt
-    public String getItemType() {
-        if (itemType == null) {
-            return "";
-        }
-        if (itemType == ItemType.ART) {
-            return "Mỹ thuật";
-        }
-        if (itemType == ItemType.ELECTRONICS) {
-            return "Điện tử";
-        }
-        if (itemType == ItemType.VEHICLE) {
-            return "Phương tiện giao thông";
-        }
-        return itemType.toString();
-    }
-
-    // 1. Khai báo Property
-    private transient StringProperty displayStatus = new SimpleStringProperty("");
     public StringProperty displayStatusProperty() {
         if (displayStatus == null) {
             displayStatus = new SimpleStringProperty("");
         }
         return displayStatus;
     }
-    // 2. Getter cho TableView (Dùng cho PropertyValueFactory)
+
     public String getDisplayStatus() {
         return displayStatusProperty().get();
     }
 
-    // 4. Setter để cập nhật giá trị
     public void setDisplayStatus(String status) {
         this.displayStatusProperty().set(status);
     }
-
 
     public AuctionStatus getAuctionStatus() {
         return auctionStatus;
@@ -233,5 +100,45 @@ public class Item implements Serializable {
 
     public void setAuctionStatus(AuctionStatus auctionStatus) {
         this.auctionStatus = auctionStatus;
+        // Tự động đồng bộ hóa text hiển thị kèm theo khi set bằng tay
+        updateStatus(auctionStatus);
+    }
+
+    // --- Các Getter và Setter giữ nguyên ---
+    public Map<String, String> getProperties() { if (this.properties == null) this.properties = new HashMap<>(); return this.properties; }
+    public void setProperties(Map<String, String> properties) { this.properties = properties; }
+    public void setDatabaseId(int id) { this.databaseId = id; }
+    public int getDatabaseId() { return databaseId; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public double getStartingPrice() { return startingPrice; }
+    public double getMinBid() { return minBid; }
+    public double getCurrentHighestPrice() { return currentHighestPrice; }
+    public void updateCurrentHighestPrice(double currentHighestPrice) { this.currentHighestPrice = currentHighestPrice; }
+    public Instant getAuctionStartTime() { return auctionStartTime; }
+    public Instant getAuctionEndTime() { return auctionEndTime; }
+    public void updateAuctionEndTime(Instant auctionEndTime) { this.auctionEndTime = auctionEndTime; }
+    public String getSellerId() { return sellerId; }
+    public String getImg(){ return img; }
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setStartingPrice(double startingPrice) { this.startingPrice = startingPrice; }
+    public void setMinBid(double minBid) { this.minBid = minBid; }
+    public void setCurrentHighestPrice(double currentHighestPrice) { this.currentHighestPrice = currentHighestPrice; }
+    public void setAuctionStartTime(Instant auctionStartTime) { this.auctionStartTime = auctionStartTime; }
+    public void setAuctionEndTime(Instant auctionEndTime) { this.auctionEndTime = auctionEndTime; }
+    public void setSellerId(String sellerId) { this.sellerId = sellerId; }
+    public void setItemType(ItemType itemType) { this.itemType = itemType; }
+    public void setImg(String img) { this.img = img; }
+    public ItemType getRawItemType() { return this.itemType; }
+
+    public String getItemType() {
+        if (itemType == null) return "";
+        return switch (itemType) {
+            case ART -> "Mỹ thuật";
+            case ELECTRONICS -> "Điện tử";
+            case VEHICLE -> "Phương tiện giao thông";
+            default -> itemType.toString();
+        };
     }
 }

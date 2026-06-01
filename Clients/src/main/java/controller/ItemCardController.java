@@ -71,7 +71,7 @@ public class ItemCardController {
             }
         }
 
-        watchToken = auctionEngine.watchItem(item, (status, secondsToNext) -> Platform.runLater(() -> {
+        watchToken = String.valueOf(auctionEngine.watchItem(item, (status, secondsToNext) -> Platform.runLater(() -> {
             switch (status) {
                 case OPEN -> j_status.setText("CHƯA DIỄN RA (" + formatDuration(secondsToNext) + ")");
                 case RUNNING -> j_status.setText("ĐANG DIỄN RA (" + formatDuration(secondsToNext) + ")");
@@ -79,7 +79,7 @@ public class ItemCardController {
                 case PAID -> j_status.setText("ĐÃ THANH TOÁN");
                 case CANCELLED -> j_status.setText("ĐÃ HỦY");
             }
-        }));
+        })));
 
         j_name.sceneProperty().addListener((observable, oldScene, newScene) -> {
             if (newScene == null && watchToken != null) {

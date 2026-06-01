@@ -18,6 +18,7 @@ public class DAOAuction_Items {
         return INSTANCE;
     }
 
+    // Đảm bảo class GsonUtils tồn tại và hoạt động đúng trong dự án của bạn
     private final Gson gson = GsonUtils.createGson();
 
     public int Insert(Auction auction, Item item) {
@@ -28,7 +29,10 @@ public class DAOAuction_Items {
 
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
-            pstmt.setString(3, auction.getStatus() != null ? auction.getStatus().name() : AuctionStatus.OPEN.name());
+
+            // ✅ ĐÃ SỬA: Bọc Enum status thành chuỗi JSON hợp lệ bằng gson.toJson
+            String rawStatus = auction.getStatus() != null ? auction.getStatus().name() : AuctionStatus.OPEN.name();
+            pstmt.setString(3, gson.toJson(rawStatus));
 
             String leadingUsername = auction.getLeadingBidder();
             pstmt.setString(4, leadingUsername);
@@ -89,7 +93,8 @@ public class DAOAuction_Items {
     public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            pstmt.setString(1, status.name());
+            // ✅ ĐÃ SỬA: Convert enum status sang định dạng chuỗi JSON bằng gson.toJson
+            pstmt.setString(1, gson.toJson(status.name()));
             pstmt.setLong(2, item1.getDatabaseId());
 
             int rowsAffected = pstmt.executeUpdate();
@@ -115,7 +120,9 @@ public class DAOAuction_Items {
             pstmt.setLong(1, item.getDatabaseId());
             pstmt.setString(2, item.getSellerId());
             pstmt.setDouble(3, item.getCurrentHighestPrice());
-            pstmt.setString(4, AuctionStatus.OPEN.name());
+
+            // ✅ ĐÃ SỬA: Convert giá trị mặc định sang chuỗi JSON hợp lệ
+            pstmt.setString(4, gson.toJson(AuctionStatus.OPEN.name()));
 
             return pstmt.executeUpdate();
         } catch (SQLException e) {

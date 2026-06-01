@@ -374,6 +374,41 @@ public class ControllerEditProduct implements ServerListener {
                 }
             });
         }
+        // 🚀 2. ĐÃ SỬA: Đón nhận cập nhật trạng thái Real-time từ Engine tự động quét
+        if (Command.UPDATE_AUCTION_STATUS.equals(response.command())) {
+            if (response.payload() instanceof Map<?, ?> map) {
+                try {
+                    if (map.containsKey("itemId") && map.get("itemId") != null) {
+                        String itemIdStr = map.get("itemId").toString();
+                        long targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).longValue() : Long.parseLong(itemIdStr);
+                        String newStatusStr = map.get("newStatus") != null ? map.get("newStatus").toString() : "";
+
+                        Platform.runLater(() -> {
+                            System.out.println("[Seller Realtime] Sản phẩm " + targetItemId + " đã chuyển sang trạng thái: " + newStatusStr);
+
+                            // ✅ THAY THẾ: Sử dụng biến currentItem thay cho item1
+                            if (currentItem != null && currentItem.getDatabaseId() == targetItemId) {
+                                try {
+                                    this.currentStatus = AuctionStatus.valueOf(newStatusStr);
+
+                                    // Tự động kích hoạt lại các quy tắc khóa/mở trường nhập liệu (TextField)
+                                    // dựa trên trạng thái mới mà không cần Seller phải F5 quay lại màn hình
+                                    applyPermissionRules();
+
+                                    error_Label.setTextFill(Color.ORANGE);
+                                    error_Label.setText("Trạng thái phòng đấu giá vừa được hệ thống cập nhật thành: " + newStatusStr);
+                                    error_Label.setVisible(true);
+                                } catch (Exception ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    System.err.println("Lỗi xử lý đồng bộ trạng thái phía Seller: " + e.getMessage());
+                }
+            }
+        }
         if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
             User user = UserSession.getLoggedInUser();
             Map<String, Object> notifData = (Map<String, Object>) response.payload();

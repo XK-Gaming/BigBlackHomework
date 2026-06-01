@@ -103,7 +103,42 @@ public class ControllerBidHistory implements ServerListener {
             return;
         }
 
-        // TRƯỜNG HỢP 2: Cập nhật biến động Realtime từng Item từ sảnh hoặc kết quả Bid cá nhân
+        //  TRƯỜNG HỢP MỚI: Đón nhận sự thay đổi trạng thái tự động từ Engine quét định kỳ
+        if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
+            if (response.payload() instanceof Map<?, ?> map) {
+                try {
+                    if (map.containsKey("itemId") && map.get("itemId") != null) {
+                        String itemIdStr = map.get("itemId").toString();
+                        long targetItemId = itemIdStr.contains(".") ? Double.valueOf(itemIdStr).longValue() : Long.parseLong(itemIdStr);
+                        String newStatusStr = map.get("newStatus") != null ? map.get("newStatus").toString() : "";
+
+                        Platform.runLater(() -> {
+                            System.out.println("[Client History Realtime] Item " + targetItemId + " đổi trạng thái sang: " + newStatusStr);
+
+                            // Cập nhật trạng thái mới trực tiếp vào danh sách dữ liệu trong bộ nhớ RAM của Client
+                            boolean isUpdated = false;
+                            for (BidHistoryDTO dto : allHistoryData) {
+                                // Hãy chắc chắn rằng BidHistoryDTO của bạn có hàm getId() hoặc getItemId() tương ứng nhé
+                                if (dto.getItemId() == targetItemId) {
+                                    dto.setStatus(newStatusStr); // Cập nhật trạng thái chữ (Ví dụ: FINISHED, RUNNING)
+                                    isUpdated = true;
+                                }
+                            }
+
+                            // Nếu tìm thấy item trong list lịch sử hiện tại, vẽ lại giao diện Table/List để đồng bộ chữ ngay
+                            if (isUpdated) {
+                                updateUIWithData(this.allHistoryData);
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    System.err.println("Không thể bóc tách trạng thái tại Lịch sử: " + e.getMessage());
+                }
+                return;
+            }
+        }
+
+        // TRƯỜNG HỢP 3: Cập nhật biến động Realtime từng Item từ sảnh hoặc kết quả Bid cá nhân
         if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command) || Command.BID_RESULT.equals(command)) {
             Object payload = response.payload();
             if (payload == null) return;
@@ -123,8 +158,7 @@ public class ControllerBidHistory implements ServerListener {
                 updatedItemId = item.getDatabaseId();
                 updatedPrice = item.getCurrentHighestPrice();
             }
-            // 3. ✅ SỬA ĐỔI: Gia cố bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
-// Thay thế đoạn bóc tách cấu trúc Map (Khối else if số 3) bằng đoạn mã sau:
+            // 3. Khối bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
             else if (payload instanceof Map<?, ?> map) {
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
@@ -147,7 +181,7 @@ public class ControllerBidHistory implements ServerListener {
                             highestBidder = map.get("username").toString();
                         }
 
-                        // --- THÊM: BÓC TÁCH TÊN SẢN PHẨM TỪ MAP REALTIME ---
+                        // BÓC TÁCH TÊN SẢN PHẨM TỪ MAP REALTIME
                         String updatedItemName = "";
                         if (map.get("name") != null) {
                             updatedItemName = map.get("name").toString();
@@ -159,10 +193,9 @@ public class ControllerBidHistory implements ServerListener {
                             final long targetId = updatedItemId;
                             final double targetPrice = updatedPrice;
                             final String topBidder = highestBidder;
-                            final String finalItemName = updatedItemName; // Gán biến final chuyển vào luồng UI
+                            final String finalItemName = updatedItemName;
 
                             Platform.runLater(() -> {
-                                // Truyền thêm tham số tên sản phẩm vào hàm cập nhật
                                 updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
 
                                 if (Command.BID_RESULT.equals(command)) {
@@ -170,7 +203,7 @@ public class ControllerBidHistory implements ServerListener {
                                     System.out.println("[Client History] Đã cập nhật xong kết quả BID_RESULT cho Item: " + targetId);
                                 }
                             });
-                            return; // Ngăn luồng chạy xuống khối check updatedItemId phía dưới cũ
+                            return;
                         }
                     }
                 } catch (Exception e) {
@@ -180,14 +213,12 @@ public class ControllerBidHistory implements ServerListener {
                 }
             }
 
-            // Tiến hành cập nhật luồng UI an toàn
-            // Khối xử lý luồng UI an toàn ở cuối hàm onServerResponse của bạn:
+            // Tiến hành cập nhật luồng UI an toàn cho trường hợp Object là Auction hoặc Item
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
                 final String topBidder = highestBidder;
 
-                // Thu thập tên từ Auction hoặc Item nếu có
                 String tempName = "";
                 if (payload instanceof Auction auction && auction.getItem() != null) {
                     tempName = auction.getItem().getName();
@@ -197,7 +228,6 @@ public class ControllerBidHistory implements ServerListener {
                 final String finalItemName = tempName;
 
                 Platform.runLater(() -> {
-                    // Truyền thêm finalItemName vào hàm
                     updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
 
                     if (Command.BID_RESULT.equals(command)) {
@@ -207,6 +237,8 @@ public class ControllerBidHistory implements ServerListener {
                 });
             }
         }
+
+        // TRƯỜNG HỢP 4: Tài khoản bị cưỡng chế đăng xuất do Admin xử lý danh sách đen
         if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);

@@ -882,7 +882,7 @@ public class ControllerAuction implements ServerListener {
         if (item1 == null) return;
         cleanup();
         finishHandled = false;
-        watchToken = auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
+        watchToken = String.valueOf(auctionEngine.watchItem(item1, (status, secondsToNextChange) -> Platform.runLater(() -> {
             if (this_Auction != null) {
                 this_Auction.setStatus(status);
             }
@@ -913,7 +913,7 @@ public class ControllerAuction implements ServerListener {
                     j_status.setText(status == AuctionStatus.PAID ? "ĐÃ THANH TOÁN" : "ĐÃ HỦY");
                 }
             }
-        }));
+        })));
     }
 
     private javafx.stage.Stage findValidStage() {
@@ -1085,26 +1085,73 @@ public class ControllerAuction implements ServerListener {
 
     @Override
     public void onServerResponse(DataPacket response) {
+        if (response == null || response.command() == null) return;
+
         DecimalFormat df = new DecimalFormat("#,###");
         Command command = response.command();
 
+        // 1. Xử lý tải dữ liệu phiên đấu giá ban đầu
         if (Command.GET_AUCTION_RESULT.equals(command)) {
-            this_Auction = (Auction) response.payload();
-            onAuctionDataLoaded(this_Auction);
-            syncAuctionSnapshot(this_Auction);
+            // Đã sửa: Ép kiểu an toàn bằng cách kiểm tra instanceof trước để tránh crash app
+            if (response.payload() instanceof Auction) {
+                this_Auction = (Auction) response.payload();
+                onAuctionDataLoaded(this_Auction);
+                syncAuctionSnapshot(this_Auction);
 
-            Platform.runLater(() -> {
-                if (this_Auction != null) {
-                    updateBidChart(this_Auction.getBidHistory());
-                } else {
+                Platform.runLater(() -> {
+                    if (this_Auction != null) {
+                        updateBidChart(this_Auction.getBidHistory());
+                    }
+                });
+            } else {
+                // Payload trả về null hoặc báo lỗi
+                Platform.runLater(() -> {
                     j_notified.setText("Phiên đấu giá không tồn tại hoặc đã bị xóa.");
                     j_notified.setVisible(true);
                     j_status.setText("KHÔNG TỒN TẠI");
                     j_status.setVisible(true);
-                }
-            });
+                });
+            }
         }
 
+        // 2. KÍCH HOẠT REAL-TIME: Nhận cập nhật trạng thái tự động từ AuctionEngine gửi về
+        if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
+            if (response.payload() instanceof Map) {
+                Map<?, ?> updateData = (Map<?, ?>) response.payload();
+                String itemIdStr = String.valueOf(updateData.get("itemId"));
+                String newStatusStr = String.valueOf(updateData.get("newStatus"));
+
+                // Kiểm tra xem có đúng là sản phẩm người dùng hiện tại đang đứng xem không
+                if (item1 != null && String.valueOf(item1.getDatabaseId()).equals(itemIdStr)) {
+                    Platform.runLater(() -> {
+                        try {
+                            AuctionStatus newStatus = AuctionStatus.valueOf(newStatusStr);
+                            if (this_Auction != null) {
+                                this_Auction.setStatus(newStatus);
+                            }
+
+                            j_status.setText(newStatusStr);
+
+                            // Nếu phiên kết thúc tự động hoặc bị sếp đóng ngầm
+                            if (newStatus == AuctionStatus.FINISHED ) {
+                                j_status.setTextFill(Color.web("#e74c3c")); // Đổi chữ sang màu đỏ
+                                j_apply.setDisable(true);                  // Khóa cứng nút đặt giá
+                                setAutoBidToggleSelected(false);          // Tắt tự động đặt giá
+                                j_notified.setText("Phiên đấu giá đã khép lại theo thời gian quy định.");
+                                j_notified.setVisible(true);
+                            } else if (newStatus == AuctionStatus.RUNNING) {
+                                j_status.setTextFill(Color.web("#2ecc71")); // Đổi màu xanh lá
+                                j_apply.setDisable(false);                 // Kích hoạt mở nút
+                            }
+                        } catch (Exception e) {
+                            System.err.println("Lỗi đồng bộ trạng thái Real-time: " + e.getMessage());
+                        }
+                    });
+                }
+            }
+        }
+
+        // 3. Có người khác trong phòng vừa đặt giá thành công
         if (Command.BID_UPDATE.equals(command)) {
             Map<String, Object> update = (Map<String, Object>) response.payload();
             String itemId = String.valueOf(update.get("itemId"));
@@ -1155,6 +1202,7 @@ public class ControllerAuction implements ServerListener {
             });
         }
 
+        // 4. Kết quả đặt giá của CHÍNH BẢN THÂN gửi lên
         if (Command.BID_RESULT.equals(command)) {
             if (response.payload() instanceof Map) {
                 Map<String, Object> result = (Map<String, Object>) response.payload();
@@ -1179,6 +1227,7 @@ public class ControllerAuction implements ServerListener {
             }
         }
 
+        // 5. Kết quả thiết lập phòng đấu giá
         if (Command.SET_AUCTION_RESULT.equals(command)) {
             if (response.payload() instanceof Map) {
                 Map<?, ?> responsePayload = (Map<?, ?>) response.payload();
@@ -1194,57 +1243,56 @@ public class ControllerAuction implements ServerListener {
             }
         }
 
+        // 6. Admin hoặc Seller tạm dừng phiên đấu giá giữa chừng
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                // CHỐT CHẶN 1: Bỏ qua nếu giao diện này đã bị đóng hoặc ẩn ngầm
-                if (j_notified == null || j_notified.getScene() == null) {
-                    System.out.println(">>> [Bỏ qua] Nhận được tin SET_ALLOW_RESULT nhưng màn hình này không active.");
-                    return;
-                }
+                if (j_notified == null || j_notified.getScene() == null) return;
 
-                // 1. Tạo Alert dạng thông báo thuần túy (không block luồng)
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Thông báo");
                 alert.setHeaderText("Phiên đấu giá bị tạm dừng!");
                 alert.setContentText("Hệ thống sẽ tự động đưa bạn về màn hình chính sau 4 giây...");
-
-                // Sử dụng show() thay vì showAndWait() để code tiếp tục chạy xuống dưới
                 alert.show();
 
-                // 2. Thiết lập đồng hồ đếm ngược 4 giây bằng Timeline của JavaFX
                 Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(4), event -> {
-                    // Đoạn code bên trong này sẽ TỰ ĐỘNG CHẠY sau khi hết 4 giây
-
-                    // Tự động đóng hộp thoại Alert lại (tránh việc nó treo trên màn hình mới)
                     if (alert.isShowing()) {
                         alert.close();
                     }
-
-                    // Kiểm tra lại một lần nữa xem người dùng có tắt màn hình trong lúc đợi 4s không
                     if (j_notified != null && j_notified.getScene() != null) {
-                        SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");}
+                        SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
+                    }
                 }));
-
-                // Kích hoạt đồng hồ chạy
                 timeline.play();
             });
         }
 
+        // 7. Kết quả cài đặt AutoBid
         if (Command.SET_AUTO_BID_RESULT.equals(command)) {
             handleAutoBidResult(response.payload());
         }
 
+        // 8. ĐÃ SỬA: Gom gộp duy nhất một khối xử lý Xóa sản phẩm chuẩn xác theo cấu trúc Map dữ liệu
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
-            Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Thông báo");
-                alert.setHeaderText("Sản phẩm đã bị xóa!");
-                alert.setContentText("Hệ thống sẽ chuyển bạn về màn hình chính.");
-                alert.showAndWait();
-                SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
-            });
+            if (response.payload() instanceof Map) {
+                Map<String, Object> result = (Map<String, Object>) response.payload();
+                boolean isSuccess = (boolean) result.getOrDefault("success", false);
+                String message = (String) result.getOrDefault("message", "Sản phẩm này đã bị xóa khỏi hệ thống.");
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(isSuccess ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
+                    alert.setTitle("Thông báo");
+                    alert.setHeaderText(null);
+                    alert.setContentText(message);
+                    alert.showAndWait();
+
+                    if (j_notified != null && j_notified.getScene() != null) {
+                        SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
+                    }
+                });
+            }
         }
 
+        // 9. Nhận thông báo chung hoặc thông báo Toast biến động số dư nạp tiền
         if (Command.NOTIFICATION.equals(command)) {
             if (response.payload() instanceof Map<?, ?> notificationPayload) {
                 Platform.runLater(() -> syncLoggedInUserFromNotification(notificationPayload));
@@ -1252,6 +1300,7 @@ public class ControllerAuction implements ServerListener {
             handleIncomingToastNotification(response.payload());
         }
 
+        // 10. Biến động số dư tài khoản trực tiếp
         if (Command.BALANCE_UPDATE.equals(command)) {
             Platform.runLater(() -> {
                 if (UserBalanceSync.applyBalancePayload(response.payload())) {
@@ -1261,31 +1310,13 @@ public class ControllerAuction implements ServerListener {
             });
         }
 
-        if (Command.DELETE_ITEM_RESULT.equals(command)) {
-            if (response.payload() instanceof Map) {
-                Map<String, Object> result = (Map<String, Object>) response.payload();
-                boolean isSuccess = (boolean) result.getOrDefault("success", false);
-                String message = (String) result.getOrDefault("message", "Phiên đấu giá bị đóng.");
-
-                Platform.runLater(() -> {
-                    Alert alert = new Alert(isSuccess ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
-                    alert.setTitle("Thông báo");
-                    alert.setHeaderText(null);
-                    alert.setContentText(message);
-                    alert.showAndWait();
-
-                    // Nếu không phải seller xóa thành công (tức là người xem bị ép đóng phiên)
-                    // hoặc kể cả seller xóa xong thì đều chuyển hướng về sảnh chính
-                    SceneHelper.changeScene(j_notified, "/fxml/BidderView.fxml");
-                });
-            }
-        }
+        // 11. Tài khoản bị cưỡng chế đăng xuất (Do Admin xử lý danh sách đen)
         if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Tài khoản bị xóa");
                 alert.setHeaderText(null);
-                alert.setContentText("Tài khoản của bạn đã bị Admin xóa. Ứng dụng sẽ tự đóng.");
+                alert.setContentText("Tài khoản của bạn đã bị Admin xóa khỏi hệ thống. Ứng dụng sẽ tự động đóng.");
                 alert.showAndWait();
                 System.exit(0);
             });
