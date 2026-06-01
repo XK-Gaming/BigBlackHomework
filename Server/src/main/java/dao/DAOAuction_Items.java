@@ -87,12 +87,15 @@ public class DAOAuction_Items {
     }
 
     public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) throws SQLException {
-        // Use an explicit transaction and SELECT ... FOR UPDATE to lock the row and avoid
-        // race conditions with concurrent bidders or background engine updates.
-        boolean previousAutoCommit = con.getAutoCommit();
-        try {
+        // If the caller already manages the transaction (autoCommit == false), avoid
+        // committing/rolling back inside this helper. Only manage transaction when
+        // this method opened the connection (autoCommit == true).
+        boolean manageTransaction = con.getAutoCommit();
+        if (manageTransaction) {
             con.setAutoCommit(false);
+        }
 
+        try {
             String selectSql = "SELECT status FROM auction_items WHERE id_item = ? FOR UPDATE";
             try (PreparedStatement sel = con.prepareStatement(selectSql)) {
                 sel.setLong(1, item1.getDatabaseId());
@@ -103,11 +106,11 @@ public class DAOAuction_Items {
 
                         // If no change in status, nothing to do.
                         if (current == null && newStatusJson == null) {
-                            con.commit();
+                            if (manageTransaction) con.commit();
                             return;
                         }
                         if (current != null && current.equals(newStatusJson)) {
-                            con.commit();
+                            if (manageTransaction) con.commit();
                             return;
                         }
 
@@ -123,12 +126,17 @@ public class DAOAuction_Items {
                     }
                 }
             }
-            con.commit();
+
+            if (manageTransaction) con.commit();
         } catch (SQLException e) {
-            try { con.rollback(); } catch (SQLException ex) { /* ignore rollback error */ }
+            if (manageTransaction) {
+                try { con.rollback(); } catch (SQLException ex) { /* ignore rollback error */ }
+            }
             throw e;
         } finally {
-            try { con.setAutoCommit(previousAutoCommit); } catch (SQLException ignored) {}
+            if (manageTransaction) {
+                try { con.setAutoCommit(true); } catch (SQLException ignored) {}
+            }
         }
     }
 

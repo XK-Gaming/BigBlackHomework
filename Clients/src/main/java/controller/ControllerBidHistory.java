@@ -117,10 +117,26 @@ public class ControllerBidHistory implements ServerListener {
 
                             // Cập nhật trạng thái mới trực tiếp vào danh sách dữ liệu trong bộ nhớ RAM của Client
                             boolean isUpdated = false;
+                            // Nếu Server báo FINISHED — có thể DB chưa đồng bộ endTime khi anti-sniping kéo dài,
+                            // nên yêu cầu tải lại toàn bộ lịch sử từ Server để có trạng thái chính xác.
+                            if ("FINISHED".equalsIgnoreCase(newStatusStr)) {
+                                // Tải lại dữ liệu lịch sử từ Server để tránh hiện trạng sai khi thời gian bị kéo dài
+                                new Thread(this::requestDataFromServer).start();
+                                return;
+                            }
                             for (BidHistoryDTO dto : allHistoryData) {
-                                // Hãy chắc chắn rằng BidHistoryDTO của bạn có hàm getId() hoặc getItemId() tương ứng nhé
                                 if (dto.getItemId() == targetItemId) {
-                                    dto.setStatus(newStatusStr); // Cập nhật trạng thái chữ (Ví dụ: FINISHED, RUNNING)
+                                    // Server có thể gửi trạng thái RUNNING; chuyển sang WINNING/OUTBID cho hiển thị lịch sử
+                                    if ("RUNNING".equalsIgnoreCase(newStatusStr)) {
+                                        if (dto.getMyHighestBid() >= dto.getCurrentHighestPrice()) {
+                                            dto.setStatus("WINNING");
+                                        } else {
+                                            dto.setStatus("OUTBID");
+                                        }
+                                    } else {
+                                        // Fallback: giữ nguyên mapping nếu Server gửi WON/LOST/WINNING/OUTBID
+                                        dto.setStatus(newStatusStr);
+                                    }
                                     isUpdated = true;
                                 }
                             }
