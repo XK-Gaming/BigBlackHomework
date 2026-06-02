@@ -77,13 +77,21 @@ public class ControllerEditProduct implements ServerListener {
     @FXML private Button btnUploadImage;
     @FXML private Button btnSave;
     @FXML private Label error_Label;
+    private ConnectionStatusManager statusManager;
+
 
     private ActionEvent currentEvent;
+    @FXML
+    private javafx.scene.shape.Circle connectionStatus;
+
+    @FXML
+    private Label connectionText;
 
     @FXML
     public void initialize() {
         client.addListener(this);
-
+        statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
+        statusManager.startMonitoring();
         initCloudinary();
 
         categoryPaneMap.put("Mỹ thuật", j_paneArt);

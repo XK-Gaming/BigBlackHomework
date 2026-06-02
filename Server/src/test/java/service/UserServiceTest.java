@@ -944,16 +944,6 @@ class UserServiceTest {
             setStatus(status);
         }
 
-        @Override
-        public AuctionStatus getStatus() {
-            return status;
-        }
-
-        @Override
-        public void setStatus(AuctionStatus status) {
-            this.status = status;
-            super.setStatus(status);
-        }
 
     }
 
@@ -1008,10 +998,6 @@ class UserServiceTest {
             return user != null && user.getUsername().equals(username) ? user : null;
         }
 
-        @Override
-        public User selectByUsernameOnly(Connection con, String username) {
-            return selectByUsernameOnly(username);
-        }
 
         @Override
         public int UpdateBalance(String username, double newBalance) {
@@ -1023,10 +1009,6 @@ class UserServiceTest {
             return 0;
         }
 
-        @Override
-        public int UpdateBalance(Connection con, String username, double newBalance) {
-            return UpdateBalance(username, newBalance);
-        }
 
         @Override
         public void Update(User user) {
@@ -1045,10 +1027,6 @@ class UserServiceTest {
             return 0;
         }
 
-        @Override
-        public int UpdateDepositHistory(Connection con, String username, List<DepositTransaction> history) {
-            return UpdateDepositHistory(username, history);
-        }
 
         @Override
         public List<DepositTransaction> getAllPendingDeposits() {
@@ -1222,10 +1200,6 @@ class UserServiceTest {
             }
         }
 
-        @Override
-        public void Update_Status(Connection con, Auction auction, Item item1, AuctionStatus status) {
-            Update_Status(auction, item1, status);
-        }
     }
 
     /**

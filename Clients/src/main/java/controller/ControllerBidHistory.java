@@ -407,9 +407,14 @@ public class ControllerBidHistory implements ServerListener {
 
         VBox priceSection = new VBox(4);
         priceSection.setAlignment(Pos.CENTER_RIGHT);
-        Label myBidLabel = new Label("Mức đặt của bạn: $" + dto.getMyHighestBid());
+        double myHighestBid = dto.getMyHighestBid();
+        double currentHighestPrice = dto.getCurrentHighestPrice();
+
+// Định dạng hiển thị chuỗi tiền tệ VNĐ (ví dụ: 10,000,000 VNĐ)
+        Label myBidLabel = new Label(String.format("Mức đặt của bạn: %,.0f VNĐ", myHighestBid));
         myBidLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #424242;");
-        Label currentMaxLabel = new Label("Giá hiện tại: $" + dto.getCurrentHighestPrice());
+
+        Label currentMaxLabel = new Label(String.format("Giá hiện tại: %,.0f VNĐ", currentHighestPrice));
         currentMaxLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #E65100;");
         priceSection.getChildren().addAll(myBidLabel, currentMaxLabel);
 

@@ -1018,7 +1018,7 @@ public class ControllerAuction implements ServerListener {
                 bidLineChart.setTitle("Chưa có lượt đấu giá nào");
                 return;
             }
-
+             bidLineChart.setTitle("Lịch sử đấu giá (" + historyList.size() + " lượt)");
             XYChart.Series<String, Number> series = new XYChart.Series<>();
             series.setName("Giá đấu (VNĐ)");
 

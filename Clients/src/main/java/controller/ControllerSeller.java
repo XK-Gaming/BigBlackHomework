@@ -31,16 +31,14 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 
 public class ControllerSeller implements ServerListener {
+    private User user = UserSession.getLoggedInUser();
 
-    // Tối ưu 1: Bỏ 'static', chuyển thành Instance Variable để an toàn bộ nhớ
     private File selectedFile = null;
     private String uploadedImageUrl = null;
     private Cloudinary cloudinary;
 
     private final AuctionClient client = AuctionClient.getInstance();
     private final String[] categoryList = new String[]{"Mỹ thuật", "Điện tử", "Phương tiện giao thông"};
-
-    // Tối ưu 2: Dùng Map để quản lý việc ẩn hiện Pane gọn gàng
     private final Map<String, HBox> categoryPaneMap = new HashMap<>();
 
     @FXML private Button j_ApplyItem;
@@ -61,7 +59,6 @@ public class ControllerSeller implements ServerListener {
     @FXML private Label connectionText;
     private ConnectionStatusManager statusManager;
 
-    // Sửa kiểu dữ liệu từ Pane -> HBox cho khớp chuẩn với FXML
     @FXML private HBox j_paneArt;
     @FXML private HBox j_paneElectronics;
     @FXML private HBox j_paneVehicle;
@@ -71,6 +68,8 @@ public class ControllerSeller implements ServerListener {
     @FXML private TextField j_model;
     @FXML private TextField j_artist;
     @FXML private TextField j_brand;
+
+    @FXML private Label j_textSoDu;
 
     public void initialize() {
         client.addListener(this);
@@ -89,17 +88,13 @@ public class ControllerSeller implements ServerListener {
 
         // Đồng bộ hiển thị Form mở rộng ngay từ đầu
         handle_Info(null);
-
-        User user = UserSession.getLoggedInUser();
         if (user != null) {
             j_LabelName.setText(user.getName());
             DecimalFormat df = new DecimalFormat("#,###");
             j_textSoDu.setText(df.format(user.getBalance()) + " VNĐ");
         }
 
-        client.addListener(this);
-
-        // Chặn ngày hợp lệ (Giữ nguyên logic tốt của bạn)
+        // Chặn ngày hợp lệ
         j_DateStart.setDayCellFactory(picker -> new DateCell() {
             @Override
             public void updateItem(LocalDate date, boolean empty) {
@@ -124,7 +119,6 @@ public class ControllerSeller implements ServerListener {
         });
     }
 
-    // Tối ưu Bảo mật: Đọc cấu hình từ file bên ngoài thay vì Hardcode
     private void initCloudinary() {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
             Properties prop = new Properties();
@@ -136,8 +130,7 @@ public class ControllerSeller implements ServerListener {
                         "api_secret", prop.getProperty("cloudinary.api_secret")
                 ));
             } else {
-                // Fallback nếu thiếu file cấu hình (Cảnh báo lập trình viên)
-                System.err.println("Warning: config.properties not found. Using hardcoded credentials temporary.");
+                System.err.println("Warning: client.properties not found. Using hardcoded credentials temporary.");
                 cloudinary = new Cloudinary(ObjectUtils.asMap(
                         "cloud_name", "dpkehgjjp", "api_key", "168924452148875", "api_secret", "JUjgUwOOFx0UegeGWa3VySf-wW4"
                 ));
@@ -151,7 +144,6 @@ public class ControllerSeller implements ServerListener {
         LocalDate date = j_date.getValue();
         String timeStr = j_time.getText().trim();
 
-        // Chuẩn hóa chuỗi thời gian nếu người dùng lỡ nhập thiếu giây (ví dụ: "15:30" -> "15:30:00")
         if (timeStr.matches("^\\d{1,2}:\\d{2}$")) {
             timeStr += ":00";
         }
@@ -164,19 +156,13 @@ public class ControllerSeller implements ServerListener {
                 .toInstant();
     }
 
-    // Helper to parse money inputs tolerating commas/spaces and returning double
     private double parseMoneyField(String value) throws NumberFormatException {
         if (value == null || value.trim().isEmpty()) throw new NumberFormatException();
-        try {
-            return Double.parseDouble(value.replace(",", "").replace(" ", "").trim());
-        } catch (NumberFormatException e) {
-            throw e;
-        }
+        return Double.parseDouble(value.replace(",", "").replace(" ", "").trim());
     }
 
     @FXML
     void handle_Items() {
-        // --- BẮT ĐẦU PHẦN KIỂM TRA THÔNG TIN BẮT BUỘC CHI TIẾT ---
         if (j_name.getText().trim().isEmpty()) {
             showError("Vui lòng nhập Tên sản phẩm (*)");
             j_name.requestFocus();
@@ -203,22 +189,18 @@ public class ControllerSeller implements ServerListener {
             return;
         }
         if (j_MinBid.getText().trim().isEmpty()) {
-            showError("Vui long nhap MinBid (*)");
+            showError("Vui lòng nhập mức đấu tối thiểu MinBid (*)");
             j_MinBid.requestFocus();
             return;
         }
-        // --- KẾT THÚC KIỂM TRA THÔNG TIN BẮT BUỘC ---
 
         j_ApplyItem.setDisable(true);
         error_Label.setTextFill(Color.BLACK);
         error_Label.setText("Đang xử lý dữ liệu và tải ảnh lên...");
         error_Label.setVisible(true);
 
-        User user = UserSession.getLoggedInUser();
-
         ClientNetworkExecutor.execute(() -> {
             try {
-                // Tải ảnh lên Cloudinary
                 if (selectedFile != null) {
                     uploadedImageUrl = uploadToCloudinary(selectedFile);
                     if (uploadedImageUrl == null) {
@@ -226,7 +208,6 @@ public class ControllerSeller implements ServerListener {
                     }
                 }
 
-                // Xử lý và kiểm tra Logic Thời gian
                 Instant start, end;
                 try {
                     start = createInstant(j_DateStart, j_TimeStart);
@@ -246,7 +227,6 @@ public class ControllerSeller implements ServerListener {
                     return;
                 }
 
-                // Kiểm tra Logic giá tiền
                 double startingPrice;
                 double minBid;
                 try {
@@ -257,16 +237,15 @@ public class ControllerSeller implements ServerListener {
                     return;
                 }
 
-                // Đóng gói extra fields dựa trên loại mặt hàng chọn
                 try {
                     minBid = parseMoneyField(j_MinBid.getText());
                     if (minBid <= 0) throw new NumberFormatException();
                     if (minBid > startingPrice * 0.2) {
-                        showErrorInUIThread("MinBid khong duoc vuot qua 20% gia khoi diem!");
+                        showErrorInUIThread("MinBid không được vượt quá 20% giá khởi điểm!");
                         return;
                     }
                 } catch (NumberFormatException e) {
-                    showErrorInUIThread("MinBid phai la so duong hop le!");
+                    showErrorInUIThread("MinBid phải là số dương hợp lệ!");
                     return;
                 }
 
@@ -312,12 +291,11 @@ public class ControllerSeller implements ServerListener {
 
         File file = fileChooser.showOpenDialog(((Node) event.getSource()).getScene().getWindow());
         if (file != null) {
-            this.selectedFile = file; // Lưu vào instance variable
+            this.selectedFile = file;
             MyImgView.setImage(new Image(file.toURI().toString()));
         }
     }
 
-    // Tối ưu 3: Hàm xử lý thông tin ẩn hiện cực kỳ Clean & mở rộng dễ dàng
     @FXML
     void handle_Info(ActionEvent event) {
         String selectedCategory = j_ItemType.getValue();
@@ -331,11 +309,18 @@ public class ControllerSeller implements ServerListener {
     @FXML
     void On_LogOut(ActionEvent event) {
         try {
-            client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
+            if (user != null) {
+                client.sendCommand(Command.LOGOUT, user.getUsername());
+            }
         } catch (IOException e) {
             System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
-            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
         }
+    }
+
+    @FXML
+    void On_ProductList(ActionEvent event) {
+        client.removeListener(this);
+        SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
     }
 
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
@@ -361,9 +346,9 @@ public class ControllerSeller implements ServerListener {
         if (Command.CREATE_ITEM_RESULT.equals(response.command())) {
             boolean isSuccess = (boolean) response.payload();
             Platform.runLater(() -> {
-                j_ApplyItem.setDisable(false); // Mở lại nút bấm sau khi nhận phản hồi
+                j_ApplyItem.setDisable(false);
                 if (isSuccess) {
-                    error_Label.setTextFill(Color.GREEN); // Chuyển xanh lục chuẩn thành công thay vì xanh lam
+                    error_Label.setTextFill(Color.GREEN);
                     error_Label.setText("Đăng bán sản phẩm thành công!");
                 } else {
                     showError("Đăng bán sản phẩm thất bại từ phía máy chủ.");
@@ -373,15 +358,6 @@ public class ControllerSeller implements ServerListener {
         if (Command.NOTIFICATION.equals(response.command())) {
             Platform.runLater(() -> {
                 ControllerNotificationSeller.handleIncomingToastNotificationSeller(response.payload(), j_textSoDu);
-            });
-        }
-        if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
-            User user = UserSession.getLoggedInUser();
-            Map<String, Object> notifData = (Map<String, Object>) response.payload();
-            Item item = (Item) notifData.get("item");
-            user.setBalance(user.getBalance() + item.getCurrentHighestPrice());
-            Platform.runLater(() -> {
-                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
             });
         }
         if (Command.SET_ALLOW_RESULT.equals(response.command())) {
@@ -444,14 +420,10 @@ public class ControllerSeller implements ServerListener {
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
             });
         }
+        if (Command.NOTIFICATION_BIDDER_PAY.equals(response.command())){
+            Platform.runLater(() -> {
+                ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, user);
+            });
+        }
     }
-    @FXML
-    private Label j_textSoDu;
-
-    @FXML
-    void On_ProductList(ActionEvent event) {
-        client.removeListener(this);
-        SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
-
-}
 }

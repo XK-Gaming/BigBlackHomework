@@ -11,6 +11,8 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import model.DepositTransaction;
 import model.Items.Item;
@@ -34,18 +36,23 @@ public class ControllerManagerUser implements ServerListener {
     @FXML private Label connectionText;
     @FXML private Circle connectionStatus;
     @FXML private ComboBox<String> cbRole;
+
+    // Bảng danh sách User chính (Bên trái)
     @FXML private TableView<User> tableUsers;
     @FXML private TableColumn<User, String> colUsername;
     @FXML private TableColumn<User, String> colPassword;
     @FXML private TableColumn<User, String> colRole;
-    @FXML private TableColumn<User, String> colStatus;
 
+    // Các thành phần thông tin cơ bản chi tiết
     @FXML private Label detailUsername;
     @FXML private Label detailRole;
     @FXML private Label paymentHistory;
-    @FXML private ListView<String> listBidHistory;
-    @FXML private ListView<String> listSellHistory;
-    @FXML private ListView<String> listTransactionHistory;
+
+    // ĐÃ SỬA: Chuyển đổi từ ListView sang TableView cho các bảng phụ bo tròn bên phải
+    @FXML private TableView<String> tableTransactionHistory;
+    @FXML private TableView<String> tableBidHistory;
+    @FXML private TableView<String> tableSellHistory;
+
     @FXML private Button btnRefresh;
 
     private final AuctionClient client = AuctionClient.getInstance();
@@ -69,12 +76,53 @@ public class ControllerManagerUser implements ServerListener {
     }
 
     private void setupTable() {
+        // Thiết lập bảng chính bên trái
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
         colRole.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getRole_toString()));
 
+        // Thiết lập cột động hiển thị chuỗi thông tin cho 3 bảng phụ bo tròn bên phải
+        TableColumn<String, String> colTx = new TableColumn<>("Chi tiết lịch sử");
+        colTx.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+        tableTransactionHistory.getColumns().add(colTx);
+
+        TableColumn<String, String> colBid = new TableColumn<>("Sản phẩm trúng giải");
+        colBid.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+        tableBidHistory.getColumns().add(colBid);
+
+        TableColumn<String, String> colSell = new TableColumn<>("Thông tin đăng bán");
+        colSell.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+        tableSellHistory.getColumns().add(colSell);
+
+        // Thiết lập cột trạng thái Online/Offline tô màu tự động cho bảng chính
         TableColumn<User, String> statusCol = new TableColumn<>("Trạng thái");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setCellFactory(column -> new TableCell<User, String>() {
+            private final Circle dot = new Circle(4);
+            private final Label label = new Label();
+            private final HBox container = new HBox(6, dot, label);
+            { container.setAlignment(javafx.geometry.Pos.CENTER_LEFT); }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    label.setText(item.toUpperCase());
+                    String statusClean = item.trim().toUpperCase();
+                    if (statusClean.contains("ONLINE") || statusClean.contains("ON")) {
+                        label.setTextFill(Color.web("#16a34a")); // Xanh lá
+                        dot.setFill(Color.web("#16a34a"));
+                    } else {
+                        label.setTextFill(Color.web("#dc2626")); // Đỏ
+                        dot.setFill(Color.web("#dc2626"));
+                    }
+                    setGraphic(container);
+                }
+            }
+        });
         tableUsers.getColumns().add(statusCol);
     }
 
@@ -96,28 +144,27 @@ public class ControllerManagerUser implements ServerListener {
         detailRole.setText("Vai trò: " + user.getRole_toString());
         paymentHistory.setText("Số dư: " + String.format("%,.0f VNĐ", user.getBalance()));
 
-        listBidHistory.getItems().clear();
-        listSellHistory.getItems().clear();
-        listTransactionHistory.getItems().clear();
+        // Làm sạch dữ liệu cũ trong TableView phụ
+        tableBidHistory.getItems().clear();
+        tableSellHistory.getItems().clear();
+        tableTransactionHistory.getItems().clear();
 
         try {
             client.sendCommand(network.Command.GET_BIDDER_HISTORY, (Object) user.getUsername());
             client.sendCommand(network.Command.GET_SELLER_ITEMS, (Object) user.getUsername());
 
             if (user.getDepositHistory() != null) {
-                // ✅ SỬA LỖI: Tạo bộ formatter chuẩn hóa dựa trên múi giờ hiện tại của hệ thống máy khách
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
                         .withZone(ZoneId.systemDefault());
 
                 for (DepositTransaction dt : user.getDepositHistory()) {
                     if (dt.getTimestamp() != null) {
-                        // Sử dụng formatter.format() chính xác để chuyển đổi thực thể Instant thành String
                         String formattedTime = formatter.format(dt.getTimestamp());
                         String info = String.format("[%s] %s: %,.0f VNĐ",
                                 formattedTime,
                                 dt.getStatus(),
                                 dt.getAmount());
-                        listTransactionHistory.getItems().add(info);
+                        tableTransactionHistory.getItems().add(info);
                     }
                 }
             }
@@ -146,13 +193,11 @@ public class ControllerManagerUser implements ServerListener {
 
     @FXML
     public void On_LogOut(ActionEvent event) {
-        client.removeListener(this);
+        client.removeListener(this); // Hủy lắng nghe luồng socket tránh rò rỉ khi chuyển cảnh
         SceneHelper.changeScene(LogOut, "/fxml/AdminView.fxml");
     }
 
-    @FXML
-    public void On_MouseClickImg(MouseEvent mouseEvent) {
-    }
+    @FXML public void On_MouseClickImg(MouseEvent mouseEvent) {}
 
     @FXML
     public void On_DeleteUser(ActionEvent event) {
@@ -208,10 +253,10 @@ public class ControllerManagerUser implements ServerListener {
         } else if (network.Command.GET_BIDDER_HISTORY_RESULT.equals(command)) {
             List<BidHistoryDTO> history = (List<BidHistoryDTO>) payload;
             Platform.runLater(() -> {
-                listBidHistory.getItems().clear();
+                tableBidHistory.getItems().clear();
                 for (BidHistoryDTO dto : history) {
                     if ("WON".equals(dto.getStatus())) {
-                        listBidHistory.getItems().add(dto.getItemName() + " - Thắng: " + String.format("%,.0f", dto.getMyHighestBid()) + " VNĐ");
+                        tableBidHistory.getItems().add(dto.getItemName() + " - Thắng: " + String.format("%,.0f", dto.getMyHighestBid()) + " VNĐ");
                     }
                 }
             });
@@ -220,11 +265,11 @@ public class ControllerManagerUser implements ServerListener {
             List<Item> items = (List<Item>) res.get("items");
             Map<Integer, String> statusCache = (Map<Integer, String>) res.get("statusCache");
             Platform.runLater(() -> {
-                listSellHistory.getItems().clear();
+                tableSellHistory.getItems().clear();
                 if (items != null) {
                     for (Item item : items) {
                         String status = statusCache.getOrDefault(item.getDatabaseId(), "OPEN");
-                        listSellHistory.getItems().add(item.getName() + " [" + status + "] - " + String.format("%,.0f", item.getStartingPrice()) + " VNĐ");
+                        tableSellHistory.getItems().add(item.getName() + " [" + status + "] - " + String.format("%,.0f", item.getStartingPrice()) + " VNĐ");
                     }
                 }
             });
@@ -243,5 +288,8 @@ public class ControllerManagerUser implements ServerListener {
     public void On_RefreshData(ActionEvent event) {
         loadData();
         tableUsers.getSelectionModel().clearSelection();
+        tableTransactionHistory.getItems().clear();
+        tableBidHistory.getItems().clear();
+        tableSellHistory.getItems().clear();
     }
 }

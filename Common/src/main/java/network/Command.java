@@ -53,38 +53,47 @@ public enum Command {
 
     // Đăng cập nhật giá mới nhất trên toàn
     // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)
-
     BID_UPDATE,
 
+    // ........
     ITEMS_UPDATE,
 
 
+    // Thay đổi trạng thái phiên đấu giá ---> từ DISABLE sang STATUS bình thường
     SET_ALLOW,
     SET_ALLOW_RESULT,
 
+    // Xóa sản phẩm
     DELETE_ITEM,
     DELETE_ITEM_RESULT,
 
+    // Nạp tiền vào sản phẩm
     RECHARGE_AMOUNT,
     RECHARGE_AMOUNT_RESULT,
-    NOTIFICATION,
-    SELECT_ITEMS_ADMIN,
-    SELECT_ITEMS_ADMIN_RESULT,
-    BROADCAST_ITEM_UPDATE,
 
-    EDIT_ITEM,   // Thay thế cho việc Sửa/Edit item trực tiếp ở DAO
+    // Thông báo khi có lượt đấu giá mới mới, khi có yêu cầu nạp tiền thành công
+    NOTIFICATION,
+
+    // Thay thế cho việc Sửa/Edit item trực tiếp ở DAO
+    EDIT_ITEM,
     EDIT_ITEM_RESULT,
 
+
+    // Lấy các sản phẩm đấu giá của seller theo username
     GET_SELLER_ITEMS,
     GET_SELLER_ITEMS_RESULT,
 
+    // Lấy lịch sử đấu giá của bidder theo username
     GET_BIDDER_HISTORY,
     GET_BIDDER_HISTORY_RESULT,
 
+    //
     GET_PENDING_DEPOSITS,
     GET_PENDING_DEPOSITS_RESULT,
+
     APPROVE_DEPOSIT,
     APPROVE_DEPOSIT_RESULT,
+
     REJECT_DEPOSIT,
     REJECT_DEPOSIT_RESULT,
 
@@ -92,8 +101,25 @@ public enum Command {
     DELETE_DEPOSIT_HISTORY_RESULT,
 
     GET_USER_INFO,
-    GET_USER_INFO_RESULT, BIDDER_PAIED, BIDDER_PAY, BIDDER_PAY_RESULT, NOTIFICATION_NEW_PAY,
-    GET_ALL_USERS, GET_ALL_USERS_RESULT, DELETE_USER, DELETE_USER_RESULT,
+    GET_USER_INFO_RESULT,
+
+    // Bidder thanh toán tiền cho Seller
+    BIDDER_PAY,
+    BIDDER_PAY_RESULT,
+
+    // Có lượt đặt giá mới
+    NOTIFICATION_NEW_PAY,
+
+    //
+    NOTIFICATION_BIDDER_PAY,
+
+
+    GET_ALL_USERS,
+    GET_ALL_USERS_RESULT,
+
+    DELETE_USER,
+    DELETE_USER_RESULT,
+
     FORCE_LOGOUT,
     //update status cho auction
     UPDATE_AUCTION_STATUS,

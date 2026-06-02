@@ -6,11 +6,9 @@ import model.DepositTransaction;
 import model.User.*;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.mindrot.jbcrypt.BCrypt;
 
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class DAOUser implements DaoInterface<User> {
@@ -20,8 +18,15 @@ public class DAOUser implements DaoInterface<User> {
         return new DAOUser();
     }
 
+    /**
+     * Precondition: user có username, password, name, address/email và role.
+     * Postcondition: Insert một dòng vào bảng khach nếu SQL chạy thành công.
+     * Method hiện luôn trả 0, không phản ánh số dòng bị ảnh hưởng.
+     * NOTE: Method đang nối chuỗi SQL trực tiếp nên có rủi ro SQL injection.
+     */
     @Override
     public int Insert(User user) throws SQLException {
+        // Chuyển sang PreparedStatement để chống SQL Injection
         String sql = "INSERT INTO khach (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection con = JDBCUtil.getConnection();
@@ -30,13 +35,16 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setString(1, user.getUsername());
             pstmt.setString(2, user.getPassword());
             pstmt.setString(3, user.getName());
-            pstmt.setString(4, user.getAddress()); // Giữ nguyên map field cũ của bạn
+            pstmt.setString(4, user.getAddress());
             pstmt.setString(5, user.getRole_toString());
 
             return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
         }
     }
-
+    // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
     public void Update(User user) {
         try (Connection con = JDBCUtil.getConnection()) {
             Update(con, user);
@@ -54,79 +62,40 @@ public class DAOUser implements DaoInterface<User> {
              PreparedStatement pstm = con.prepareStatement(sql)) {
 
             pstm.setString(1, user.getUsername());
+
             result = pstm.executeUpdate();
 
         } catch (SQLException e) {
             System.err.println("Lỗi SQL khi xóa user [" + user.getUsername() + "]: " + e.getMessage());
+            // e.printStackTrace(); // Bạn có thể mở dòng này nếu muốn xem chi tiết dòng lỗi
             return 0;
         }
         return result;
     }
-
-    /**
-     * Phương thức cập nhật số dư mặc định (tự tạo Connection độc lập)
-     */
     public int UpdateBalance(String username, double newBalance) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            return UpdateBalance(con, username, newBalance);
+        // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)
+        String sql = "UPDATE khach SET balance = ? WHERE username = ?";
+        int ketQua = 0;
+
+        // Đưa cả Connection và PreparedStatement vào try-with-resources để tự động đóng khi dùng xong
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+
+            // Set giá trị cho các dấu '?' theo thứ tự (1, 2, 3...)
+            pstmt.setDouble(1, newBalance);
+            pstmt.setString(2, username);
+
+            // Thực thi câu lệnh (không truyền chuỗi sql vào executeUpdate nữa)
+            ketQua = pstmt.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException("Lỗi cập nhật số dư: " + e.getMessage(), e);
         }
+
+        return ketQua;
     }
 
-    /**
-     * ✅ ĐÃ ĐỒNG BỘ: Sử dụng Connection từ Service để cập nhật số dư trong Transaction
-     */
-    public int UpdateBalance(Connection con, String username, double newBalance) throws SQLException {
-        String sql = "UPDATE khach SET balance = ? WHERE username = ?";
-        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            pstmt.setDouble(1, newBalance);
-            pstmt.setString(2, username);
-            return pstmt.executeUpdate();
-        }
-    }
-
-    /**
-     * ✅ THÊM MỚI: Cập nhật động các trường thông tin cá nhân của User
-     * Giải quyết lỗi "Cannot resolve method 'updateUserField'" ở UserService
-     */
-    public boolean updateUserField(String username, String field, String value) {
-        String sql = switch (field) {
-            case "name" -> "UPDATE khach SET name = ? WHERE username = ?";
-            case "phone" -> "UPDATE khach SET phone = ? WHERE username = ?"; // Hãy chắc chắn bảng 'khach' có cột phone
-            case "address" -> "UPDATE khach SET email = ? WHERE username = ?"; // Map tạm vào 'email' theo logic cũ của bạn, hoặc đổi thành cột address nếu có
-            default -> throw new IllegalArgumentException("Trường cập nhật không hợp lệ: " + field);
-        };
-
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, value);
-            ps.setString(2, username);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException | IllegalArgumentException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    /**
-     * ✅ THÊM MỚI: Đổi mật khẩu an toàn kiểm tra mật khẩu cũ trực tiếp dưới DB
-     * Giải quyết lỗi "Cannot resolve method 'changePassword'" ở UserService
-     */
-    public boolean changePassword(String username, String oldPassword, String newPassword) {
-        String sql = "UPDATE khach SET password = ? WHERE username = ? AND password = ?";
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, newPassword);
-            ps.setString(2, username);
-            ps.setString(3, oldPassword);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     @Override
     public ArrayList<User> selectAll()  {
@@ -136,7 +105,27 @@ public class DAOUser implements DaoInterface<User> {
              PreparedStatement pstmt = con.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                User user = mapUserFromResultSet(rs);
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                String role = rs.getString("role");
+                String name = rs.getString("name");
+                String email = rs.getString("email");
+                double balance = rs.getDouble("balance");
+                String depositJson = rs.getString("DepositHistory");
+
+                User user = null;
+                if ("Người bán".equals(role)) {
+                    user = new Seller(username, password, name, email, balance);
+                } else if ("Người đấu giá".equals(role)) {
+                    user = new Bidder(username, password, name, email, balance);
+                } else if ("Admin".equals(role)) {
+                    user = new Admin(username, password, name, email);
+                }
+
+                if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                    List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                    user.setDepositHistory(history);
+                }
                 if (user != null) ketQua.add(user);
             }
         } catch (SQLException e) {
@@ -163,13 +152,17 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setString(2, user.getName());
             pstmt.setString(3, user.getAddress());
             pstmt.setString(4, user.getUsername());
-
             return pstmt.executeUpdate();
         }
     }
 
+    /**
+     * Precondition: username xác định một dòng khach.
+     * Postcondition: Method trả về khach.status của username, hoặc null nếu không tìm thấy/lỗi.
+     */
     public String Get_Status(String username) {
         String sql = "SELECT status FROM khach WHERE username = ?";
+        // Bỏ JDBCUtil.closeConnection(con) vì try-with-resources đã làm rồi
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
@@ -185,14 +178,21 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    /**
+     * Precondition: username là tên đăng nhập cần kiểm tra.
+     * Postcondition: Method trả true nếu tồn tại dòng khach với username đó; ngược lại trả false.
+     */
     public static boolean selectByUsername(String username) {
         String sql = "SELECT username FROM khach WHERE username = ?";
+
+        // Try-with-resources đảm bảo đóng NGAY LẬP TỨC sau khi hàm kết thúc
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
+
             try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next();
+                return rs.next(); // Trả về true nếu tìm thấy, false nếu không
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -200,16 +200,48 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    /**
+     * Precondition: username và password được cung cấp từ luồng login.
+     * Postcondition: Method trả về Seller, Bidder hoặc Admin nếu username tồn tại và password khớp;
+     * ngược lại trả null.
+     * NOTE: Mật khẩu đang được so sánh dạng plain text.
+     */
     public User selectByUsername(String username, String password) {
+        // 1. Dùng PreparedStatement để chống SQL Injection (rất quan trọng)
         String sql = "SELECT * FROM khach WHERE username = ?";
+
+        // 2. Try-with-resources: Tự động đóng mọi thứ theo đúng thứ tự
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    User user = mapUserFromResultSet(rs);
-                    if (user != null && BCrypt.checkpw(password, user.getPassword())) {
+                    String dbPassword = rs.getString("password");
+                    String role = rs.getString("role");
+                    String name = rs.getString("name");
+                    String email = rs.getString("email");
+                    double balance = rs.getDouble("balance");
+                    String depositJson = rs.getString("DepositHistory");
+
+                    User user = null;
+// Trả về đúng đối tượng theo Role
+                    if ("Người bán".equals(role)) {
+                        user = new Seller(username, dbPassword, name, email, balance);
+                    } else if ("Người đấu giá".equals(role)) {
+                        user = new Bidder(username, dbPassword, name, email, balance);
+                    } else if ("Admin".equals(role)) {
+                        user = new Admin(username, dbPassword, name, email);
+                    }
+
+                    if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                        List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                        user.setDepositHistory(history);
+                    }
+
+                    // 3. Kiểm tra mật khẩu (Nên dùng equals để so sánh String)
+                    if (user != null && dbPassword.equals(password)) {
                         return user;
                     }
                 }
@@ -218,48 +250,63 @@ public class DAOUser implements DaoInterface<User> {
             System.err.println("Lỗi truy vấn User: " + e.getMessage());
             e.printStackTrace();
         }
-        return null;
+        return null; // Không tìm thấy hoặc sai mật khẩu
     }
 
+    /**
+     * Precondition: username là tên đăng nhập cần load.
+     * Postcondition: Method trả về subclass User theo username mà không kiểm tra password,
+     * hoặc null nếu user không tồn tại.
+     */
     public User selectByUsernameOnly(String username) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            return selectByUsernameOnly(con, username);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
+        // Dùng PreparedStatement để chống SQL Injection
+        String sql = "SELECT * FROM khach WHERE username = ?";
 
-    public User selectByUsernameOnly(Connection con, String username) throws SQLException {
-        String sql = "SELECT * FROM khach WHERE username = ? FOR UPDATE";
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setString(1, username);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return mapUserFromResultSet(rs);
+                    String dbPassword = rs.getString("password");
+                    String role = rs.getString("role");
+                    String name = rs.getString("name");
+                    String email = rs.getString("email");
+                    double balance = rs.getDouble("balance");
+                    String depositJson = rs.getString("DepositHistory");
+
+                    User user = null;
+                    // Trả về đúng đối tượng theo Role mà không kiểm tra mật khẩu
+                    if ("Người bán".equals(role)) {
+                        user = new Seller(username, dbPassword, name, email, balance);
+                    } else if ("Người đấu giá".equals(role)) {
+                        user = new Bidder(username, dbPassword, name, email, balance);
+                    } else if ("Admin".equals(role)) {
+                        user = new Admin(username, dbPassword, name, email);
+                    }
+
+                    if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                        List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
+                        user.setDepositHistory(history);
+                    }
+                    return user;
                 }
             }
-        }
+        } catch (SQLException e) { e.printStackTrace();}
         return null;
     }
 
     public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
-        try (Connection con = JDBCUtil.getConnection()) {
-            return UpdateDepositHistory(con, username, history);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    public int UpdateDepositHistory(Connection con, String username, List<DepositTransaction> history) throws SQLException {
         String sql = "UPDATE khach SET DepositHistory = ? WHERE username = ?";
-        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+        try (Connection con = JDBCUtil.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setString(1, gson.toJson(history));
             pstmt.setString(2, username);
             return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
         }
     }
 
@@ -284,30 +331,5 @@ public class DAOUser implements DaoInterface<User> {
             e.printStackTrace();
         }
         return pending;
-    }
-
-    private User mapUserFromResultSet(ResultSet rs) throws SQLException {
-        String username = rs.getString("username");
-        String dbPassword = rs.getString("password");
-        String role = rs.getString("role");
-        String name = rs.getString("name");
-        String email = rs.getString("email");
-        double balance = rs.getDouble("balance");
-        String depositJson = rs.getString("DepositHistory");
-
-        User user = null;
-        if ("Người bán".equals(role)) {
-            user = new Seller(username, dbPassword, name, email, balance);
-        } else if ("Người đấu giá".equals(role)) {
-            user = new Bidder(username, dbPassword, name, email, balance);
-        } else if ("Admin".equals(role)) {
-            user = new Admin(username, dbPassword, name, email);
-        }
-
-        if (user != null && depositJson != null && !depositJson.isEmpty()) {
-            List<DepositTransaction> history = gson.fromJson(depositJson, new TypeToken<ArrayList<DepositTransaction>>(){}.getType());
-            user.setDepositHistory(history);
-        }
-        return user;
     }
 }

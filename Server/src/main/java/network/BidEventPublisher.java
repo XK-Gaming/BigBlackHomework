@@ -95,7 +95,6 @@ final class BidEventPublisher {
                 return bidHistory.get(bidHistory.size() - 2).getBidder();
             }
         } catch (Exception ignored) {
-            // Keep the previous behavior: fall back to the new bidder when history is unavailable.
         }
         return bidderId;
     }

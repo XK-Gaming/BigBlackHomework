@@ -2,7 +2,7 @@ package network;
 
 import dao.DAOAuction_Items;
 import dao.DAOItems;
-import model.Items.Item;
+import model.Items.Item;import model.auction.AuctionStatus;
 
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
@@ -30,7 +30,7 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
             var auctionItem = DAOAuction_Items.getInstance().selectByItemId(selectedItem);
             boolean hasBids = (auctionItem != null
                     && auctionItem.getBidHistory() != null
-                    && !auctionItem.getBidHistory().isEmpty());
+                    && !auctionItem.getBidHistory().isEmpty() && auctionItem.getStatus() == AuctionStatus.RUNNING);
 
             if (hasBids) {
                 response.put("success", false);
@@ -40,7 +40,6 @@ public class DeleteItemHandler extends BaseHandler implements RequestHandler {
                 sendResponse(out, Command.DELETE_ITEM_RESULT, response);
                 return; // Ngắt luồng luôn cho gọn sạch
             }
-
             if (auctionItem != null) {
                 DAOAuction_Items.getInstance().Delete(selectedItem);
             }

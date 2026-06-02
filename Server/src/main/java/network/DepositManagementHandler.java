@@ -13,10 +13,7 @@ public class DepositManagementHandler extends BaseHandler implements RequestHand
     }
 
     @Override
-    public void handle(Object payload, ObjectOutputStream out) {
-        // This is not used as we map commands to specific methods in ClientHandler if we want, 
-        // but to keep it simple with existing RequestHandler interface, we can use an internal switch
-    }
+    public void handle(Object payload, ObjectOutputStream out) {}
 
     public static class GetPendingHandler extends BaseHandler implements RequestHandler {
         private final UserService userService;

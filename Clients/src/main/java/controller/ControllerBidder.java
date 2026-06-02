@@ -518,7 +518,7 @@ public class ControllerBidder implements ServerListener {
                 titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #212121; -fx-font-family: 'Segoe UI', Arial;");
 
                 // --- HIỂN THỊ THÔNG TIN ĐÃ ĐƯỢC LỌC SẠCH KEY MAP ---
-                String messageText = "Tên: " + finalItemName + finalDetails + "\nGiá hiện tại: " + df.format(finalPrice) + " VNĐ";
+                String messageText = "Tên: " + finalItemName + "\nGiá hiện tại: " + df.format(finalPrice) + " VNĐ";
 
                 Label messageLabel = new Label(messageText);
                 messageLabel.setStyle("-fx-text-fill: #555555; -fx-font-size: 11px; -fx-font-family: 'Segoe UI', Arial;");

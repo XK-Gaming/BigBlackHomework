@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerPayment">
+<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerPayment">
 
    <top>
       <HBox alignment="CENTER_LEFT" prefHeight="80.0" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.12), 10, 0, 0, 2);" BorderPane.alignment="CENTER">
@@ -29,7 +29,7 @@
                   <Cursor fx:constant="HAND" />
                </cursor>
             </ImageView>
-            <VBox alignment="CENTER_LEFT" prefHeight="80.0" prefWidth="200.0">
+            <VBox alignment="CENTER_LEFT" prefHeight="80.0" prefWidth="343.0">
                <padding>
                   <Insets left="15.0" />
                </padding>
@@ -39,10 +39,10 @@
                         <Font name="System Bold" size="16.0" />
                      </font>
                   </Label>
-                  <HBox alignment="CENTER_LEFT" spacing="5.0">
+                  <HBox alignment="CENTER_LEFT" prefHeight="20.0" prefWidth="239.0" spacing="5.0">
                      <children>
-                        <Label text="Số dư ví:" textFill="#64748b" />
-                        <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#16a34a">
+                        <Label text="Số dư:" textFill="#64748b" />
+                        <Label fx:id="j_textSoDu" prefHeight="20.0" prefWidth="281.0" text="0.0 VNĐ" textFill="#16a34a">
                            <font>
                               <Font name="System Bold" size="14.0" />
                            </font>
@@ -52,7 +52,7 @@
                </children>
             </VBox>
             <Region HBox.hgrow="ALWAYS" />
-            <Label text="THANH TOÁN ĐƠN HÀNG" textFill="#111827">
+            <Label text="THANH TOÁN ĐƠN HÀNG" textFill="#111827" style="-fx-font-weight: 900;">
                <font>
                   <Font name="System Bold" size="24.0" />
                </font>
@@ -147,14 +147,14 @@
                      </cursor>
                   </Button>
 
-                  <HBox spacing="10.0" maxWidth="Infinity">
+                  <HBox maxWidth="Infinity" spacing="10.0">
                      <children>
-                        <Button fx:id="j_return" HBox.hgrow="ALWAYS" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #94a3b8; -fx-border-radius: 12; -fx-text-fill: #475569; -fx-font-weight: bold;" text="Về Sảnh">
+                        <Button fx:id="j_return" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #94a3b8; -fx-border-radius: 12; -fx-text-fill: #475569; -fx-font-weight: bold;" text="Về Sảnh" HBox.hgrow="ALWAYS">
                            <cursor>
                               <Cursor fx:constant="HAND" />
                            </cursor>
                         </Button>
-                        <Button fx:id="j_return_history" HBox.hgrow="ALWAYS" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return_History" prefHeight="40.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Lịch sử">
+                        <Button fx:id="j_return_history" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return_History" prefHeight="40.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Lịch sử" HBox.hgrow="ALWAYS">
                            <cursor>
                               <Cursor fx:constant="HAND" />
                            </cursor>

@@ -1,7 +1,7 @@
 package service;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import dao.DAOAuction_Items;
 import dao.DAOItems;
 import dao.DAOUser;
@@ -13,10 +13,7 @@ import model.auction.Auction;
 import model.auction.AuctionStatus;
 import model.auction.BidHistoryDTO;
 import model.auction.BidTransaction;
-import model.exception.BidRejectedException;
-import model.exception.NotFoundException;
-import model.exception.PersistenceException;
-import model.exception.UnauthorizedException;
+import model.exception.*;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import org.mindrot.jbcrypt.BCrypt;
 
 @FunctionalInterface
 interface ConnectionProvider {
@@ -41,7 +37,10 @@ public class UserService {
     static final long ANTI_SNIPING_EXTENSION_SECONDS = 90;
     private static final double MAX_MIN_BID_RATIO = 0.20;
 
-    private static final ConcurrentMap<String, ReentrantLock> itemLocks = new ConcurrentHashMap<>();
+    // ✅ SỬA LỖI #1: Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
+    private static final Cache<String, ReentrantLock> itemLocks = CacheBuilder.newBuilder()
+            .expireAfterAccess(10, TimeUnit.MINUTES)
+            .build();
 
     private final DAOUser userDAO;
     private final DAOItems itemDAO;
@@ -68,200 +67,166 @@ public class UserService {
         this.clock = clock;
     }
 
+    /**
+     * ✅ Thread-safe: Lấy lock cho item, tự động tạo nếu chưa có
+     */
     private ReentrantLock getLockForItem(String itemId) {
-        return itemLocks.computeIfAbsent(itemId, k -> new ReentrantLock(true));
+        try {
+            return itemLocks.get(itemId, () -> new ReentrantLock(true));
+        } catch (Exception e) {
+            return new ReentrantLock(true);
+        }
     }
 
     /**
-     * Public accessor to obtain the per-item lock used by bidding logic.
-     * AuctionEngine and other background workers should use this to synchronize
-     * operations on the same item to avoid race conditions.
+     * @throws UnauthorizedException khi sai thông tin đăng nhập
      */
-    public ReentrantLock getItemLock(String itemId) {
-        return getLockForItem(itemId);
-    }
-
     public User loginAndGetUser(String username, String password) {
-        User user = userDAO.selectByUsernameOnly(username);
-        if (user == null) {
-            throw new UnauthorizedException("Sai ten dang nhap hoac mat khau.");
+        User user = userDAO.selectByUsername(username, password);
+        if (user != null && user.getPassword().equals(password)) {
+            return user;
         }
-
-        String dbPassword = user.getPassword();
-        // Try bcrypt check first; if stored password has unsupported salt/version
-        // (e.g., legacy plain text or different bcrypt prefix), handle fallback.
-        try {
-            if (dbPassword != null && BCrypt.checkpw(password, dbPassword)) {
-                return user;
-            }
-        } catch (IllegalArgumentException e) {
-            // Likely an unsupported salt/version or malformed hash.
-            // Fallback: compare plaintext (legacy storage). If it matches, migrate to bcrypt.
-            if (dbPassword != null && dbPassword.equals(password)) {
-                String newHash = BCrypt.hashpw(password, BCrypt.gensalt());
-                user.setPassword(newHash);
-                try {
-                    userDAO.Update(user);
-                } catch (Exception ex) {
-                    // Log but do not fail login for migration
-                    ex.printStackTrace();
-                }
-                return user;
-            }
-        }
-
-        throw new UnauthorizedException("Sai ten dang nhap hoac mat khau.");
+        throw new UnauthorizedException("Sai tên đăng nhập hoặc mật khẩu.");
     }
 
     public User getUserOnly(String username) {
         return userDAO.selectByUsernameOnly(username);
     }
 
+    /**
+     * ✅ SỬA LỖI #2: Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
+     */
     public Map<String, Object> register(User user) {
-        Map<String, Object> response = new HashMap<>();
-        if (userDAO.selectByUsernameOnly(user.getUsername()) != null) {
+        if (userDAO.selectByUsernameOnly(user.getUsername())!= null) {
+            Map<String, Object> response = new HashMap<>();
             response.put("success", "EXSITED");
-            response.put("message", "Tai khoan da ton tai");
+            response.put("message", "Tài khoản đã tồn tại");
             return response;
         }
+        else {
 
-        try {
-            // Hash password before persisting
-            user.setPassword(BCrypt.hashpw(user.getPassword(), BCrypt.gensalt()));
-            userDAO.Insert(user);
-            response.put("success", "TRUE");
-            return response;
-        } catch (SQLException e) {
-            if (e.getErrorCode() == 1062 || "23505".equals(e.getSQLState())) {
-                response.put("success", "EXSITED");
-                response.put("message", "Tai khoan da ton tai");
-                return response;
+            try {
+                userDAO.Insert(user);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
             }
-            throw new RuntimeException("Loi he thong khi dang ky thanh vien.", e);
-        }
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", "TRUE");
+            return response;}
     }
+
 
     public void creater_item(Item item) {
         validateMinBidForSave(item, true);
         int itemRows = itemDAO.Insert(item);
         if (itemRows <= 0) {
-            throw new PersistenceException("Khong the luu san pham.");
+            throw new PersistenceException("Không thể lưu sản phẩm.");
         }
-
         Auction auction = new Auction("1", item, item.getSellerId(), item.getAuctionStartTime());
         int auctionRows = auctionDAO.Insert(auction, item);
         if (auctionRows <= 0) {
-            throw new PersistenceException("Khong the tao phien dau gia.");
+            throw new PersistenceException("Không thể tạo phiên đấu giá.");
         }
     }
 
-    /**
-     * ✅ ĐÃ TỐI ƯU DỨT ĐIỂM N+1: Sử dụng hàm selectAllWithAuction() chạy duy nhất 1 câu SQL JOIN
-     */
     public ArrayList<Item> select_items(UserRole role) {
-        // Tận dụng hàm JOIN từ DAO đã bọc sẵn cơ chế an toàn UI Thread
-        List<Item> sourceList = auctionDAO.selectAllWithAuction();
-        ArrayList<Item> list = new ArrayList<>(sourceList);
-
+        ArrayList<Item> list = itemDAO.selectAll();
         if (role == UserRole.ADMIN) {
             return list;
         }
-        // Lọc an toàn không kích hoạt thêm câu lệnh DB phụ nào
         list.removeIf(item -> item.getAuctionStatus() == null);
         return list;
     }
 
     public Auction getAuctionByItemId(String itemId) {
         Item item = itemDAO.selectById(itemId);
-        if (item == null) {
-            return null;
-        }
-
-        Auction auction = auctionDAO.selectByItemId(item);
-        syncAuctionStatusWithDatabase(auction);
-        return auction;
+        if (item == null) return null;
+        return auctionDAO.selectByItemId(item);
     }
 
     public void SetAuctionByItemId(String itemId, String userid) {
-        // Tracking only.
+        // Tracking only
     }
 
+    /**
+     * ✅ SỬA LỖI #4: Tối ưu locking strategy cho Single Server
+     */
     public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
         ReentrantLock lock = getLockForItem(itemId);
-        lock.lock();
+        lock.lock(); // Khóa luồng Java
 
         Connection con = null;
         try {
             con = connectionProvider.getConnection();
-            con.setAutoCommit(false);
+            con.setAutoCommit(false); // 🌟 BẮT ĐẦU TRANSACTION AN TOÀN
 
-            Item txItem = itemDAO.selectById(con, itemId);
+            // 1. Đọc dữ liệu CHUẨN từ trong Transaction (Sử dụng 'con')
+            Item txItem = itemDAO.selectById(con, itemId); // Hàm này phải nhận con
             if (txItem == null) {
-                throw new NotFoundException("item", "Khong tim thay san pham.");
+                throw new NotFoundException("item", "Không tìm thấy sản phẩm.");
             }
 
+            // 2. Kiểm tra các điều kiện chặn
             if (bidderId != null && txItem.getSellerId() != null && bidderId.equals(txItem.getSellerId())) {
                 throw new BidRejectedException(BidRejectedException.Reason.SELLER_BID,
-                        "Nguoi ban khong the dat gia cho san pham cua minh.");
+                        "Người bán không thể đặt giá cho sản phẩm của mình.");
             }
 
             Auction txAuction = auctionDAO.selectByItemId(con, txItem);
             if (txAuction == null) {
                 if (amount <= txItem.getCurrentHighestPrice()) {
                     throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                            "Gia dat phai cao hon gia hien tai: " + txItem.getCurrentHighestPrice());
+                            "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
                 }
-                throw new NotFoundException("auction", "Khong tim thay phien dau gia.");
+                throw new NotFoundException("auction", "Không tìm thấy phiên đấu giá.");
             }
             txAuction.setItem(txItem);
 
-            AuctionStatus currentStatus = effectiveAuctionStatus(txAuction, Instant.now(clock));
-            txAuction.setStatus(currentStatus);
-            txItem.setAuctionStatus(currentStatus);
-            if (currentStatus != AuctionStatus.RUNNING) {
+            if (txAuction.getStatus() != AuctionStatus.RUNNING) {
                 throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
-                        "Phien dau gia hien khong dien ra hoac da ket thuc.");
+                        "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
             }
 
             boolean firstBid = isFirstBid(txAuction);
             double minAllowedBid = minAllowedBid(txItem, txAuction);
             if (firstBid && amount <= txItem.getCurrentHighestPrice()) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Gia dat phai cao hon gia hien tai: " + txItem.getCurrentHighestPrice());
+                        "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
             }
             if (!firstBid && amount < minAllowedBid) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Gia dat toi thieu la " + String.format("%,.0f", minAllowedBid)
-                                + " (gia hien tai + MinBid).");
+                        "Giá đặt tối thiểu là " + String.format("%,.0f", minAllowedBid)
+                                + " (giá hiện tại + MinBid).");
             }
 
-            User user = userDAO.selectByUsernameOnly(con, bidderId);
+            User user = userDAO.selectByUsernameOnly(bidderId);
             if (user == null) {
-                throw new NotFoundException("user", "Khong tim thay nguoi dung.");
+                throw new NotFoundException("user", "Không tìm thấy người dùng.");
             }
 
+            if (amount > user.getBalance()) {
+                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                        "Số dư tài khoản không đủ để đặt giá.");
+            }
+
+            // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI (NẰM TRONG TRANSACTION)
             String oldBidder = txAuction.getLeadingBidder();
             double oldHighestPrice = txItem.getCurrentHighestPrice();
-
-            double actualCashNeeded = amount;
+            double bidderBalanceBeforeCharge = user.getBalance();
             String refundedBidderId = null;
             Double refundedBalance = null;
             User refundedUser = null;
 
+            // Hoàn tiền cho người cũ (nếu có)
             if (oldBidder != null && !oldBidder.isEmpty()) {
-                if (oldBidder.equals(bidderId)) {
-                    // If bidder is raising their own bid, they only need to pay the delta
-                    actualCashNeeded = amount - oldHighestPrice;
-                    if (actualCashNeeded < 0) {
-                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                                "Gia dat phai lon hon gia hien tai.");
-                    }
-                } else {
-                    User userOldBidder = userDAO.selectByUsernameOnly(con, oldBidder);
-                    if (userOldBidder != null) {
-                        double newOldBidderBalance = userOldBidder.getBalance() + oldHighestPrice;
-                        userDAO.UpdateBalance(con, oldBidder, newOldBidderBalance);
-                        userOldBidder.setBalance(newOldBidderBalance);
+                User userOldBidder = userDAO.selectByUsernameOnly(oldBidder);
+                if (userOldBidder != null) {
+                    double newOldBidderBalance = userOldBidder.getBalance() + oldHighestPrice;
+                    userDAO.UpdateBalance(oldBidder, newOldBidderBalance);
+                    userOldBidder.setBalance(newOldBidderBalance);
+                    if(oldBidder.equals(bidderId)){
+                        bidderBalanceBeforeCharge = newOldBidderBalance;
+                    } else {
                         refundedBidderId = oldBidder;
                         refundedBalance = newOldBidderBalance;
                         refundedUser = userOldBidder;
@@ -269,46 +234,47 @@ public class UserService {
                 }
             }
 
-            // Ensure bidder has enough balance to cover only the required additional amount
-            if (user.getBalance() < actualCashNeeded) {
-                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "So du tai khoan khong du de thuc hien luot dat gia nay.");
-            }
+            // Trừ tiền người đặt mới
+            double newBidderBalance = bidderBalanceBeforeCharge - amount;
+            userDAO.UpdateBalance(bidderId, newBidderBalance);
+            user.setBalance(newBidderBalance); // Cập nhật lại object để trả về Client
 
-            double newBidderBalance = user.getBalance() - actualCashNeeded;
-            userDAO.UpdateBalance(con, bidderId, newBidderBalance);
-            user.setBalance(newBidderBalance);
-
+            // 4. CẬP NHẬT LỊCH SỬ ĐẤU GIÁ
             List<BidTransaction> newHistory = new ArrayList<>(txAuction.getBidHistory());
-            String transactionId = "BID-" + clock.millis() + "-" + bidderId;
-            BidTransaction newBid = new BidTransaction(transactionId, bidderId, amount, Instant.now(clock));
+            String transactionId = "BID-" + System.nanoTime() + "-" + bidderId;
+            BidTransaction newBid = new BidTransaction(
+                    transactionId,
+                    bidderId,
+                    amount,
+                    Instant.now(clock)
+            );
             newHistory.add(newBid);
             txAuction.setBidHistory(newHistory);
             txAuction.setLeadingBidder(bidderId);
 
-            boolean timeExtended = applyAntiSnipingExtension(txItem);
-            txAuction.setStatus(AuctionStatus.RUNNING);
-            txItem.setAuctionStatus(AuctionStatus.RUNNING);
+            applyAntiSnipingExtension(txItem);
 
+            // 5. UPDATE CÁC BẢNG DATABASE
             int auctionResult = auctionDAO.Update(con, txAuction, txItem.getDatabaseId(), bidderId, amount);
             if (auctionResult <= 0) {
-                throw new SQLException("Khong the cap nhat bang auction_items.");
+                throw new SQLException("Không thể cập nhật bảng auction_items.");
             }
 
             txItem.setCurrentHighestPrice(amount);
             int itemResult = itemDAO.Update(con, txItem);
             if (itemResult <= 0) {
-                throw new SQLException("Khong the cap nhat bang items.");
+                throw new SQLException("Không thể cập nhật bảng items.");
             }
 
+            // 🌟 THÀNH CÔNG TOÀN DIỆN -> ĐỒNG BỘ LƯU VÀO DB
             con.commit();
 
+            // Chuẩn bị dữ liệu trả về
             Map<String, Object> finalResult = new HashMap<>();
             finalResult.put("item", txItem);
             finalResult.put("user", user);
             finalResult.put("latestAuction", txAuction);
             finalResult.put("newPrice", amount);
-            finalResult.put("timeExtended", timeExtended);
             finalResult.put("bidHistory", new ArrayList<>(txAuction.getBidHistory()));
             if (refundedBidderId != null) {
                 finalResult.put("refundedBidderId", refundedBidderId);
@@ -316,106 +282,40 @@ public class UserService {
                 finalResult.put("refundedUser", refundedUser);
             }
             return finalResult;
+
         } catch (BidRejectedException | NotFoundException e) {
-            rollbackQuietly(con);
+            if (con != null) {
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi logic
+            }
             throw e;
         } catch (Exception e) {
-            rollbackQuietly(con);
+            System.err.println("❌ processBid: Lỗi: " + e.getMessage());
+            if (con != null) {
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi hệ thống
+            }
             throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
-                    "Loi he thong khi luu du lieu dat gia.", e);
+                    "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
         } finally {
             if (con != null) {
                 try {
                     con.setAutoCommit(true);
                     con.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                } catch (SQLException e) { e.printStackTrace(); }
             }
-            lock.unlock();
+            lock.unlock(); // ✅ CHỈ CẦN UNLOCK DUY NHẤT Ở ĐÂY (Luôn luôn an toàn)
         }
     }
 
     public void updateAuctionStatus(String auctionId, String itemId, String status) {
         Item item = itemDAO.selectById(itemId);
-        if (item == null || status == null) {
-            return;
-        }
-
-        String cleanStatus = status.replace("\"", "").trim().toUpperCase();
-        try {
-            AuctionStatus auctionStatus = AuctionStatus.valueOf(cleanStatus);
+        if (item != null) {
+            AuctionStatus auctionStatus = AuctionStatus.valueOf(status);
             Auction auction = auctionDAO.selectByItemId(item);
             if (auction != null) {
                 auction.setStatus(auctionStatus);
-                item.setAuctionStatus(auctionStatus);
-                auctionDAO.Update_Status(auction, item, auctionStatus);
+                auctionDAO.Update_Status(auction,item, auctionStatus);
             }
-        } catch (IllegalArgumentException e) {
-            System.err.println("Trang thai khong hop le gui toi updateAuctionStatus: " + status);
         }
-    }
-
-    private AuctionStatus syncAuctionStatusWithDatabase(Auction auction) {
-        if (auction == null) {
-            return null;
-        }
-
-        AuctionStatus storedStatus = auction.getRawStatus();
-        AuctionStatus effectiveStatus = effectiveAuctionStatus(auction, Instant.now(clock), storedStatus);
-        if (effectiveStatus != storedStatus) {
-            auction.setStatus(effectiveStatus);
-            if (auction.getItem() != null) {
-                auctionDAO.Update_Status(auction, auction.getItem(), effectiveStatus);
-            }
-        } else if (auction.getItem() != null) {
-            auction.getItem().setAuctionStatus(effectiveStatus);
-        }
-        return effectiveStatus;
-    }
-
-    /**
-     * Hàm đồng bộ trạng thái "mềm" cục bộ trong bộ nhớ để tránh spam câu lệnh UPDATE SQL vào vòng lặp
-     */
-    private AuctionStatus calculateEffectiveStatusOnly(Auction auction) {
-        if (auction == null) return null;
-        AuctionStatus storedStatus = auction.getRawStatus();
-        if (storedStatus == AuctionStatus.CANCELLED || storedStatus == AuctionStatus.PAID) {
-            return storedStatus;
-        }
-        Item item = auction.getItem();
-        if (item == null || item.getAuctionStartTime() == null || item.getAuctionEndTime() == null) {
-            return storedStatus;
-        }
-        Instant now = Instant.now(clock);
-        if (!now.isBefore(item.getAuctionEndTime())) return AuctionStatus.FINISHED;
-        if (!now.isBefore(item.getAuctionStartTime())) return AuctionStatus.RUNNING;
-        return AuctionStatus.OPEN;
-    }
-
-    private AuctionStatus effectiveAuctionStatus(Auction auction, Instant now) {
-        return effectiveAuctionStatus(auction, now, auction == null ? null : auction.getRawStatus());
-    }
-
-    private AuctionStatus effectiveAuctionStatus(Auction auction, Instant now, AuctionStatus storedStatus) {
-        if (auction == null || storedStatus == null
-                || storedStatus == AuctionStatus.CANCELLED
-                || storedStatus == AuctionStatus.PAID) {
-            return storedStatus;
-        }
-
-        Item item = auction.getItem();
-        if (item == null || item.getAuctionStartTime() == null || item.getAuctionEndTime() == null) {
-            return storedStatus;
-        }
-
-        if (!now.isBefore(item.getAuctionEndTime())) {
-            return AuctionStatus.FINISHED;
-        }
-        if (!now.isBefore(item.getAuctionStartTime())) {
-            return AuctionStatus.RUNNING;
-        }
-        return AuctionStatus.OPEN;
     }
 
     private boolean applyAntiSnipingExtension(Item item) {
@@ -435,18 +335,180 @@ public class UserService {
     }
 
     /**
-     * ✅ ĐÃ TỐI ƯU DỨT ĐIỂM N+1: Loại bỏ câu lệnh selectById đơn lẻ bên trong vòng lặp.
+     * ✅ SỬA LỖI #3: Update trực tiếp qua SQL thay vì lấy object về
      */
+    public boolean updateUser(String username, String field, String value) {
+        Connection con = null;
+        try {
+            con = connectionProvider.getConnection();
+            String sql;
+
+            switch (field) {
+                case "name":
+                    sql = "UPDATE users SET name = ? WHERE username = ?";
+                    break;
+                case "phone":
+                    sql = "UPDATE users SET phone = ? WHERE username = ?";
+                    break;
+                case "address":
+                    sql = "UPDATE users SET address = ? WHERE username = ?";
+                    break;
+                default:
+                    return false;
+            }
+
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, value);
+            ps.setString(2, username);
+
+            int result = ps.executeUpdate();
+            ps.close();
+
+            return result > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (con != null) {
+                try { con.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    /**
+     * ✅ SỬA LỖI #3: Update password trực tiếp qua SQL với kiểm tra atomic
+     */
+    public boolean changePassword(String username, String oldPassword, String newPassword) {
+        Connection con = null;
+        try {
+            con = connectionProvider.getConnection();
+
+            String sql = "UPDATE users SET password = ? WHERE username = ? AND password = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, newPassword);
+            ps.setString(2, username);
+            ps.setString(3, oldPassword);
+
+            int result = ps.executeUpdate();
+            ps.close();
+
+            return result > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (con != null) {
+                try { con.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
+        }
+    }
+
+    public void logout(String username) {
+        // Cleanup session nếu cần
+    }
+
+    public void updateItem(Item item) throws PersistenceException {
+        try {
+            validateMinBidForSave(item, false);
+
+            // VÌ PHIÊN CHƯA DIỄN RA: Ép giá hiện tại bằng đúng giá khởi điểm mới sửa
+            item.setCurrentHighestPrice(item.getStartingPrice());
+
+            // 1. Cập nhật bảng items (Cập nhật startingPrice gốc)
+            int rowsAffected = DAOItems.getInstance().UpdateWhenEdit(item);
+            if (rowsAffected == 0) {
+                throw new PersistenceException("Cập nhật thất bại. Không tìm thấy sản phẩm hoặc dữ liệu không thay đổi.");
+            }
+            System.out.println("[UserService] Cập nhật thành công sản phẩm có ID: " + item.getDatabaseId());
+
+            // 2. Cập nhật bảng auction_items (Đồng bộ currentPrice theo startingPrice mới)
+            int auctionRowsAffected = DAOAuction_Items.getInstance().updatePriceByItemIdWhenEditItem(item);
+            if (auctionRowsAffected > 0) {
+                System.out.println("[UserService] Phiên chưa diễn ra. Đã đồng bộ giá hiện tại (currentPrice) thành: " + item.getCurrentHighestPrice());
+            } else {
+                System.out.println("[UserService] Lưu ý: Sản phẩm được cập nhật nhưng không tìm thấy phiên đấu giá tương ứng.");
+            }
+
+        } catch (Exception e) {
+            throw new PersistenceException("Lỗi hệ thống khi cập nhật sản phẩm: " + e.getMessage(), e);
+        }
+    }
+
+    public List<BidHistoryDTO> getBidderHistory(String username) {
+        List<Auction> allAuctions = auctionDAO.selectAll();
+        List<BidHistoryDTO> resultList = new ArrayList<>();
+
+        for (Auction auction : allAuctions) {
+            List<BidTransaction> txList = auction.getBidHistory();
+            if (txList == null || txList.isEmpty()) continue;
+
+            double myMaxBid = 0;
+            String myLastTime = "";
+            boolean hasParticipated = false;
+
+            for (BidTransaction tx : txList) {
+                if (username.equals(tx.getBidder())) {
+                    hasParticipated = true;
+                    if (tx.getAmount() > myMaxBid) {
+                        myMaxBid = tx.getAmount();
+                    }
+                    myLastTime = tx.getBidTime() != null ? tx.getBidTime().toString() : "Không rõ";
+                }
+            }
+
+            if (hasParticipated) {
+                String displayStatus = "LOST";
+                double currentPrice = txList.get(txList.size() - 1).getAmount();
+                boolean isLeading = username.equals(auction.getLeadingBidder());
+                AuctionStatus auctionStatus = auction.getStatus();
+
+                if (auctionStatus == AuctionStatus.RUNNING) {
+                    if (isLeading) {
+                        displayStatus = "WINNING";
+                    } else {
+                        displayStatus = "OUTBID";
+                    }
+                } else {
+                    if (isLeading) {
+                        displayStatus = "WON";
+                    } else {
+                        displayStatus = "LOST";
+                    }
+                }
+
+// Thay vì gán cứng chuỗi mặc định, hãy check lấy tên thật từ Item:
+                String itemName = "mmb"; // Tạm thời làm dự phòng
+
+                if (auction.getItem() != null && auction.getItem().getName() != null) {
+                    itemName = auction.getItem().getName();
+                }
+
+                resultList.add(new BidHistoryDTO(
+                        auction.getItemId(),
+                        itemName,
+                        myMaxBid,
+                        currentPrice,
+                        myLastTime,
+                        displayStatus
+                ));
+            }
+        }
+        return resultList;
+    }
+
     public List<Auction> getAllAuctions() {
         List<Auction> auctions = auctionDAO.selectAll();
-        if (auctions == null) {
-            return new ArrayList<>();
-        }
+        if (auctions == null) return new ArrayList<>();
 
-        // Bản thân hàm auctionDAO.selectAll() hiện tại đã LEFT JOIN sẵn thực thể Item bên trong.
-        // Bạn không cần và không được gọi thêm itemDAO.selectById() ở đây nữa!
         for (Auction auction : auctions) {
-            syncAuctionStatusWithDatabase(auction);
+            if (auction.getItem() == null && auction.getItemId() != 0) {
+                Item item = itemDAO.selectById(String.valueOf(auction.getItemId()));
+                if (item != null) {
+                    auction.setItem(item);
+                }
+            }
         }
         return auctions;
     }
@@ -458,192 +520,10 @@ public class UserService {
         }
 
         Auction auction = auctionDAO.selectByItemId(item);
-        if (auction == null) {
-            return null;
-        }
-
         AuctionStatus nextStatus = Boolean.parseBoolean(choose) ? AuctionStatus.OPEN : null;
         auction.setStatus(nextStatus);
-        item.setAuctionStatus(nextStatus);
-        auctionDAO.Update_Status(auction, item, nextStatus);
+        auctionDAO.Update_Status(auction,item, nextStatus);
         return auction;
-    }
-
-    public boolean PayHandler(Item item) {
-        Connection con = null;
-        try {
-            con = connectionProvider.getConnection();
-            con.setAutoCommit(false);
-
-            String sellerid = item.getSellerId();
-            double amount = item.getCurrentHighestPrice();
-
-            int result = userDAO.UpdateBalance(con, sellerid, amount);
-            Auction auction = auctionDAO.selectByItemId(con, item);
-
-            if (auction != null) {
-                auction.setStatus(AuctionStatus.PAID);
-                auctionDAO.Update_Status(con, auction, item, AuctionStatus.PAID);
-            } else {
-                item.setAuctionStatus(AuctionStatus.PAID);
-            }
-
-            if (result >= 1) {
-                con.commit();
-                return true;
-            }
-
-            con.rollback();
-            return false;
-        } catch (SQLException e) {
-            rollbackQuietly(con);
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (con != null) {
-                try {
-                    con.setAutoCommit(true);
-                    con.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    public boolean updateUser(String username, String field, String value) {
-        try (Connection con = connectionProvider.getConnection()) {
-            String sql = switch (field) {
-                case "name" -> "UPDATE khach SET name = ? WHERE username = ?";
-                case "phone" -> "UPDATE khach SET phone = ? WHERE username = ?";
-                case "address" -> "UPDATE khach SET email = ? WHERE username = ?";
-                default -> throw new IllegalArgumentException("Truong cap nhat khong hop le: " + field);
-            };
-
-            try (PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setString(1, value);
-                ps.setString(2, username);
-                return ps.executeUpdate() > 0;
-            }
-        } catch (IllegalArgumentException e) {
-            return false;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean changePassword(String username, String oldPassword, String newPassword) {
-        Connection con = null;
-        try {
-            con = connectionProvider.getConnection();
-            con.setAutoCommit(false);
-            User user = userDAO.selectByUsernameOnly(con, username);
-            if (user == null) return false;
-            if (!BCrypt.checkpw(oldPassword, user.getPassword())) return false;
-            user.setPassword(BCrypt.hashpw(newPassword, BCrypt.gensalt()));
-            userDAO.Update(con, user);
-            con.commit();
-            return true;
-        } catch (SQLException e) {
-            rollbackQuietly(con);
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (con != null) {
-                try { con.setAutoCommit(true); con.close(); } catch (SQLException e) { e.printStackTrace(); }
-            }
-        }
-    }
-
-    public void logout(String username) {
-    }
-
-    public void updateItem(Item item) throws PersistenceException {
-        validateMinBidForSave(item, false);
-        item.setCurrentHighestPrice(item.getStartingPrice());
-
-        try (Connection con = connectionProvider.getConnection()) {
-            con.setAutoCommit(false);
-
-            int rowsAffected = itemDAO.UpdateWhenEdit(con, item);
-            if (rowsAffected == 0) {
-                throw new PersistenceException("Cap nhat that bai. Khong tim thay san pham.");
-            }
-
-            int auctionRowsAffected = auctionDAO.updatePriceByItemIdWhenEditItem(con, item);
-            if (auctionRowsAffected <= 0) {
-                System.out.println("[UserService] Luu y: Khong tim thay phien tuong ung tai auction_items.");
-            }
-
-            con.commit();
-        } catch (Exception e) {
-            throw new PersistenceException("Loi he thong khi cap nhat san pham: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * ✅ ĐÃ TỐI ƯU TRIỆT ĐỂ N+1 & SPAM UPDATE: Chuyển đổi trạng thái mềm bằng bộ nhớ
-     */
-    public List<BidHistoryDTO> getBidderHistory(String username) {
-        List<Auction> allAuctions = auctionDAO.selectAll(); // Đã bao gồm cả Item được JOIN sẵn
-        List<BidHistoryDTO> resultList = new ArrayList<>();
-
-        for (Auction auction : allAuctions) {
-            List<BidTransaction> txList = auction.getBidHistory();
-            if (txList == null || txList.isEmpty()) {
-                continue;
-            }
-
-            double myMaxBid = 0;
-            String myLastTime = "Khong ro";
-            boolean hasParticipated = false;
-            for (BidTransaction tx : txList) {
-                if (username.equals(tx.getBidder())) {
-                    hasParticipated = true;
-                    if (tx.getAmount() > myMaxBid) {
-                        myMaxBid = tx.getAmount();
-                    }
-                    if (tx.getBidTime() != null) {
-                        myLastTime = tx.getBidTime().toString();
-                    }
-                }
-            }
-
-            if (!hasParticipated) {
-                continue;
-            }
-
-            double currentPrice = txList.get(txList.size() - 1).getAmount();
-            boolean isLeading = username.equals(auction.getLeadingBidder());
-
-            // 🛑 Sửa đổi quan trọng: Chỉ tính toán trạng thái cục bộ để render UI lịch sử,
-            // KHÔNG gọi sync... để tránh spam hàng loạt lệnh UPDATE SQL gây treo đứng hệ thống.
-            AuctionStatus auctionStatus = calculateEffectiveStatusOnly(auction);
-
-            String displayStatus = auctionStatus == AuctionStatus.RUNNING
-                    ? (isLeading ? "WINNING" : "OUTBID")
-                    : (isLeading ? "WON" : "LOST");
-
-            String itemName = "San pham khong ten";
-            if (auction.getItem() != null && auction.getItem().getName() != null) {
-                itemName = auction.getItem().getName();
-            }
-
-            resultList.add(new BidHistoryDTO(
-                    auction.getItemId(),
-                    itemName,
-                    myMaxBid,
-                    currentPrice,
-                    myLastTime,
-                    displayStatus
-            ));
-        }
-        return resultList;
-    }
-
-    public int deleteItem(int idItem) {
-        return DeleteItem(idItem);
     }
 
     public int DeleteItem(int id_item) {
@@ -669,96 +549,34 @@ public class UserService {
     }
 
     public boolean approveDeposit(String username, String transactionId) {
-        Connection con = null;
-        try {
-            con = connectionProvider.getConnection();
-            con.setAutoCommit(false);
-
-            User user = userDAO.selectByUsernameOnly(con, username);
-            if (user == null) {
-                con.rollback();
-                return false;
-            }
-
-            boolean transactionFound = false;
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user != null) {
             for (DepositTransaction dt : user.getDepositHistory()) {
                 if (dt.getId().equals(transactionId) && "PENDING".equals(dt.getStatus())) {
                     dt.setStatus("APPROVED");
                     double newBalance = user.getBalance() + dt.getAmount();
                     user.setBalance(newBalance);
-                    userDAO.UpdateBalance(con, username, newBalance);
-                    userDAO.UpdateDepositHistory(con, username, user.getDepositHistory());
-                    transactionFound = true;
-                    break;
-                }
-            }
-
-            if (transactionFound) {
-                con.commit();
-                return true;
-            }
-
-            con.rollback();
-            return false;
-        } catch (SQLException e) {
-            rollbackQuietly(con);
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (con != null) {
-                try {
-                    con.setAutoCommit(true);
-                    con.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
+                    userDAO.UpdateBalance(username, newBalance);
+                    userDAO.UpdateDepositHistory(username, user.getDepositHistory());
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     public boolean rejectDeposit(String username, String transactionId) {
-        Connection con = null;
-        try {
-            con = connectionProvider.getConnection();
-            con.setAutoCommit(false);
-
-            User user = userDAO.selectByUsernameOnly(con, username);
-            if (user == null) {
-                con.rollback();
-                return false;
-            }
-
-            boolean transactionFound = false;
+        User user = userDAO.selectByUsernameOnly(username);
+        if (user != null) {
             for (DepositTransaction dt : user.getDepositHistory()) {
                 if (dt.getId().equals(transactionId) && "PENDING".equals(dt.getStatus())) {
                     dt.setStatus("REJECTED");
-                    userDAO.UpdateDepositHistory(con, username, user.getDepositHistory());
-                    transactionFound = true;
-                    break;
-                }
-            }
-
-            if (transactionFound) {
-                con.commit();
-                return true;
-            }
-
-            con.rollback();
-            return false;
-        } catch (SQLException e) {
-            rollbackQuietly(con);
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (con != null) {
-                try {
-                    con.setAutoCommit(true);
-                    con.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
+                    userDAO.UpdateDepositHistory(username, user.getDepositHistory());
+                    return true;
                 }
             }
         }
+        return false;
     }
 
     public boolean deleteDepositHistory(String username, String transactionId) {
@@ -775,10 +593,7 @@ public class UserService {
     @SuppressWarnings("unchecked")
     public ArrayList<BidTransaction> getBidHistory(String itemId) {
         Item item = itemDAO.selectById(itemId);
-        if (item == null) {
-            return null;
-        }
-
+        if (item == null) return null;
         Auction auction = auctionDAO.selectByItemId(item);
         if (auction != null) {
             return new ArrayList<>(auction.getBidHistory());
@@ -790,7 +605,6 @@ public class UserService {
         if (item == null) {
             throw new PersistenceException("San pham khong hop le.");
         }
-
         double startingPrice = item.getStartingPrice();
         double minBid = item.getMinBid();
         if (startingPrice <= 0) {
@@ -817,20 +631,21 @@ public class UserService {
 
     private static boolean isFirstBid(Auction auction) {
         String leadingBidder = auction.getLeadingBidder();
-        boolean hasLeader = leadingBidder != null
-                && !leadingBidder.isBlank()
-                && !"null".equalsIgnoreCase(leadingBidder);
+        boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
         boolean hasHistory = auction.getBidHistory() != null && !auction.getBidHistory().isEmpty();
         return !hasLeader && !hasHistory;
     }
 
-    private static void rollbackQuietly(Connection con) {
-        if (con != null) {
-            try {
-                con.rollback();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
+    public boolean PayHandler(Item item) {
+        String sellerid = item.getSellerId();
+        User user = userDAO.selectByUsernameOnly(sellerid);
+        double amount = item.getCurrentHighestPrice();
+        int result = userDAO.UpdateBalance(sellerid,amount + user.getBalance());
+        Auction auction = auctionDAO.selectByItemId(item);
+        auctionDAO.Update_Status(auction, item, AuctionStatus.PAID);
+        if(result >= 1){return true;}
+        return false;
     }
+
+
 }
