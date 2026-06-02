@@ -48,7 +48,7 @@ public class JDBCUtil {
 
             // --- Các cấu hình tối ưu hiệu năng ---
             try {
-                config.setMaximumPoolSize(Integer.parseInt(props.getProperty("db.pool.max-size", "30").trim()));
+                config.setMaximumPoolSize(Integer.parseInt(props.getProperty("db.pool.max-size", "40").trim()));
                 config.setMinimumIdle(Integer.parseInt(props.getProperty("db.pool.min-idle", "2").trim()));
                 config.setIdleTimeout(Long.parseLong(props.getProperty("db.pool.idle-timeout", "30000").trim()));
                 config.setConnectionTimeout(Long.parseLong(props.getProperty("db.pool.conn-timeout", "20000").trim()));
