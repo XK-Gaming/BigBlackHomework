@@ -29,14 +29,35 @@ public class PaymentHandler extends BaseHandler implements RequestHandler {
                 return; // Dừng xử lý luôn, không để chạy xuống dưới gây sập app
             }
 
+            // Server-side validation & helpful error messages
+            if (item.getSellerId() == null || item.getSellerId().isBlank()) {
+                response.put("success", false);
+                response.put("message", "Seller id missing for item: " + item.getDatabaseId());
+                sendResponse(out, Command.BIDDER_PAY_RESULT, response);
+                return;
+            }
+
+            if (userService.getUserOnly(item.getSellerId()) == null) {
+                response.put("success", false);
+                response.put("message", "Seller not found: " + item.getSellerId());
+                sendResponse(out, Command.BIDDER_PAY_RESULT, response);
+                return;
+            }
+
             boolean result = userService.PayHandler(item);
-            if(result){
+            if (result) {
                 response.put("newPayment", true);
                 response.put("success", true);
                 response.put("item", item);
                 AuctionServer.broadcastToSpecificAuction(item.getSellerId(), Command.NOTIFICATION_BIDDER_PAY, response);
-            }
-            else{
+            } else {
+                // Try to provide a helpful reason for failure
+                model.auction.Auction auction = userService.getAuctionByItemId(String.valueOf(item.getDatabaseId()));
+                if (auction == null) {
+                    response.put("message", "Auction not found for item: " + item.getDatabaseId());
+                } else {
+                    response.put("message", "Payment processing failed for item: " + item.getDatabaseId());
+                }
                 response.put("success", false);
             }
             sendResponse(out, Command.BIDDER_PAY_RESULT, response);

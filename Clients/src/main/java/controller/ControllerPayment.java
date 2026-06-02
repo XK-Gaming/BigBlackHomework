@@ -99,9 +99,18 @@ public class ControllerPayment implements ServerListener {
         this.item1.setName(dto.getItemName());
         // Giá cần thanh toán chính là giá thắng cuộc (Mức đặt cao nhất của bạn)
         this.item1.setCurrentHighestPrice(dto.getMyHighestBid() > 0 ? dto.getMyHighestBid() : dto.getCurrentHighestPrice());
+        // Nếu DTO chứa sellerId, copy sang Item để tránh thiếu dữ liệu khi gửi lên server
+        try {
+            if (dto.getSellerId() != null && !dto.getSellerId().isBlank()) {
+                this.item1.setSellerId(dto.getSellerId());
+            }
+        } catch (Exception ignored) {}
 
         // 2. Lưu vào Session để các hàm bổ trợ khác (như On_apply, getCustomDescription) chạy không bị lỗi
         model.Items.ItemSession.setLoggedInItem(this.item1);
+
+        // Vô hiệu hóa nút Thanh toán cho tới khi server trả về thông tin phiên đầy đủ
+        if (j_apply != null) j_apply.setDisable(true);
 
         // 3. Cập nhật giao diện ngay lập tức
         showSessionProductAndLoadingAuctionState();
@@ -132,6 +141,8 @@ public class ControllerPayment implements ServerListener {
         if (item1 != null) {
             client.sendCommand(Command.GET_AUCTION, item1.getDatabaseId());
             showSessionProductAndLoadingAuctionState();
+            // Disable apply until GET_AUCTION_RESULT processed
+            j_apply.setDisable(true);
         } else {
             // Nếu chưa có item1 (tức là đi từ Lịch Sử, đang chờ hàm initData được gọi từ màn hình trước)
             j_status.setText("Đang tải dữ liệu sản phẩm...");
@@ -266,6 +277,11 @@ public class ControllerPayment implements ServerListener {
 
             Platform.runLater(() -> {
                 if (this_Auction != null) {
+                    // Synchronize local item with server-provided auction.item to ensure sellerId and full data
+                    if (this_Auction.getItem() != null) {
+                        this.item1 = this_Auction.getItem();
+                        model.Items.ItemSession.setLoggedInItem(this.item1);
+                    }
                     if (this_Auction.getStatus().equals(AuctionStatus.PAID)) {
                         j_status.setText("Trạng thái: Đã thanh toán");
                         j_status.setTextFill(Color.GREEN); // (Tùy chọn) Đổi chữ sang màu xanh cho trực quan
@@ -311,7 +327,13 @@ public class ControllerPayment implements ServerListener {
                     j_status.setText("Trạng thái: Thanh toán thất bại");
                     j_status.setTextFill(Color.RED); // (Tùy chọn) Đổi chữ sang màu đỏ khi lỗi
                     j_status.setVisible(true);
-                    j_notified.setText("Thanh toán không thành công. Vui lòng kiểm tra lại số dư!");
+                    String message = null;
+                    try { message = (String) resMap.getOrDefault("message", null); } catch (Exception ignored) {}
+                    if (message != null && !message.isBlank()) {
+                        j_notified.setText(message);
+                    } else {
+                        j_notified.setText("Thanh toán không thành công. Vui lòng kiểm tra lại số dư!");
+                    }
                     j_notified.setVisible(true);
 
                     // Thất bại thì vẫn cho phép bấm thử lại

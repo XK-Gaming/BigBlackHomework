@@ -501,9 +501,17 @@ public class UserService {
                     minBidForDto = auction.getItem().getMinBid();
                 }
 
+                String sellerIdForDto = null;
+                if (auction.getItem() != null && auction.getItem().getSellerId() != null) {
+                    sellerIdForDto = auction.getItem().getSellerId();
+                } else if (auction.getSellerID() != null) {
+                    sellerIdForDto = auction.getSellerID();
+                }
+
                 resultList.add(new BidHistoryDTO(
                         auction.getItemId(),
                         itemName,
+                        sellerIdForDto,
                         myMaxBid,
                         currentPrice,
                         minBidForDto,
@@ -654,14 +662,36 @@ public class UserService {
     }
 
     public boolean PayHandler(Item item) {
+        if (item == null) {
+            System.err.println("[UserService] PayHandler: item is null");
+            return false;
+        }
+
         String sellerid = item.getSellerId();
+        if (sellerid == null || sellerid.isBlank()) {
+            System.err.println("[UserService] PayHandler: sellerId is null or empty for item: " + item.getDatabaseId());
+            return false;
+        }
+
         User user = userDAO.selectByUsernameOnly(sellerid);
+        if (user == null) {
+            // Seller not found in DB — log and avoid NullPointerException
+            System.err.println("[UserService] PayHandler: user not found for sellerId: " + sellerid);
+            return false;
+        }
+
         double amount = item.getCurrentHighestPrice();
-        int result = userDAO.UpdateBalance(sellerid,amount + user.getBalance());
+        double newBalance = user.getBalance() + amount;
+        int result = userDAO.UpdateBalance(sellerid, newBalance);
+
         Auction auction = auctionDAO.selectByItemId(item);
-        auctionDAO.Update_Status(auction, item, AuctionStatus.PAID);
-        if(result >= 1){return true;}
-        return false;
+        if (auction != null) {
+            auctionDAO.Update_Status(auction, item, AuctionStatus.PAID);
+        } else {
+            System.err.println("[UserService] PayHandler: auction not found for item: " + item.getDatabaseId());
+        }
+
+        return result >= 1;
     }
 
 
