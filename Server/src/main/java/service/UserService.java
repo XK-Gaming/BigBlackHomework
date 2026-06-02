@@ -492,9 +492,13 @@ public class UserService {
 
 // Thay vì gán cứng chuỗi mặc định, hãy check lấy tên thật từ Item:
                 String itemName = "mmb"; // Tạm thời làm dự phòng
+                double minBidForDto = 0.0;
 
-                if (auction.getItem() != null && auction.getItem().getName() != null) {
-                    itemName = auction.getItem().getName();
+                if (auction.getItem() != null) {
+                    if (auction.getItem().getName() != null) {
+                        itemName = auction.getItem().getName();
+                    }
+                    minBidForDto = auction.getItem().getMinBid();
                 }
 
                 resultList.add(new BidHistoryDTO(
@@ -502,6 +506,7 @@ public class UserService {
                         itemName,
                         myMaxBid,
                         currentPrice,
+                        minBidForDto,
                         myLastTime,
                         displayStatus
                 ));

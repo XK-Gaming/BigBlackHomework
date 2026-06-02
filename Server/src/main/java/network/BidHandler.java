@@ -51,6 +51,15 @@ public class BidHandler extends BaseHandler implements RequestHandler {
 
                 // Bid event: dùng helper chung để manual bid và AutoBid phát realtime giống nhau.
                 BidEventPublisher.publishSuccessfulBid(itemId, bidderId, result);
+
+                // Trả thêm dữ liệu chi tiết cho client đặt giá (giúp UI cập nhật lịch sử/biểu đồ nhanh)
+                try {
+                    if (result.get("bidHistory") != null) response.put("bidHistory", result.get("bidHistory"));
+                    if (result.get("latestAuction") != null) response.put("auction", result.get("latestAuction"));
+                    if (result.get("item") != null) response.put("item", result.get("item"));
+                } catch (Exception ignored) {
+                }
+
             } else {
                 response.put("success", false);
                 response.put("message", "Đấu giá thất bại");
@@ -65,6 +74,7 @@ public class BidHandler extends BaseHandler implements RequestHandler {
             response.put("message", "Đấu giá thất bại do lỗi hệ thống");
         }
 
+        System.out.println("[Server Debug] BID_HANDLER response: " + response);
         sendResponse(out, Command.BID_RESULT, response);
     }
 

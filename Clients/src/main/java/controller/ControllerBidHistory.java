@@ -21,10 +21,12 @@ import network.DataPacket;
 import network.ServerListener;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 public class ControllerBidHistory implements ServerListener {
 
@@ -37,6 +39,7 @@ public class ControllerBidHistory implements ServerListener {
     @FXML private AnchorPane paneModalOverlay;
     @FXML private Label lblModalItemName;
     @FXML private Label lblModalCurrentPrice;
+    @FXML private Label lblModalMinBid;
     @FXML private TextField txtBidAmount;
     @FXML private Button btnConfirmBid;
 
@@ -156,26 +159,76 @@ public class ControllerBidHistory implements ServerListener {
 
         // TRƯỜNG HỢP 3: Cập nhật biến động Realtime từng Item từ sảnh hoặc kết quả Bid cá nhân
         if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command) || Command.BID_RESULT.equals(command)) {
+            System.out.println("[Client History DEBUG] BID_RESULT payload: " + response.payload());
             Object payload = response.payload();
             if (payload == null) return;
 
             long updatedItemId = -1;
             double updatedPrice = 0.0;
+            double updatedMinBid = -1.0;
             String highestBidder = "";
 
             // 1. Nhận dạng cấu trúc phòng đấu giá (ITEMS_UPDATE được broadcast toàn hệ thống)
             if (payload instanceof Auction auction) {
                 updatedItemId = auction.getItem() != null ? auction.getItem().getDatabaseId() : -1;
                 updatedPrice = auction.getCurrentPrice();
+                updatedMinBid = auction.getItem() != null ? auction.getItem().getMinBid() : -1.0;
                 highestBidder = auction.getLeadingBidder() != null ? auction.getLeadingBidder() : "";
             }
             // 2. Nhận dạng Object sản phẩm đơn lẻ (Item)
             else if (payload instanceof Item item) {
                 updatedItemId = item.getDatabaseId();
                 updatedPrice = item.getCurrentHighestPrice();
+                updatedMinBid = item.getMinBid();
             }
             // 3. Khối bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
             else if (payload instanceof Map<?, ?> map) {
+                // Special-case: BID_RESULT failure may return a formatted message like
+                // "Giá đặt tối thiểu là 1.641.000 (giá hiện tại + MinBid)." without itemId.
+                // Try to extract suggested minimum and update modal input so user can retry.
+                if (Command.BID_RESULT.equals(command)) {
+                    Object successObj = map.get("success");
+                    Object messageObj = map.get("message");
+                    if (successObj != null && "false".equalsIgnoreCase(successObj.toString()) && messageObj != null) {
+                        String msg = messageObj.toString();
+                        java.util.regex.Pattern p = java.util.regex.Pattern.compile("([0-9][0-9.,]+)");
+                        java.util.regex.Matcher m = p.matcher(msg);
+                        if (m.find() && targetItemId != -1) {
+                            String numStr = m.group(1);
+                            String digits = numStr.replaceAll("[^0-9]", "");
+                            if (!digits.isEmpty()) {
+                                double minAllowed = Double.parseDouble(digits);
+                                // Update input and also update local DTO minBid so future validation uses server value
+                                final double finalMinAllowed = Math.ceil(minAllowed);
+                                final String textVal = String.format(Locale.ROOT, "%.0f", finalMinAllowed);
+                                Platform.runLater(() -> {
+                                    if (txtBidAmount != null) txtBidAmount.setText(textVal);
+                                    // Update DTO in-memory minBid for targetItemId
+                                    if (targetItemId != -1) {
+                                        for (BidHistoryDTO dto : allHistoryData) {
+                                            if (dto.getItemId() == targetItemId) {
+                                                // Server gave absolute minimum required (minAllowed). To ensure suggestion equals server's requirement,
+                                                // set currentHighestPrice to minAllowed and clear minBid locally — this makes suggestedPrice == minAllowed.
+                                                double derived = finalMinAllowed - dto.getCurrentHighestPrice();
+                                                double derivedMin = derived > 0 ? derived : 0;
+                                                dto.setMinBid(derivedMin);
+                                                // Update modal minBid label if modal is visible
+                                                if (lblModalMinBid != null) {
+                                                    DecimalFormat df = new DecimalFormat("#,###");
+                                                    lblModalMinBid.setText(df.format(derivedMin) + " VNĐ");
+                                                }
+                                                System.out.println("[Client History] Updated DTO minBid to: " + derivedMin + " for item " + targetItemId);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    System.out.println("[Client History] Server requested minAllowed, adjusted input to: " + textVal);
+                                });
+                            }
+                        }
+                    }
+                }
+
                 try {
                     if (map.containsKey("itemId") && map.get("itemId") != null) {
                         String itemIdStr = map.get("itemId").toString();
@@ -189,6 +242,17 @@ public class ControllerBidHistory implements ServerListener {
                             updatedPrice = Double.parseDouble(map.get("newPrice").toString());
                         } else if (map.containsKey("amount") && map.get("amount") != null) {
                             updatedPrice = Double.parseDouble(map.get("amount").toString());
+                        }
+
+                        // Thử lấy minBid nếu server gửi kèm trong payload Map
+                        if (map.containsKey("minBid") && map.get("minBid") != null) {
+                            try {
+                                updatedMinBid = Double.parseDouble(map.get("minBid").toString());
+                            } catch (Exception ignored) { updatedMinBid = -1.0; }
+                        } else if (map.containsKey("min_bid") && map.get("min_bid") != null) {
+                            try {
+                                updatedMinBid = Double.parseDouble(map.get("min_bid").toString());
+                            } catch (Exception ignored) { updatedMinBid = -1.0; }
                         }
 
                         if (map.get("bidderId") != null) {
@@ -208,11 +272,12 @@ public class ControllerBidHistory implements ServerListener {
                         if (updatedItemId > 0) {
                             final long targetId = updatedItemId;
                             final double targetPrice = updatedPrice;
+                            final double targetMinBid = updatedMinBid;
                             final String topBidder = highestBidder;
                             final String finalItemName = updatedItemName;
 
                             Platform.runLater(() -> {
-                                updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
+                                updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName, targetMinBid);
 
                                 if (Command.BID_RESULT.equals(command)) {
                                     hideQuickBidModal();
@@ -233,6 +298,7 @@ public class ControllerBidHistory implements ServerListener {
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
+                final double targetMinBid = updatedMinBid;
                 final String topBidder = highestBidder;
 
                 String tempName = "";
@@ -244,7 +310,7 @@ public class ControllerBidHistory implements ServerListener {
                 final String finalItemName = tempName;
 
                 Platform.runLater(() -> {
-                    updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName);
+                    updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName, targetMinBid);
 
                     if (Command.BID_RESULT.equals(command)) {
                         hideQuickBidModal();
@@ -273,7 +339,7 @@ public class ControllerBidHistory implements ServerListener {
     /**
      * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp cả GIÁ và TRẠNG THÁI
      */
-    private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder, String newItemName) {
+    private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder, String newItemName, double newMinBid) {
         boolean hasChanged = false;
 
         String currentTimeStr = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -288,6 +354,11 @@ public class ControllerBidHistory implements ServerListener {
                 // --- THÊM: CẬP NHẬT LẠI TÊN SẢN PHẨM NẾU TRÊN SERVER CÓ THAY ĐỔI HOẶC BỊ KHUYẾT ---
                 if (newItemName != null && !newItemName.isBlank()) {
                     dto.setItemName(newItemName);
+                }
+
+                // --- CẬP NHẬT minBid NẾU Server gửi kèm ---
+                if (newMinBid >= 0) {
+                    dto.setMinBid(newMinBid);
                 }
 
                 // 1. Cập nhật lại giá cao nhất trên thị trường hiện tại
@@ -320,6 +391,7 @@ public class ControllerBidHistory implements ServerListener {
                 System.out.println("🔄 [UI Realtime] Đã đồng bộ Item ID: " + itemId
                         + " | Tên: " + dto.getItemName()
                         + " | Giá mới: $" + newPrice
+                        + " | MinBid: " + dto.getMinBid()
                         + " | Trạng thái mới: " + dto.getStatus());
             }
         }
@@ -478,12 +550,25 @@ public class ControllerBidHistory implements ServerListener {
         lblModalItemName.setText(dto.getItemName());
         lblModalCurrentPrice.setText("$" + dto.getCurrentHighestPrice());
 
-        double suggestedPrice = dto.getCurrentHighestPrice() + 10.0;
+        double minBid = 10.0;
+        try {
+            minBid = dto.getMinBid();
+        } catch (Exception ignored) {}
+        double suggestedPrice = dto.getCurrentHighestPrice() + (minBid > 0 ? minBid : 10.0);
 
         txtBidAmount.clear();
-        txtBidAmount.setText(String.valueOf(suggestedPrice));
+        // Use culture-neutral integer formatting (no grouping) to avoid locale grouping parsing issues
+        txtBidAmount.setText(String.format(Locale.ROOT, "%.0f", suggestedPrice));
         txtBidAmount.requestFocus();
         txtBidAmount.selectAll();
+
+        // Show MinBid explicitly on modal
+        try {
+            if (lblModalMinBid != null) {
+                DecimalFormat df = new DecimalFormat("#,###");
+                lblModalMinBid.setText(df.format(minBid) + " VNĐ");
+            }
+        } catch (Exception ignored) {}
 
         paneModalOverlay.setDisable(false);
         paneModalOverlay.setVisible(true);
@@ -522,9 +607,34 @@ public class ControllerBidHistory implements ServerListener {
         }
 
         try {
-            double amount = Double.parseDouble(amountText);
+            // Sanitize input: remove any non-digit characters (commas, dots, spaces) since VND uses whole numbers
+            String sanitized = amountText.replaceAll("[^0-9]", "");
+            if (sanitized.isEmpty()) {
+                System.err.println("[Lỗi Nhập Liệu] Mức giá nhập vào không đúng định dạng số! Input: " + amountText);
+                return;
+            }
+            double amount = Double.parseDouble(sanitized);
 
             System.out.println("[Debug Bid] Chuẩn bị BID: itemId=" + targetItemId + ", amount=" + amount + ", bidder=" + currentUsername);
+
+            // Client-side validation: ensure amount >= currentHighestPrice + minBid
+            BidHistoryDTO targetDto = null;
+            for (BidHistoryDTO dto : allHistoryData) {
+                if (dto.getItemId() == targetItemId) { targetDto = dto; break; }
+            }
+            double minAllowed = Double.NEGATIVE_INFINITY;
+            if (targetDto != null) {
+                double minBid = targetDto.getMinBid();
+                if (minBid <= 0) minBid = 10.0;
+                minAllowed = targetDto.getCurrentHighestPrice() + minBid;
+                // Round up to whole number (no fractional VND)
+                minAllowed = Math.ceil(minAllowed);
+                if (amount < minAllowed) {
+                    System.err.println("[Client Validation] Giá quá thấp. Mức đặt tối thiểu là " + String.format("%,.0f", minAllowed) + " VNĐ (hiện tại + MinBid). Đã điều chỉnh ô nhập.");
+                txtBidAmount.setText(String.format(Locale.ROOT, "%.0f", minAllowed));
+                    return;
+                }
+            }
 
             Map<String, Object> bidPayload = new HashMap<>();
             bidPayload.put("itemId", targetItemId);
