@@ -430,6 +430,41 @@ class UserServiceTest {
     }
 
     /**
+     * ## Test self-outbid: bidder dang dan dau duoc tinh lai balance tu gia cu roi tru gia moi, khong gui refund notification.
+     */
+    @Test
+    void processBidRechargesAndChargesSameLeaderWithoutRefundNotification() throws Exception {
+        Instant now = Instant.parse("2026-05-18T10:00:00Z");
+        Item item = item("seller", 150, now.minusSeconds(3600), now.plusSeconds(3600));
+        item.setMinBid(20);
+        Auction auction = runningAuction(item);
+        auction.setLeadingBidder("bidder1");
+        auction.setBidHistory(List.of(new BidTransaction("bid-1", "bidder1", 150, now.minusSeconds(60))));
+        FakeItemDao itemDao = new FakeItemDao(item);
+        itemDao.updateResult = 1;
+        FakeAuctionDao auctionDao = new FakeAuctionDao(auction);
+        auctionDao.updateResult = 1;
+        FakeUserDao userDao = new FakeUserDao();
+        userDao.addUser(new Bidder("bidder1", "secret", "Bidder One", "bidder1@example.com", 850));
+        UserService service = serviceWith(
+                userDao,
+                itemDao,
+                auctionDao,
+                1,
+                Clock.fixed(now, ZoneOffset.UTC));
+
+        Map<String, Object> result = service.processBid("1", "bidder1", 200);
+
+        assertEquals(800, userDao.selectByUsernameOnly("bidder1").getBalance(), 0.001);
+        assertFalse(result.containsKey("refundedBidderId"));
+        assertFalse(result.containsKey("refundedBalance"));
+        assertEquals(200, item.getCurrentHighestPrice(), 0.001);
+        Auction latestAuction = (Auction) result.get("latestAuction");
+        assertEquals("bidder1", latestAuction.getLeadingBidder());
+        assertEquals(2, latestAuction.getBidHistory().size());
+    }
+
+    /**
      * ## Test bid: user khong ton tai thi rollback va tra NotFoundException resource user.
      */
     @Test
@@ -755,7 +790,7 @@ class UserServiceTest {
     }
 
     /**
-     * ## Test anti-sniping: neu DB da co endTime moi nhung status con FINISHED cu, lich su phai coi phien van RUNNING.
+     * ## Test lich su bidder: getStatus tu tinh lai RUNNING khi endTime con han, nhung service khong persist status qua DAO.
      */
     @Test
     void getBidderHistoryTreatsExtendedAuctionAsRunningWhenStoredStatusIsFinished() throws Exception {
@@ -782,7 +817,8 @@ class UserServiceTest {
 
         assertEquals(1, history.size());
         assertEquals("WINNING", history.get(0).getStatus());
-        assertEquals(AuctionStatus.RUNNING, auctionDao.updatedStatus);
+        assertEquals(AuctionStatus.RUNNING, auction.getRawStatus());
+        assertEquals(0, auctionDao.statusUpdateCalls);
     }
 
     /**
@@ -937,14 +973,15 @@ class UserServiceTest {
     }
 
     private static final class StaticStatusAuction extends Auction {
-        private AuctionStatus status;
-
         private StaticStatusAuction(String id, Item item, String sellerId, Instant createdAt, AuctionStatus status) {
             super(id, item, sellerId, createdAt);
             setStatus(status);
         }
 
-
+        @Override
+        public AuctionStatus getStatus() {
+            return getRawStatus();
+        }
     }
 
     /**

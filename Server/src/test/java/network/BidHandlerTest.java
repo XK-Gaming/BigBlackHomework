@@ -48,6 +48,9 @@ class BidHandlerTest {
         assertEquals("bidder1", ((User) payload.get("user")).getUsername());
     }
 
+    /**
+     * ## Test bid hop le: handler dua auctionEndTime tu latestAuction vao payload de client dong bo countdown.
+     */
     @Test
     void successfulBidIncludesLatestAuctionEndTimeWhenAuctionIsLoaded() throws Exception {
         Instant endTime = Instant.parse("2026-05-20T10:05:30Z");
