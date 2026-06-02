@@ -97,22 +97,34 @@ public class UserService {
      * ✅ SỬA LỖI #2: Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
      */
     public Map<String, Object> register(User user) {
-        if (userDAO.selectByUsernameOnly(user.getUsername())!= null) {
+        // Quick pre-check to avoid unnecessary insert when user already exists
+        if (userDAO.selectByUsernameOnly(user.getUsername()) != null) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", "EXSITED");
             response.put("message", "Tài khoản đã tồn tại");
             return response;
         }
-        else {
 
-            try {
-                userDAO.Insert(user);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
+        try {
+            userDAO.Insert(user);
             Map<String, Object> response = new HashMap<>();
             response.put("success", "TRUE");
-            return response;}
+            return response;
+        } catch (SQLException e) {
+            // Handle unique constraint / duplicate key errors which may occur under race conditions
+            String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+            String sqlState = e.getSQLState();
+            if ((msg.contains("unique") || msg.contains("duplicate") || (sqlState != null && sqlState.startsWith("23")))) {
+                // Verify the username actually exists before returning EXSITED
+                if (userDAO.selectByUsernameOnly(user.getUsername()) != null) {
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("success", "EXSITED");
+                    response.put("message", "Tài khoản đã tồn tại");
+                    return response;
+                }
+            }
+            throw new RuntimeException(e);
+        }
     }
 
 

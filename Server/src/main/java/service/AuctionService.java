@@ -40,7 +40,10 @@ public class AuctionService {
     }
 
     public String formatPrice(double price) {
-        return new DecimalFormat("#,###").format(price) + " VNĐ";
+        java.text.DecimalFormatSymbols symbols = java.text.DecimalFormatSymbols.getInstance();
+        symbols.setGroupingSeparator(',');
+        java.text.DecimalFormat df = new java.text.DecimalFormat("#,###", symbols);
+        return df.format(price) + " VNĐ";
     }
 }
 
