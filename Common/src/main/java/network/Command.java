@@ -1,0 +1,127 @@
+package network;
+
+public enum Command {
+    LOGIN,  // Đăng nhập
+    LOGIN_RESULT,
+
+
+    REGISTER, // Đăng ký
+    REGISTER_RESULT,
+
+    CREATE_ITEM,// Tạo sản phẩm mới
+    CREATE_ITEM_RESULT,
+
+    // Lấy ra tất cả sản phẩm --- > Dùng để hiển thị danh sách sản phẩm trên client
+    SELECT_ITEMS,
+    SELECT_ITEMS_RESULT,
+
+    // Lấy ra phiên đấu giá --- > Dùng để hiển thị thông tin phiên đấu giá trên client
+    GET_AUCTION,
+    GET_AUCTION_RESULT,
+
+
+    // Thay đổi phiên đấu giá -- > Dùng để cập nhật thông tin phiên đấu giá trên client
+    SET_AUCTION,
+    SET_AUCTION_RESULT,
+
+    // Đấu giá -- > Dùng để cập nhật thông tin phiên đấu giá trên
+    // client đã đấu giá sau khi có người đặt giá mới
+    BID,
+    BID_RESULT,
+    BALANCE_UPDATE,
+
+    // AutoBid: client gửi cấu hình bật/tắt và server trả trạng thái hiện tại.
+    SET_AUTO_BID,
+    SET_AUTO_BID_RESULT,
+
+    // Lấy tất cả các phiên đấu giá () Chưa sử dụng
+    GET_ALL_AUCTIONS,
+    GET_ALL_AUCTIONS_RESULT,
+
+    // Update thông tin người dùng (tên, email) Chưa sử dụng
+    UPDATE_USER,
+    UPDATE_USER_RESULT,
+
+    // Update mật khẩu  Chưa sử dụng
+    CHANGE_PASSWORD,
+    CHANGE_PASSWORD_RESULT,
+
+    // Đăng xuất  Chưa sử dụng
+    LOGOUT,
+    LOGOUT_RESULT,
+    FORCE_LOGOUT_MULTIPLE_USER,
+
+    // Đăng cập nhật giá mới nhất trên toàn
+    // bộ client đang xem sản phẩm đó (dùng để đồng bộ giá mới nhất sau khi có người đặt giá mới)
+    BID_UPDATE,
+
+    // ........
+    ITEMS_UPDATE,
+
+
+    // Thay đổi trạng thái phiên đấu giá ---> từ DISABLE sang STATUS bình thường
+    SET_ALLOW,
+    SET_ALLOW_RESULT,
+
+    // Xóa sản phẩm
+    DELETE_ITEM,
+    DELETE_ITEM_RESULT,
+
+    // Nạp tiền vào sản phẩm
+    RECHARGE_AMOUNT,
+    RECHARGE_AMOUNT_RESULT,
+
+    // Thông báo khi có lượt đấu giá mới mới, khi có yêu cầu nạp tiền thành công
+    NOTIFICATION,
+
+    // Thay thế cho việc Sửa/Edit item trực tiếp ở DAO
+    EDIT_ITEM,
+    EDIT_ITEM_RESULT,
+
+
+    // Lấy các sản phẩm đấu giá của seller theo username
+    GET_SELLER_ITEMS,
+    GET_SELLER_ITEMS_RESULT,
+
+    // Lấy lịch sử đấu giá của bidder theo username
+    GET_BIDDER_HISTORY,
+    GET_BIDDER_HISTORY_RESULT,
+
+    //
+    GET_PENDING_DEPOSITS,
+    GET_PENDING_DEPOSITS_RESULT,
+
+    APPROVE_DEPOSIT,
+    APPROVE_DEPOSIT_RESULT,
+
+    REJECT_DEPOSIT,
+    REJECT_DEPOSIT_RESULT,
+
+    DELETE_DEPOSIT_HISTORY,
+    DELETE_DEPOSIT_HISTORY_RESULT,
+
+    GET_USER_INFO,
+    GET_USER_INFO_RESULT,
+
+    // Bidder thanh toán tiền cho Seller
+    BIDDER_PAY,
+    BIDDER_PAY_RESULT,
+
+    // Có lượt đặt giá mới
+    NOTIFICATION_NEW_PAY,
+
+    //
+    NOTIFICATION_BIDDER_PAY,
+
+
+    GET_ALL_USERS,
+    GET_ALL_USERS_RESULT,
+
+    DELETE_USER,
+    DELETE_USER_RESULT,
+
+    FORCE_LOGOUT,
+    //update status cho auction
+    UPDATE_AUCTION_STATUS,
+
+}

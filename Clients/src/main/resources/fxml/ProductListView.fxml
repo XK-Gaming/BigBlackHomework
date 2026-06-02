@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.text.*?>
+
+<AnchorPane prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerProductList">
+    <children>
+        <HBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <children>
+
+                <VBox alignment="TOP_CENTER" prefHeight="656.0" prefWidth="320.0" spacing="15.0" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.12), 10, 0, 0, 0);">
+                    <children>
+                        <Label text="BẢNG ĐIỀU KHIỂN">
+                            <font>
+                                <Font name="System Bold" size="18.0" />
+                            </font>
+                            <VBox.margin>
+                                <Insets bottom="20.0" top="20.0" />
+                            </VBox.margin>
+                        </Label>
+                        <ImageView fitHeight="100.0" fitWidth="100.0" pickOnBounds="true" preserveRatio="true">
+                            <image>
+                                <Image url="@../img/imgUSER.png" />
+                            </image>
+                            <cursor>
+                                <Cursor fx:constant="HAND" />
+                            </cursor>
+                        </ImageView>
+                        <Label fx:id="j_LabelName" text="Tên người dùng" textFill="#111827">
+                            <font>
+                                <Font name="System Bold" size="16.0" />
+                            </font>
+                        </Label>
+                        <HBox alignment="CENTER" spacing="5.0">
+                            <children>
+                                <Label text="Số dư:" textFill="#64748b" />
+                                <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#dc2626">
+                                    <font>
+                                        <Font name="System Bold" size="14.0" />
+                                    </font>
+                                </Label>
+                            </children>
+                        </HBox>
+                        <Separator prefWidth="200.0">
+                            <VBox.margin>
+                                <Insets bottom="20.0" top="20.0" />
+                            </VBox.margin>
+                        </Separator>
+
+                        <VBox VBox.vgrow="ALWAYS" />
+
+                        <Button mnemonicParsing="false" onAction="#On_AddProduct" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng sản phẩm mới">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                            <cursor>
+                                <Cursor fx:constant="HAND" />
+                            </cursor>
+                        </Button>
+
+                        <Button mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng xuất">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                            <VBox.margin>
+                                <Insets bottom="30.0" />
+                            </VBox.margin>
+                        </Button>
+                    </children>
+                </VBox>
+
+                <VBox prefHeight="634.0" prefWidth="990.0" spacing="20.0" HBox.hgrow="ALWAYS">
+                    <padding>
+                        <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
+                    </padding>
+                    <children>
+
+                        <HBox alignment="CENTER_LEFT" spacing="20.0">
+                            <children>
+                                <Label text="DANH SÁCH SẢN PHẨM" textFill="#111827">
+                                    <font>
+                                        <Font name="System Bold" size="24.0" />
+                                    </font>
+                                </Label>
+                                <HBox alignment="CENTER_LEFT" spacing="5.0">
+                                    <children>
+                                        <Label fx:id="connectionText" text="Offline" textFill="#64748b">
+                                            <font>
+                                                <Font size="11.0" />
+                                            </font>
+                                        </Label>
+                                        <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
+                                    </children>
+                                </HBox>
+                                <HBox HBox.hgrow="ALWAYS" />
+                                <TextField fx:id="txtSearch" prefHeight="35.0" prefWidth="250.0" promptText="Tìm kiếm sản phẩm..." style="-fx-background-radius: 12;" />
+                            </children>
+                        </HBox>
+
+                        <TableView fx:id="tableProducts" prefHeight="200.0" prefWidth="200.0" style="-fx-background-radius: 12;" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colId" prefWidth="60.0" text="Mã SP" />
+                                <TableColumn fx:id="colName" prefWidth="180.0" text="Tên sản phẩm" />
+                                <TableColumn fx:id="colCategory" prefWidth="120.0" text="Loại mặt hàng" />
+                                <TableColumn fx:id="colPrice" prefWidth="110.0" text="Giá khởi điểm" />
+
+                                <TableColumn fx:id="colCurrentPrice" prefWidth="120.0" text="Giá hiện tại" />
+
+                                <TableColumn fx:id="colTimeStart" prefWidth="130.0" text="Thời gian bắt đầu" />
+                                <TableColumn fx:id="colTimeEnd" prefWidth="130.0" text="Thời gian kết thúc" />
+                                <TableColumn fx:id="colSessionStatus" prefWidth="110.0" text="Trạng thái phiên" />
+                            </columns>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                            </columnResizePolicy>
+                        </TableView>
+
+                        <HBox alignment="CENTER_RIGHT" spacing="15.0">
+                            <children>
+                                <Button fx:id="btnEdit" mnemonicParsing="false" onAction="#On_EditProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 12;" text="Sửa sản phẩm">
+                                    <font>
+                                        <Font name="System Bold" size="13.0" />
+                                    </font>
+                                    <cursor>
+                                        <Cursor fx:constant="HAND" />
+                                    </cursor>
+                                </Button>
+                                <Button fx:id="btnDelete" mnemonicParsing="false" onAction="#On_DeleteProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 12;" text="Xóa sản phẩm">
+                                    <font>
+                                        <Font name="System Bold" size="13.0" />
+                                    </font>
+                                    <cursor>
+                                        <Cursor fx:constant="HAND" />
+                                    </cursor>
+                                </Button>
+                            </children>
+                        </HBox>
+
+                    </children>
+                </VBox>
+
+            </children>
+        </HBox>
+    </children>
+</AnchorPane>

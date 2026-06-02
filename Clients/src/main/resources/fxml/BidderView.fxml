@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.Cursor?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Pagination?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:id="Pane1" prefHeight="650.0" prefWidth="850.0" style="-fx-background-color: linear-gradient(to bottom right, #f8fbff, #eef4ff, #f7f3ff);" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerBidder">
+
+   <left>
+      <VBox alignment="TOP_CENTER" prefWidth="220.0" spacing="20.0"
+            style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.18), 10, 0, 2, 0);"
+            BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="20.0" left="15.0" right="15.0" top="40.0"/>
+         </padding>
+         <ImageView fx:id="j_image" fitHeight="80.0" fitWidth="80.0" onMouseClicked="#On_MouseClickImg"
+                    pickOnBounds="true" preserveRatio="true">
+            <cursor>
+               <Cursor fx:constant="HAND"/>
+            </cursor>
+            <Image url="@../img/imgUSER.png"/>
+         </ImageView>
+
+         <Label fx:id="j_LabelName" text="Username" textFill="WHITE">
+            <font>
+               <Font name="System Bold" size="16.0"/>
+            </font>
+         </Label>
+
+         <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: #24334f; -fx-background-radius: 14;">
+            <padding>
+               <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+            </padding>
+            <Label text="Số dư khả dụng" textFill="#94a3b8">
+               <font>
+                  <Font size="12.0"/>
+               </font>
+            </Label>
+            <Label fx:id="j_textSoDu" text="0.0 VNĐ" textFill="#16a34a">
+               <font>
+                  <Font name="System Bold" size="16.0"/>
+               </font>
+            </Label>
+         </VBox>
+
+         <Region VBox.vgrow="ALWAYS"/>
+
+         <VBox alignment="CENTER" maxWidth="Infinity" spacing="10.0">
+            <Button fx:id="BidHistory" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_BidHistory"
+                    style="-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
+                    text="Lịch sử bid" VBox.vgrow="ALWAYS">
+               <padding>
+                  <Insets bottom="10.0" top="10.0"/>
+               </padding>
+               <cursor>
+                  <Cursor fx:constant="HAND"/>
+               </cursor>
+            </Button>
+
+            <Button fx:id="LogOut" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_LogOut"
+                    style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
+                    text="Đăng xuất" VBox.vgrow="ALWAYS">
+               <padding>
+                  <Insets bottom="10.0" top="10.0"/>
+               </padding>
+               <cursor>
+                  <Cursor fx:constant="HAND"/>
+               </cursor>
+            </Button>
+         </VBox>
+      </VBox>
+   </left>
+
+   <center>
+      <VBox spacing="15.0" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="20.0" left="25.0" right="25.0" top="20.0"/>
+         </padding>
+
+         <HBox alignment="CENTER_LEFT" spacing="15.0">
+            <Label text="HỆ THỐNG ĐẤU GIÁ" textFill="#111827">
+               <font>
+                  <Font name="System Bold" size="20.0"/>
+               </font>
+            </Label>
+
+            <TextField fx:id="txtSearch" promptText="Tìm kiếm sản phẩm theo tên..."
+                       style="-fx-background-radius: 16; -fx-padding: 6 15 6 15; -fx-border-color: #d7e0ef; -fx-border-radius: 16; -fx-background-color: white;"
+                       prefWidth="250.0" />
+
+            <Region HBox.hgrow="ALWAYS" />
+
+            <HBox alignment="CENTER_LEFT" spacing="5.0">
+               <children>
+                  <Label fx:id="connectionText" text="Offline" textFill="#64748b">
+                     <font>
+                        <Font size="12.0" />
+                     </font>
+                  </Label>
+                  <Circle fx:id="connectionStatus" fill="#ef4444" radius="5.0" stroke="#0f172a" strokeType="INSIDE" strokeWidth="0.5" />
+               </children>
+            </HBox>
+
+            <Button fx:id="btnReset" mnemonicParsing="false" onAction="#On_ResetItems"
+                    style="-fx-background-color: #64748b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;"
+                    text="Làm mới">
+               <padding>
+                  <Insets bottom="8.0" left="15.0" right="15.0" top="8.0"/>
+               </padding>
+               <cursor>
+                  <Cursor fx:constant="HAND"/>
+               </cursor>
+            </Button>
+         </HBox>
+
+         <Pagination fx:id="List_Items_Bid"
+                     style="-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.08), 10, 0, 0, 5);"
+                     VBox.vgrow="ALWAYS"/>
+      </VBox>
+   </center>
+</BorderPane>

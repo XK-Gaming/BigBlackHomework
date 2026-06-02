@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="450.0" prefWidth="750.0" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/21.0.6" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.ControllerLogin">
+   <children>
+
+      <VBox alignment="CENTER" prefHeight="450.0" prefWidth="320.0" styleClass="left-panel">
+         <children>
+            <VBox alignment="CENTER" spacing="5.0">
+               <children>
+                  <Label styleClass="brand-title" text="AUCTION" />
+                  <Label styleClass="brand-subtitle" text="Online System" />
+               </children>
+            </VBox>
+
+            <Region prefHeight="50.0" />
+
+            <Button fx:id="jbutton_DangKy" mnemonicParsing="false" onAction="#setJbutton_DangKy" styleClass="btn-outline" text="ĐĂNG KÝ NGAY" />
+         </children>
+      </VBox>
+
+      <VBox alignment="CENTER_LEFT" prefHeight="450.0" prefWidth="430.0" spacing="18.0" styleClass="right-panel">
+         <children>
+            <Label styleClass="form-title" text="Đăng Nhập Hệ Thống">
+               <VBox.margin>
+                  <Insets bottom="10.0" />
+               </VBox.margin>
+            </Label>
+
+            <VBox spacing="6.0">
+               <children>
+                  <Label styleClass="input-label" text="Tên đăng nhập" />
+                  <TextField fx:id="username" prefHeight="40.0" promptText="Nhập username..." styleClass="custom-input" />
+               </children>
+            </VBox>
+
+            <VBox spacing="6.0">
+               <children>
+                  <Label styleClass="input-label" text="Mật khẩu" />
+                  <PasswordField fx:id="password" prefHeight="40.0" promptText="Nhập mật khẩu..." styleClass="custom-input" />
+               </children>
+            </VBox>
+
+            <HBox alignment="CENTER_LEFT" spacing="25.0">
+               <children>
+                  <Button fx:id="jbutton_DangNhap" mnemonicParsing="false" onAction="#handleLogin" prefHeight="42.0" prefWidth="130.0" styleClass="btn-primary" text="Đăng nhập" />
+                  <Hyperlink styleClass="custom-link" text="Quên mật khẩu?" />
+               </children>
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </HBox>
+
+            <Label fx:id="errorLabel" styleClass="error-text" text="Thông báo lỗi tại đây" visible="false" />         </children>
+      </VBox>
+
+   </children>
+</HBox>
