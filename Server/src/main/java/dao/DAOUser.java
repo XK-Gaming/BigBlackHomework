@@ -26,6 +26,7 @@ public class DAOUser implements DaoInterface<User> {
      */
     @Override
     public int Insert(User user) throws SQLException {
+        // Chuyển sang PreparedStatement để chống SQL Injection
         String sql = "INSERT INTO khach (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection con = JDBCUtil.getConnection();
@@ -34,17 +35,23 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setString(1, user.getUsername());
             pstmt.setString(2, user.getPassword());
             pstmt.setString(3, user.getName());
-
             pstmt.setString(4, user.getAddress());
-
             pstmt.setString(5, user.getRole_toString());
 
-            // Nếu thành công, trả về số dòng bị ảnh hưởng (thường là 1)
             return pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
         }
-        // Bất kỳ lỗi SQL nào (bao gồm lỗi trùng UNIQUE 23505) sẽ được ném thẳng lên tầng Service (hàm register) để xử lý.
     }
-
+    // Overload cho trường hợp cập nhật đơn lẻ không cần Transaction
+    public void Update(User user) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            Update(con, user);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     public int Delete(User user) {
