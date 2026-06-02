@@ -94,25 +94,32 @@ public class UserService {
     }
 
     /**
-     * ✅ SỬA LỖI #2: Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
+     *  Dựa hoàn toàn vào UNIQUE constraint của DB
+     * Bỏ qua bước SELECT check để tránh TOCTOU (Time-of-Check to Time-of-Use)
      */
     public Map<String, Object> register(User user) {
-        if (userDAO.selectByUsernameOnly(user.getUsername())!= null) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", "EXSITED");
-            response.put("message", "Tài khoản đã tồn tại");
-            return response;
-        }
-        else {
+        Map<String, Object> response = new HashMap<>();
 
-            try {
-                userDAO.Insert(user);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-            Map<String, Object> response = new HashMap<>();
+        try {
+            // Cứ tự tin Insert, DB sẽ tự check trùng cho ta nhờ UNIQUE constraint
+            userDAO.Insert(user);
+
             response.put("success", "TRUE");
-            return response;}
+            return response;
+
+        } catch (SQLException e) {
+            // Kiểm tra xem lỗi có phải do trùng Unique Key hay không
+            // Mã "23505" là tiêu chuẩn SQL của hầu hết DB (PostgreSQL, H2, Oracle...)
+            // Nếu dùng MySQL, mã lỗi cụ thể thường là e.getErrorCode() == 1062
+            if ("23505".equals(e.getSQLState()) || e.getErrorCode() == 1062) {
+                response.put("success", "EXSITED"); // Bạn đang viết sai chính tả chữ EXISTED, cân nhắc sửa lại nhé :D
+                response.put("message", "Tài khoản đã tồn tại");
+                return response;
+            }
+
+            // Nếu là lỗi SQL khác (mất kết nối, sai kiểu dữ liệu...) thì mới throw tiếp
+            throw new RuntimeException("Lỗi hệ thống khi đăng ký", e);
+        }
     }
 
 
