@@ -1047,11 +1047,6 @@ class UserServiceTest {
         }
 
 
-        @Override
-        public void Update(User user) {
-            this.updated = true;
-            this.user = user;
-        }
 
         @Override
         public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
