@@ -15,22 +15,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * ## JUnit: test logic nho cua AuctionService ma khong truy cap database.
- */
 class AuctionServiceTest {
 
-    /**
-     * ## Test null safety: khong co auction thi syncAuctionStatus tra null.
-     */
+    // Test sync status trả null khi thiếu auction.
     @Test
     void syncAuctionStatusReturnsNullWhenAuctionIsMissing() {
         assertNull(AuctionService.syncAuctionStatus(null));
     }
 
-    /**
-     * ## Test trang thai phien: lay dung status hien tai cua Auction.
-     */
+    // Test sync status trả trạng thái hiện tại.
     @Test
     void syncAuctionStatusReturnsCurrentAuctionStatus() {
         Item item = new Item(
@@ -48,9 +41,7 @@ class AuctionServiceTest {
         assertEquals(AuctionStatus.FINISHED, AuctionService.syncAuctionStatus(auction));
     }
 
-    /**
-     * ## Test luong tao auction moi: DAO khong co auction thi service tao object va goi Insert truoc khi tra ve.
-     */
+    // Test getAuction tạo phiên khi chưa có.
     @Test
     void getAuctionCreatesAndPersistsAuctionWhenMissing() throws Exception {
         Item item = item(Instant.now().plusSeconds(60), Instant.now().plusSeconds(120));
@@ -65,9 +56,7 @@ class AuctionServiceTest {
         assertSame(item, auctionDao.insertedItem);
     }
 
-    /**
-     * ## Test luong kich hoat auction: auction OPEN va da den gio bat dau thi chuyen sang RUNNING.
-     */
+    // Test phiên OPEN chuyển RUNNING khi tới giờ.
     @Test
     void getAuctionStartsOpenAuctionWhenStartTimeHasPassed() throws Exception {
         Item item = item(Instant.now().minusSeconds(60), Instant.now().plusSeconds(120));
@@ -84,9 +73,7 @@ class AuctionServiceTest {
         assertSame(item, auctionDao.updatedItem);
     }
 
-    /**
-     * ## Test format tien: service format gia truoc khi hien thi cho client.
-     */
+    // Test format giá có phân tách hàng nghìn.
     @Test
     void formatPriceUsesThousandsSeparator() {
         String formatted = new AuctionService().formatPrice(1234567);
@@ -133,9 +120,6 @@ class AuctionServiceTest {
         }
     }
 
-    /**
-     * ## Test fake DAO: mo rong DAOAuction_Items de ghi nhan luong select/insert/update status.
-     */
     private static final class FakeAuctionDao extends DAOAuction_Items {
         private Auction selectedAuction;
         private Auction insertedAuction;

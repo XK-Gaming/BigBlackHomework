@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request duyệt/dừng phiên.
 public class SetAllowHandler extends BaseHandler implements RequestHandler{
     private UserService userService;
 
@@ -14,6 +15,7 @@ public class SetAllowHandler extends BaseHandler implements RequestHandler{
         this.userService = userService;
     }
 
+    // Xử lý request duyệt/dừng phiên.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> Allow = (Map<String, Object>) payload;

@@ -14,6 +14,7 @@ import java.text.DecimalFormat;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+// Card sản phẩm.
 public class ItemCardController {
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     private String watchToken;
@@ -30,8 +31,7 @@ public class ItemCardController {
     private Label j_name;
     @FXML
     private Label j_status;
-
-    // HÀM MỚI: Chỉ nhận lệnh cập nhật trực tiếp nhãn giá tiền hiển thị độc lập
+    // Cập nhật giá card.
     public void updatePriceOnly(Item item) {
         DecimalFormat df = new DecimalFormat("#,###");
         double price = item.getCurrentHighestPrice();
@@ -39,7 +39,7 @@ public class ItemCardController {
             j_StartPrice.setText(df.format(price) + " VNĐ");
         });
     }
-
+    // Nạp dữ liệu card.
     public void setData(Item item) throws IOException, URISyntaxException {
         if (watchToken != null) {
             auctionEngine.unwatch(watchToken);
@@ -89,9 +89,10 @@ public class ItemCardController {
         });
     }
 
+    // Chọn card sản phẩm.
     @FXML
     void on_choice(MouseEvent event) {}
-
+    // Định dạng hiển thị.
     private String formatDuration(long totalSeconds) {
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;

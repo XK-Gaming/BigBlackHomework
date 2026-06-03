@@ -12,14 +12,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-/**
- * ## JUnit: test RegisterHandler doc request, goi UserService va tra REGISTER_RESULT.
- */
 class RegisterHandlerTest {
 
-    /**
-     * ## Test dang ky hop le: handler tra payload thanh cong tu service va truyen dung User vao service.
-     */
+    // Test đăng ký thành công trả payload service.
     @Test
     void registerSuccessReturnsServicePayload() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -34,9 +29,7 @@ class RegisterHandlerTest {
         assertSame(user, userService.registeredUser);
     }
 
-    /**
-     * ## Test username trung: ConflictException duoc map thanh success=EXSITED va errorType.
-     */
+    // Test đăng ký trùng trả response đã tồn tại.
     @Test
     void registerConflictReturnsExistingResponse() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -53,9 +46,6 @@ class RegisterHandlerTest {
         assertEquals("Username existed.", payload.get("message"));
     }
 
-    /**
-     * ## Test fake service: mo phong register thanh cong hoac trung username.
-     */
     private static final class FakeUserService extends UserService {
         private RuntimeException failure;
         private User registeredUser;

@@ -8,6 +8,7 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
+// Đổi màn JavaFX.
 public class SceneHelper {
     private static final String GLOBAL_STYLESHEET = "/css/style.css";
 
@@ -26,7 +27,7 @@ public class SceneHelper {
             scene.getStylesheets().add(stylesheetUrl);
         }
     }
-
+    // Đổi màn.
     public static void changeScene(Node node, String fxmlFile) {
         try {
             FXMLLoader loader = new FXMLLoader(SceneHelper.class.getResource( fxmlFile));
@@ -43,6 +44,7 @@ public class SceneHelper {
             e.printStackTrace();
         }
     }
+    // Đổi màn lấy controller.
     public static <T> T changeSceneAndGetController(Node node, String fxmlPath) {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(SceneHelper.class.getResource(fxmlPath));
@@ -54,13 +56,13 @@ public class SceneHelper {
             stage.setScene(scene);
             stage.show();
 
-            // Trả về Controller của Scene mới để bên ngoài thích truyền gì thì truyền
             return loader.getController();
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
+    // Đổi màn.
     public static void changeScene(javafx.stage.Stage stage, String fxmlPath) {
         try {
             javafx.scene.Parent root = javafx.fxml.FXMLLoader.load(SceneHelper.class.getResource(fxmlPath));

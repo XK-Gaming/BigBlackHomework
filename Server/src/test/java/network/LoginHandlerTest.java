@@ -13,14 +13,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test LoginHandler tra loi loi xac thuc bang custom exception hien co.
- */
 class LoginHandlerTest {
 
-    /**
-     * ## Test dang nhap sai: UnauthorizedException phai thanh LOGIN_RESULT success=false.
-     */
+    // Test đăng nhập sai trả lỗi.
     @Test
     void authenticationFailureIsReturnedAsLoginResultError() throws Exception {
         LoginHandler handler = new LoginHandler(new RejectingUserService(), null);
@@ -35,9 +30,6 @@ class LoginHandlerTest {
         assertEquals("UnauthorizedException", payload.get("errorType"));
     }
 
-    /**
-     * ## Test helper: doc goi DataPacket de xac minh payload LoginHandler gui ve.
-     */
     private DataPacket handle(LoginHandler handler, Object payload) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
@@ -48,9 +40,6 @@ class LoginHandlerTest {
         }
     }
 
-    /**
-     * ## Test fake service: gia lap login that bai de khong phu thuoc MySQL.
-     */
     private static final class RejectingUserService extends UserService {
         @Override
         public User loginAndGetUser(String username, String password) {

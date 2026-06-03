@@ -5,6 +5,7 @@ import model.auction.Auction;
 
 import java.io.ObjectOutputStream;
 
+// Request lấy phiên đấu giá.
 public class GetAuctionHandler extends BaseHandler implements RequestHandler {
     private ClientHandler clientHandler;
     private final UserService userService;
@@ -14,6 +15,7 @@ public class GetAuctionHandler extends BaseHandler implements RequestHandler {
         this.clientHandler = clientHandler;
     }
 
+    // Xử lý request lấy phiên đấu giá.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         if (payload == null) {

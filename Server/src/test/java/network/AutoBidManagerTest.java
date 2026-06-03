@@ -22,9 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoBidManagerTest {
 
-    /**
-     * ## Test AutoBid bat thanh cong: manager dat bid ngay lap tuc bang current price + bidGap.
-     */
+    // Test bật AutoBid đặt bid ngay theo gap.
     @Test
     void enablePlacesImmediateBidUsingConfiguredGap() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -51,9 +49,7 @@ class AutoBidManagerTest {
         }
     }
 
-    /**
-     * ## Test AutoBid gioi han max: bid tu dong khong duoc vuot qua MaxBidAllow.
-     */
+    // Test AutoBid không vượt max cho phép.
     @Test
     void enableCapsImmediateBidAtMaxBidAllow() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -72,9 +68,7 @@ class AutoBidManagerTest {
         }
     }
 
-    /**
-     * ## Test AutoBid khi dang dan dau: khong dat them bid neu user da la leading bidder.
-     */
+    // Test AutoBid bỏ qua khi user đang dẫn.
     @Test
     void enableSkipsBidWhenUserAlreadyLeads() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -93,9 +87,7 @@ class AutoBidManagerTest {
         }
     }
 
-    /**
-     * ## Test validate MaxBidAllow: khong cho bat AutoBid neu max khong lon hon gia hien tai.
-     */
+    // Test AutoBid chặn max không cao hơn giá hiện tại.
     @Test
     void enableRejectsMaxBidAtOrBelowCurrentPrice() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -109,9 +101,7 @@ class AutoBidManagerTest {
         assertEquals(0, userService.processBidCalls);
     }
 
-    /**
-     * ## Test validate BidGap: khong cho bat AutoBid neu bidGap nho hon MinBid cua san pham.
-     */
+    // Test AutoBid chặn gap thấp hơn minBid.
     @Test
     void enableRejectsBidGapBelowItemMinBid() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -125,9 +115,7 @@ class AutoBidManagerTest {
         assertEquals(0, userService.processBidCalls);
     }
 
-    /**
-     * ## Test auction khong RUNNING: AutoBid tu tat va khong goi processBid.
-     */
+    // Test AutoBid tự tắt khi phiên không RUNNING.
     @Test
     void enableDisablesRegistrationWhenAuctionIsNotRunning() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -142,9 +130,7 @@ class AutoBidManagerTest {
         assertEquals(0, userService.processBidCalls);
     }
 
-    /**
-     * ## Test processBid loi: AutoBid tu tat va tra response loi ve client.
-     */
+    // Test AutoBid tự tắt khi đặt bid lỗi.
     @Test
     void enableDisablesRegistrationWhenProcessBidFails() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -160,9 +146,7 @@ class AutoBidManagerTest {
         assertEquals(1, userService.processBidCalls);
     }
 
-    /**
-     * ## Test tat AutoBid: disable tra enabled=false va message duoc truyen vao.
-     */
+    // Test tắt AutoBid trả response thành công.
     @Test
     void disableReturnsDisabledSuccessResponse() throws Exception {
         AutoBidManager manager = managerWith(new FakeUserService());
@@ -174,9 +158,7 @@ class AutoBidManagerTest {
         assertEquals("done", response.get("message"));
     }
 
-    /**
-     * ## Test config khong hop le: manager nem IllegalArgumentException truoc khi goi service.
-     */
+    // Test AutoBid chặn cấu hình sai trước khi gọi service.
     @Test
     void enableRejectsInvalidConfigBeforeCallingService() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -193,9 +175,7 @@ class AutoBidManagerTest {
         assertEquals(0, userService.getAuctionCalls);
     }
 
-    /**
-     * ## Test cleanup khi logout: disableAllForUser chi xoa registration cua user do.
-     */
+    // Test tắt AutoBid chỉ của user cần xóa.
     @Test
     void disableAllForUserRemovesOnlyThatUsersRegistrations() throws Exception {
         FakeUserService userService = new FakeUserService();

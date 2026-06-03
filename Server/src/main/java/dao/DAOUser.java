@@ -11,6 +11,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+// DAO user.
 public class DAOUser implements DaoInterface<User> {
     private final Gson gson = GsonUtils.createGson();
 
@@ -18,9 +19,7 @@ public class DAOUser implements DaoInterface<User> {
         return new DAOUser();
     }
 
-    /**
-     * Helper mapping dữ liệu từ ResultSet sang Object User cụ thể theo Role.
-     */
+    // Ánh xạ dữ liệu user từ ResultSet.
     private User mapRowToUser(ResultSet rs) throws SQLException {
         String username = rs.getString("username");
         String dbPassword = rs.getString("password");
@@ -46,6 +45,7 @@ public class DAOUser implements DaoInterface<User> {
         return user;
     }
 
+    // Thêm user.
     @Override
     public int Insert(User user) throws SQLException {
         String sql = "INSERT INTO khach (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)";
@@ -55,16 +55,17 @@ public class DAOUser implements DaoInterface<User> {
             pstmt.setString(1, user.getUsername());
             pstmt.setString(2, user.getPassword());
             pstmt.setString(3, user.getName());
-            pstmt.setString(4, user.getAddress()); // SỬA: Thay getAddress() thành getEmail()
+            pstmt.setString(4, user.getAddress());
             pstmt.setString(5, user.getRole_toString());
 
             return pstmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Lỗi SQL khi insert user: " + e.getMessage());
-            throw e; // Nên ném tiếp để Service layer biết mà xử lý
+            throw e;
         }
     }
 
+    // Cập nhật user.
     public void Update(User user) {
         try (Connection con = JDBCUtil.getConnection()) {
             Update(con, user);
@@ -73,18 +74,20 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Cập nhật user trong transaction.
     @Override
     public int Update(Connection con, User user) throws SQLException {
         String sql = "UPDATE khach SET password = ?, name = ?, email = ? WHERE username = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setString(1, user.getPassword());
             pstmt.setString(2, user.getName());
-            pstmt.setString(3, user.getAddress()); // SỬA: Thay getAddress() thành getEmail()
+            pstmt.setString(3, user.getAddress());
             pstmt.setString(4, user.getUsername());
             return pstmt.executeUpdate();
         }
     }
 
+    // Xóa user.
     @Override
     public int Delete(User user) {
         String sql = "DELETE FROM khach WHERE username = ?";
@@ -99,6 +102,7 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Cập nhật số dư.
     public int UpdateBalance(String username, double newBalance) {
         try (Connection con = JDBCUtil.getConnection()) {
             return UpdateBalance(con, username, newBalance);
@@ -107,6 +111,7 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Cập nhật số dư trong transaction.
     public int UpdateBalance(Connection con, String username, double newBalance) throws SQLException {
         String sql = "UPDATE khach SET balance = ? WHERE username = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
@@ -116,8 +121,8 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Cập nhật số dư có kiểm tra điều kiện.
     public int UpdateBalanceWithCondition(Connection con, String username, double newBalance, double checkAmount) throws SQLException {
-        // SỬA: Thay đổi bảng 'users' thành 'khach' để đồng bộ
         String sql = "UPDATE khach SET balance = ? WHERE username = ? AND balance >= ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setDouble(1, newBalance);
@@ -127,6 +132,7 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Lấy toàn bộ user.
     @Override
     public ArrayList<User> selectAll()  {
         ArrayList<User> ketQua = new ArrayList<>();
@@ -144,6 +150,7 @@ public class DAOUser implements DaoInterface<User> {
         return ketQua;
     }
 
+    // Lấy trạng thái user.
     public String Get_Status(String username) {
         String sql = "SELECT status FROM khach WHERE username = ?";
         try (Connection con = JDBCUtil.getConnection();
@@ -161,6 +168,7 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    // Kiểm tra username tồn tại.
     public static boolean selectByUsername(String username) {
         String sql = "SELECT username FROM khach WHERE username = ?";
         try (Connection con = JDBCUtil.getConnection();
@@ -176,6 +184,7 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Đăng nhập bằng username và password.
     public User selectByUsername(String username, String password) {
         String sql = "SELECT * FROM khach WHERE username = ?";
         try (Connection con = JDBCUtil.getConnection();
@@ -196,6 +205,7 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    // Lấy user theo username.
     public User selectByUsernameOnly(String username) {
         try (Connection con = JDBCUtil.getConnection()) {
             return selectByUsernameOnly(con, username);
@@ -205,6 +215,7 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    // Lấy user bằng connection có sẵn.
     public User selectByUsernameOnly(Connection con, String username) throws SQLException {
         String sql = "SELECT * FROM khach WHERE username = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
@@ -218,6 +229,7 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
+    // Cập nhật lịch sử nạp tiền.
     public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
         String sql = "UPDATE khach SET DepositHistory = ? WHERE username = ?";
         try (Connection con = JDBCUtil.getConnection();
@@ -231,6 +243,7 @@ public class DAOUser implements DaoInterface<User> {
         }
     }
 
+    // Lấy các yêu cầu nạp tiền chờ duyệt.
     public List<DepositTransaction> getAllPendingDeposits() {
         List<DepositTransaction> pending = new ArrayList<>();
         String sql = "SELECT username, DepositHistory FROM khach WHERE DepositHistory IS NOT NULL AND DepositHistory <> ''";
@@ -254,9 +267,11 @@ public class DAOUser implements DaoInterface<User> {
         return pending;
     }
 
-    // Các hàm không dùng hoặc sai interface thì giữ tạm hoặc cấu trúc lại Interface sau
+    // Stub interface không dùng.
     @Override
     public int Update(Connection con, Item item) throws SQLException { return 0; }
+
+    // Stub interface không dùng.
     @Override
     public ArrayList<User> moreSelectByCondition(String condition) { return null; }
 }

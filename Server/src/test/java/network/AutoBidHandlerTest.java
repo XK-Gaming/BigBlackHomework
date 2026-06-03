@@ -8,9 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AutoBidHandlerTest {
 
-    /**
-     * ## Test payload AutoBid khong hop le: handler tra SET_AUTO_BID_RESULT loi thay vi crash server.
-     */
+    // Test AutoBid payload sai trả lỗi.
     @Test
     void invalidPayloadReturnsAutoBidResultError() throws Exception {
         AutoBidHandler handler = new AutoBidHandler(null);

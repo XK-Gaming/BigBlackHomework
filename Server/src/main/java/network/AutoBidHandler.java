@@ -6,9 +6,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * AutoBid: nhận yêu cầu bật/tắt từ client, validate payload cơ bản rồi chuyển cho AutoBidManager xử lý.
- */
+// Request AutoBid.
 public class AutoBidHandler extends BaseHandler implements RequestHandler {
     private final ClientHandler clientHandler;
 
@@ -16,6 +14,7 @@ public class AutoBidHandler extends BaseHandler implements RequestHandler {
         this.clientHandler = clientHandler;
     }
 
+    // Xử lý request AutoBid.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> response = new HashMap<>();
@@ -51,7 +50,7 @@ public class AutoBidHandler extends BaseHandler implements RequestHandler {
         }
         return stringValue(payloadMap.get("userId"));
     }
-
+    // Đọc dữ liệu.
     private static double parsePositiveDouble(Object value, String fieldName) {
         double parsed = Double.parseDouble(stringValue(value));
         if (parsed <= 0) {
@@ -59,7 +58,7 @@ public class AutoBidHandler extends BaseHandler implements RequestHandler {
         }
         return parsed;
     }
-
+    // Ép kiểu dữ liệu.
     private static String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
     }

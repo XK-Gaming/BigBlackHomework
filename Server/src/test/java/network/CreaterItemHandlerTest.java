@@ -11,14 +11,9 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-/**
- * ## JUnit: test Creater_ItemHandler tao item qua service va tra CREATE_ITEM_RESULT.
- */
 class CreaterItemHandlerTest {
 
-    /**
-     * ## Test tao item thanh cong: handler goi service.creater_item va tra true.
-     */
+    // Test tạo sản phẩm thành công.
     @Test
     void createItemSuccessReturnsTrue() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -32,9 +27,7 @@ class CreaterItemHandlerTest {
         assertSame(item, userService.createdItem);
     }
 
-    /**
-     * ## Test tao item loi luu tru: PersistenceException duoc handler map thanh false.
-     */
+    // Test tạo sản phẩm lỗi lưu DB.
     @Test
     void createItemPersistenceFailureReturnsFalse() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -47,9 +40,7 @@ class CreaterItemHandlerTest {
         assertEquals(false, packet.payload());
     }
 
-    /**
-     * ## Test payload khong hop le: khong phai Item thi handler tra false va khong goi service.
-     */
+    // Test tạo sản phẩm payload sai.
     @Test
     void createItemInvalidPayloadReturnsFalse() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -74,9 +65,6 @@ class CreaterItemHandlerTest {
                 "image.png");
     }
 
-    /**
-     * ## Test fake service: dong vai mock UserService cho Creater_ItemHandler.
-     */
     private static final class FakeUserService extends UserService {
         private RuntimeException failure;
         private Item createdItem;

@@ -7,14 +7,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test ChangePasswordHandler nhan request doi mat khau va tra response ve client.
- */
 class ChangePasswordHandlerTest {
 
-    /**
-     * ## Test doi mat khau thanh cong: handler goi service dung username/old/new va tra success=true.
-     */
+    // Test đổi mật khẩu thành công.
     @Test
     void changePasswordSuccessReturnsSuccessResponse() throws Exception {
         FakeUserService userService = new FakeUserService(true);
@@ -33,9 +28,7 @@ class ChangePasswordHandlerTest {
         assertEquals("new", userService.newPassword);
     }
 
-    /**
-     * ## Test doi mat khau that bai: service tra false thi handler tra success=false.
-     */
+    // Test đổi mật khẩu thất bại.
     @Test
     void changePasswordFailureReturnsFailureResponse() throws Exception {
         ChangePasswordHandler handler = new ChangePasswordHandler(new FakeUserService(false));
@@ -50,9 +43,6 @@ class ChangePasswordHandlerTest {
         assertEquals(false, payload.get("success"));
     }
 
-    /**
-     * ## Test fake service: dong vai mock UserService cho ChangePasswordHandler.
-     */
     private static final class FakeUserService extends UserService {
         private final boolean success;
         private String username;

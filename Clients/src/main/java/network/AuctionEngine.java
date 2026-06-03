@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+// Theo dõi trạng thái phiên.
 public class AuctionEngine {
     public interface AuctionStatusListener {
         void onStatus(AuctionStatus status, long secondsToNextChange);
@@ -35,7 +36,7 @@ public class AuctionEngine {
     public static AuctionEngine getInstance() {
         return INSTANCE;
     }
-
+    // Theo dõi item.
     public Integer watchItem(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
             return null;
@@ -46,21 +47,13 @@ public class AuctionEngine {
         notifySingle(item, listener);
         return itemId;
     }
-
+    // Dừng theo dõi item.
     public void unwatchItem(Item item) {
         if (item != null) {
             registrations.remove(item.getDatabaseId());
         }
     }
 
-    // =================================================================
-    // 🔥 BỔ SUNG CÁC HÀM NÀY VÀO ĐỂ KHẮC PHỤC TRIỆT ĐỂ LỖI BIÊN DỊCH
-    // =================================================================
-
-    /**
-     * Hủy theo dõi bằng ID của Item dưới dạng chuỗi String
-     * (Giải quyết trường hợp Controller nhận ID từ text/mạng)
-     */
     public void unwatch(String itemIdStr) {
         if (itemIdStr != null) {
             try {
@@ -72,21 +65,16 @@ public class AuctionEngine {
         }
     }
 
-    /**
-     * Hủy theo dõi bằng ID kiểu số nguyên int trực tiếp
-     */
     public void unwatch(int itemId) {
         registrations.remove(itemId);
     }
-
-    // =================================================================
-
+    // Quét trạng thái.
     private void tick() {
         for (WatchRegistration reg : registrations.values()) {
             notifySingle(reg.item(), reg.listener());
         }
     }
-
+    // Báo trạng thái mới.
     private void notifySingle(Item item, AuctionStatusListener listener) {
         if (item == null || listener == null) {
             return;
@@ -118,7 +106,7 @@ public class AuctionEngine {
             listener.onStatus(status, Math.max(0, secondsToNextChange));
         });
     }
-
+    // Chạy trên UI thread.
     private void runOnFxThreadOrNow(Runnable action) {
         try {
             Platform.runLater(action);

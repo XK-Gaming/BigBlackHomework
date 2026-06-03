@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request vào phòng đấu giá.
 public class SetAuctionHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
     private final ClientHandler clientHandler;
@@ -16,9 +17,10 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
         this.clientHandler = clientHandler;
     }
 
+    // Xử lý request vào phòng đấu giá.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
-        // Suppress the warning right where the cast happens
+
         @SuppressWarnings("unchecked")
         Map<String, Object> payloadMap = (Map<String,Object>) payload;
         String itemId_Str = String.valueOf(payloadMap.get("itemId"));
@@ -32,10 +34,8 @@ public class SetAuctionHandler extends BaseHandler implements RequestHandler {
             return;
         }
 
-        // ✅ IMPROVED: Track user viewing item
         clientHandler.setViewingItemId(itemId_Str);
 
-        // ✅ IMPROVED: Fetch auction data và response cho client
         try {
             Auction auction = userService.getAuctionByItemId(itemId_Str);
 

@@ -14,10 +14,10 @@ import java.util.Properties;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+// Socket server.
 public class AuctionServer {
     private static int PORT = 8080;
 
-    // Quản lý danh sách kết nối đang hoạt động
     private static final Map<String, ClientHandler> onlineClients = new ConcurrentHashMap<>();
 
     static {
@@ -34,12 +34,11 @@ public class AuctionServer {
 
     private final ThreadPoolExecutor threadPool = createWorkerPool();
     private AuctionEngine auctionEngine;
-
+    // Khởi chạy server.
     public void launch() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("=== QUẢN LÝ ĐẤU GIÁ SERVER ===");
 
-            // Khởi động Engine quét trạng thái phiên đấu giá
             auctionEngine = new AuctionEngine();
             auctionEngine.startEngine();
             System.out.println("[AuctionServer] Background Engine đã khởi động, quét trạng thái mỗi 5 giây.");
@@ -63,15 +62,12 @@ public class AuctionServer {
             threadPool.shutdown();
         }
     }
-
-    /** * Broadcast dữ liệu tới các Client 
-     */
+    // Broadcast tới client.
     public static void broadcastToSpecificAuction(String itemId, Command command, Object payload) {
         if (command == null) return;
 
         DataPacket packet = new DataPacket(command, payload);
 
-        // TRƯỜNG HỢP 1: Gửi cho toàn bộ mọi người đang Online
         if (itemId == null || itemId.isBlank()) {
             for (ClientHandler handler : onlineClients.values()) {
                 handler.sendPacket(packet);
@@ -79,7 +75,6 @@ public class AuctionServer {
             return;
         }
 
-        // TRƯỜNG HỢP 2: Gửi đích danh cho những người ĐANG XEM mặt hàng cụ thể
         String target = itemId.trim();
         for (ClientHandler handler : onlineClients.values()) {
             if (target.equals(handler.getViewingItemId())) {
@@ -87,20 +82,15 @@ public class AuctionServer {
             }
         }
     }
-
-    /**
-     * Đăng ký Client vào danh sách Online khi đăng nhập thành công
-     */
+    // Cập nhật client online.
     public static void addOnlineClient(User user, ClientHandler handler) {
         String username = user.getUsername();
         onlineClients.put(username, handler);
 
-        // Tối ưu hóa hiệu năng: Đọc trạng thái DB bất đồng bộ (Asynchronous) 
-        // Không block luồng xử lý phản hồi Đăng nhập của Client
         CompletableFuture.runAsync(() -> {
             try {
                 String viewingItemId = DAOUser.getInstance().Get_Status(username);
-                // Đảm bảo tại thời điểm đọc xong DB, client này vẫn là client đang online thực tế
+
                 ClientHandler currentActiveHandler = onlineClients.get(username);
                 if (currentActiveHandler == handler) {
                     handler.setViewingItemId(viewingItemId);
@@ -110,14 +100,10 @@ public class AuctionServer {
             }
         });
     }
-
-    /**
-     * Xóa Client khỏi danh sách Online khi logout hoặc mất kết nối
-     */
+    // Cập nhật client online.
     public static void removeOnlineClient(String username) {
         if (username == null) return;
 
-        // Tắt toàn bộ chế độ tự động đấu giá của user khi offline
         try {
             AutoBidManager.getInstance().disableAllForUser(username, "logout/disconnect");
         } catch (Exception e) {
@@ -136,7 +122,7 @@ public class AuctionServer {
         if (username == null) return false;
         return onlineClients.containsKey(username);
     }
-
+    // Gửi dữ liệu tới user.
     public static void sendToSpecificUser(String username, Command command, Object payload) {
         ClientHandler handler = getHandlerByUsername(username);
         if (handler != null) {
@@ -145,10 +131,7 @@ public class AuctionServer {
             System.out.println("User " + username + " không online, bỏ qua gửi thông báo trực tiếp.");
         }
     }
-
-    /**
-     * Khởi tạo Worker ThreadPool tối ưu, chống tràn bộ nhớ Heap
-     */
+    // Tạo dữ liệu.
     private static ThreadPoolExecutor createWorkerPool() {
         int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
         int coreSize = Math.min(32, cores * 2);
@@ -158,10 +141,11 @@ public class AuctionServer {
         ThreadFactory factory = new ThreadFactory() {
             private final AtomicInteger seq = new AtomicInteger();
 
+            // Tạo thread nền.
             @Override
             public Thread newThread(@NonNull Runnable r) {
                 Thread t = new Thread(r, "auction-server-worker-" + seq.incrementAndGet());
-                t.setDaemon(false); // Đặt false để đảm bảo hoàn thành việc ghi log/dọn dẹp dữ liệu khi ứng dụng tắt
+                t.setDaemon(false);
                 return t;
             }
         };
@@ -173,7 +157,7 @@ public class AuctionServer {
                 TimeUnit.SECONDS,
                 queue,
                 factory,
-                new ThreadPoolExecutor.CallerRunsPolicy()); // Khi quá tải, luồng chính tự xử lý để giảm tốc độ accept()
+                new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     public static void main(String[] args) {

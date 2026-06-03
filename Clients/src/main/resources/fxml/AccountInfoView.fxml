@@ -47,24 +47,28 @@
             </Label>
 
             <Line endX="130.0" layoutX="27.0" layoutY="205.0" stroke="#ffffff22" />
-
-            <Button fx:id="j_buttonThongTinDangNhap" layoutX="15.0" layoutY="225.0" mnemonicParsing="false" onAction="#j_OnbuttonThongTinDangNhap" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="👤 Thông tin tài khoản" textFill="WHITE">
+<!-- Nút Thông tin tài khoản. -->
+<Button fx:id="j_buttonThongTinDangNhap" layoutX="15.0" layoutY="225.0" mnemonicParsing="false" onAction="#j_OnbuttonThongTinDangNhap" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="👤 Thông tin tài khoản" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonThanhToan" layoutX="15.0" layoutY="265.0" mnemonicParsing="false" onAction="#j_OnbuttonThanhToan" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="💳 Thanh toán" textFill="WHITE">
+<!-- Nút Thanh toán. -->
+<Button fx:id="j_buttonThanhToan" layoutX="15.0" layoutY="265.0" mnemonicParsing="false" onAction="#j_OnbuttonThanhToan" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="💳 Thanh toán" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonDoiMatKhau" layoutX="15.0" layoutY="305.0" mnemonicParsing="false" onAction="#j_OnbuttonDoiMatKhau" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="🔑 Đổi mật khẩu" textFill="WHITE">
+<!-- Nút Đổi mật khẩu. -->
+<Button fx:id="j_buttonDoiMatKhau" layoutX="15.0" layoutY="305.0" mnemonicParsing="false" onAction="#j_OnbuttonDoiMatKhau" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="🔑 Đổi mật khẩu" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_buttonCaiDat" layoutX="15.0" layoutY="345.0" mnemonicParsing="false" onAction="#j_OnbuttonCaiDat" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="⚙️ Cài đặt" textFill="WHITE">
+<!-- Nút Cài đặt. -->
+<Button fx:id="j_buttonCaiDat" layoutX="15.0" layoutY="345.0" mnemonicParsing="false" onAction="#j_OnbuttonCaiDat" prefHeight="32.0" prefWidth="155.0" style="-fx-background-color: #334155; -fx-background-radius: 12;" text="⚙️ Cài đặt" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-
-            <Button fx:id="j_buttonDangXuat" layoutX="15.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_OnbuttonDangXuat" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #dc2626; -fx-background-radius: 12;" text="Đăng xuất" textFill="WHITE">
+<!-- Nút Đăng xuất. -->
+<Button fx:id="j_buttonDangXuat" layoutX="15.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_OnbuttonDangXuat" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #dc2626; -fx-background-radius: 12;" text="Đăng xuất" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
-            <Button fx:id="j_return" layoutX="96.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_event_return" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #64748b; -fx-background-radius: 12;" text="Quay lại" textFill="WHITE">
+<!-- Nút Quay lại. -->
+<Button fx:id="j_return" layoutX="96.0" layoutY="400.0" mnemonicParsing="false" onAction="#j_event_return" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: #64748b; -fx-background-radius: 12;" text="Quay lại" textFill="WHITE">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -99,8 +103,8 @@
             <Label fx:id="j_labelMessageName" layoutX="150.0" layoutY="180.0" text="Message" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
-
-            <Button layoutX="150.0" layoutY="210.0" mnemonicParsing="false" onAction="#j_OnUpdateInfo" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
+<!-- Nút Ghi nhận. -->
+<Button layoutX="150.0" layoutY="210.0" mnemonicParsing="false" onAction="#j_OnUpdateInfo" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -131,8 +135,8 @@
             <Label fx:id="j_labelMessagePassword" layoutX="150.0" layoutY="225.0" text="Message" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
-
-            <Button layoutX="150.0" layoutY="255.0" mnemonicParsing="false" onAction="#j_OnChangePassword" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Cập nhật">
+<!-- Nút Cập nhật. -->
+<Button layoutX="150.0" layoutY="255.0" mnemonicParsing="false" onAction="#j_OnChangePassword" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Cập nhật">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
          </children>
@@ -153,8 +157,8 @@
             <Label fx:id="j_labelMessagePayment" layoutX="170.0" layoutY="135.0" text="Thông báo" textFill="#dc2626" visible="false">
                <font><Font name="System Italic" size="12.0" /></font>
             </Label>
-
-            <Button layoutX="170.0" layoutY="165.0" mnemonicParsing="false" onAction="#j_OnPayMent" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #f97316; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
+<!-- Nút Ghi nhận. -->
+<Button layoutX="170.0" layoutY="165.0" mnemonicParsing="false" onAction="#j_OnPayMent" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: #f97316; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 16;" text="Ghi nhận">
                <cursor><Cursor fx:constant="HAND" /></cursor>
             </Button>
 
@@ -165,7 +169,8 @@
                   <TableColumn fx:id="colDepositStatus" prefWidth="118.0" text="Trạng thái" />
                </columns>
             </TableView>
-            <Button fx:id="btnDeleteHistory" layoutX="40.0" layoutY="395.0" mnemonicParsing="false" onAction="#handleDeleteDepositHistory" prefHeight="30.0" prefWidth="100.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Xóa lịch sử" visible="true" />
+<!-- Nút Xóa lịch sử. -->
+<Button fx:id="btnDeleteHistory" layoutX="40.0" layoutY="395.0" mnemonicParsing="false" onAction="#handleDeleteDepositHistory" prefHeight="30.0" prefWidth="100.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Xóa lịch sử" visible="true" />
          </children>
       </AnchorPane>
 

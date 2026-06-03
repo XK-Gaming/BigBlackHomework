@@ -23,8 +23,8 @@
             </VBox>
 
             <Region prefHeight="50.0" />
-
-            <Button fx:id="jbutton_DangKy" mnemonicParsing="false" onAction="#setJbutton_DangKy" styleClass="btn-outline" text="ĐĂNG KÝ NGAY" />
+<!-- Nút ĐĂNG KÝ NGAY. -->
+<Button fx:id="jbutton_DangKy" mnemonicParsing="false" onAction="#setJbutton_DangKy" styleClass="btn-outline" text="ĐĂNG KÝ NGAY" />
          </children>
       </VBox>
 
@@ -52,8 +52,10 @@
 
             <HBox alignment="CENTER_LEFT" spacing="25.0">
                <children>
-                  <Button fx:id="jbutton_DangNhap" mnemonicParsing="false" onAction="#handleLogin" prefHeight="42.0" prefWidth="130.0" styleClass="btn-primary" text="Đăng nhập" />
-                  <Hyperlink styleClass="custom-link" text="Quên mật khẩu?" />
+<!-- Nút Đăng nhập. -->
+<Button fx:id="jbutton_DangNhap" mnemonicParsing="false" onAction="#handleLogin" prefHeight="42.0" prefWidth="130.0" styleClass="btn-primary" text="Đăng nhập" />
+<!-- Link Quên mật khẩu? -->
+<Hyperlink styleClass="custom-link" text="Quên mật khẩu?" />
                </children>
                <VBox.margin>
                   <Insets top="10.0" />

@@ -47,11 +47,12 @@
             </VBox>
 
             <Region prefHeight="20.0" />
-
-            <Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-cursor: hand;" text="📦  Quản lý sản phẩm">
+<!-- Nút Quản lý sản phẩm. -->
+<Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-cursor: hand;" text="📦  Quản lý sản phẩm">
                <padding><Insets bottom="12.0" left="20.0" top="12.0" /></padding>
             </Button>
-            <Button fx:id="j_Return" maxWidth="Infinity" onAction="#On_Return" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 14;" text="Quay lại">
+<!-- Nút Quay lại. -->
+<Button fx:id="j_Return" maxWidth="Infinity" onAction="#On_Return" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 14;" text="Quay lại">
                <padding><Insets bottom="12.0" top="12.0" /></padding>
             </Button>
          </children>
@@ -106,8 +107,10 @@
                               <ComboBox fx:id="cbStatus" prefWidth="200.0" promptText="Tất cả trạng thái" style="-fx-background-radius: 12;" />
                            </children>
                         </VBox>
-                        <Button onAction="#On_Filter" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;" text="LỌC DỮ LIỆU" />
-                        <Button onAction="#On_ResetFilter" prefHeight="35.0" style="-fx-background-color: transparent; -fx-text-fill: #dc2626; -fx-border-color: #dc2626; -fx-border-radius: 12; -fx-cursor: hand;" text="XÓA BỘ LỌC" />
+<!-- Nút LỌC DỮ LIỆU. -->
+<Button onAction="#On_Filter" prefHeight="35.0" prefWidth="120.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;" text="LỌC DỮ LIỆU" />
+<!-- Nút XÓA BỘ LỌC. -->
+<Button onAction="#On_ResetFilter" prefHeight="35.0" style="-fx-background-color: transparent; -fx-text-fill: #dc2626; -fx-border-color: #dc2626; -fx-border-radius: 12; -fx-cursor: hand;" text="XÓA BỘ LỌC" />
                      </children>
                   </HBox>
                </children>
@@ -173,11 +176,13 @@
 
                               <HBox spacing="12.0">
                                  <children>
-                                    <Button fx:id="j_ButtonController" maxWidth="Infinity" onAction="#On_ButtonController" prefHeight="45.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" textFill="WHITE" HBox.hgrow="ALWAYS">
+<!-- Nút duyệt/dừng phiên. -->
+<Button fx:id="j_ButtonController" maxWidth="Infinity" onAction="#On_ButtonController" prefHeight="45.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" textFill="WHITE" HBox.hgrow="ALWAYS">
                                        <font>
                                           <Font name="System Bold" size="12.0" />
                                        </font></Button>
-                                    <Button fx:id="j_Delete" maxWidth="Infinity" onAction="#On_Delete" prefHeight="45.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="XÓA BỎ" HBox.hgrow="ALWAYS" />
+<!-- Nút XÓA BỎ. -->
+<Button fx:id="j_Delete" maxWidth="Infinity" onAction="#On_Delete" prefHeight="45.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="XÓA BỎ" HBox.hgrow="ALWAYS" />
                                  </children>
                               </HBox>
                            </children>

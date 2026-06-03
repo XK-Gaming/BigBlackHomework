@@ -17,8 +17,9 @@ import org.controlsfx.control.Notifications;
 import java.text.DecimalFormat;
 import java.util.Map;
 
+// Thông báo realtime cho seller.
 public class ControllerNotificationSeller {
-
+    // Xử lý thao tác.
     public static void handleIncomingToastNotificationSeller(Object payload, Label j_textSoDu) {
         DecimalFormat df = new DecimalFormat("#,###");
         try {
@@ -34,7 +35,7 @@ public class ControllerNotificationSeller {
             final double finalPrice = newPrice;
 
             Platform.runLater(() -> {
-                // Tìm kiếm Window (Stage) hiện tại từ Label giao diện để khóa phạm vi hiển thị
+
                 Window currentWindow = (j_textSoDu != null && j_textSoDu.getScene() != null)
                         ? j_textSoDu.getScene().getWindow()
                         : null;
@@ -69,14 +70,13 @@ public class ControllerNotificationSeller {
                 textContainer.getChildren().addAll(titleLabel, messageLabel);
                 customToast.getChildren().addAll(iconBlock, textContainer);
 
-                // --- GIỚI HẠN PHẠM VI HIỂN THỊ QUA .owner() ---
                 Notifications notificationBuilder = Notifications.create()
                         .graphic(customToast)
                         .hideAfter(Duration.seconds(4))
                         .position(Pos.BOTTOM_RIGHT);
 
                 if (currentWindow != null) {
-                    notificationBuilder.owner(currentWindow); // Đóng đinh thông báo nằm gọn trong App Stage
+                    notificationBuilder.owner(currentWindow);
                 }
 
                 customToast.setOnMouseClicked(event -> {
@@ -104,7 +104,7 @@ public class ControllerNotificationSeller {
             e.printStackTrace();
         }
     }
-
+    // Xử lý thao tác.
     public static void handleSuccessToastNotificationSeller(Object payload, Label j_textSoDu, User p) {
         DecimalFormat df = new DecimalFormat("#,###");
         try {
@@ -117,7 +117,7 @@ public class ControllerNotificationSeller {
             }
 
             Platform.runLater(() -> {
-                // Tìm kiếm Window (Stage) hiện tại từ Label giao diện để khóa phạm vi hiển thị
+
                 Window currentWindow = (j_textSoDu != null && j_textSoDu.getScene() != null)
                         ? j_textSoDu.getScene().getWindow()
                         : null;
@@ -133,7 +133,7 @@ public class ControllerNotificationSeller {
 
                 StackPane iconBlock = new StackPane();
                 iconBlock.setPrefSize(60, 70);
-                iconBlock.setStyle("-fx-background-color: #2E7D32;"); // Xanh lá cây thành công
+                iconBlock.setStyle("-fx-background-color: #2E7D32;");
 
                 Label icon = new Label("🎉");
                 icon.setStyle("-fx-text-fill: white; -fx-font-size: 22px;");
@@ -156,14 +156,13 @@ public class ControllerNotificationSeller {
                 textContainer.getChildren().addAll(titleLabel, messageLabel);
                 customToast.getChildren().addAll(iconBlock, textContainer);
 
-                // --- GIỚI HẠN PHẠM VI HIỂN THỊ QUA .owner() ---
                 Notifications notificationBuilder = Notifications.create()
                         .graphic(customToast)
                         .hideAfter(Duration.seconds(4))
                         .position(Pos.BOTTOM_RIGHT);
 
                 if (currentWindow != null) {
-                    notificationBuilder.owner(currentWindow); // Đóng đinh thông báo nằm gọn trong App Stage
+                    notificationBuilder.owner(currentWindow);
                 }
 
                 customToast.setOnMouseClicked(event -> {

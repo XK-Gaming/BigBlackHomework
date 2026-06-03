@@ -10,11 +10,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.Instant;
 
-/**
- * Utility class để cấu hình Gson với custom TypeAdapter cho Instant và BidTransaction
- */
+// Cấu hình JSON model.
 public class GsonUtils {
-
+    // Tạo dữ liệu.
     public static Gson createGson() {
         return new GsonBuilder()
                 .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
@@ -24,12 +22,9 @@ public class GsonUtils {
                 .create();
     }
 
-    /**
-     * Custom TypeAdapter cho java.time.Instant
-     * Serialize: Instant -> epoch seconds (long)
-     * Deserialize: epoch seconds -> Instant
-     */
     public static class InstantTypeAdapter extends TypeAdapter<Instant> {
+
+        // Ghi dữ liệu.
         @Override
         public void write(JsonWriter out, Instant value) throws java.io.IOException {
             if (value == null) {
@@ -39,6 +34,7 @@ public class GsonUtils {
             }
         }
 
+        // Đọc dữ liệu.
         @Override
         public Instant read(JsonReader in) throws java.io.IOException {
             if (in.peek() == JsonToken.NULL) {
@@ -50,6 +46,8 @@ public class GsonUtils {
     }
 
     public static class LocalDateTimeTypeAdapter extends TypeAdapter<LocalDateTime> {
+
+        // Ghi dữ liệu.
         @Override
         public void write(JsonWriter out, LocalDateTime value) throws java.io.IOException {
             if (value == null) {
@@ -59,6 +57,7 @@ public class GsonUtils {
             }
         }
 
+        // Đọc dữ liệu.
         @Override
         public LocalDateTime read(JsonReader in) throws java.io.IOException {
             if (in.peek() == JsonToken.NULL) {
@@ -69,10 +68,9 @@ public class GsonUtils {
         }
     }
 
-    /**
-     * Custom TypeAdapter cho BidTransaction
-     */
     public static class BidTransactionTypeAdapter extends TypeAdapter<BidTransaction> {
+
+        // Ghi dữ liệu.
         @Override
         public void write(JsonWriter out, BidTransaction value) throws java.io.IOException {
             if (value == null) {
@@ -84,10 +82,11 @@ public class GsonUtils {
             out.name("id").value(value.getId());
             out.name("Usernamebidder").value(value.getBidder());
             out.name("amount").value(value.getAmount());
-            out.name("bidTime").value(value.getBidTime().getEpochSecond()); // Đúng chuẩn Instant
+            out.name("bidTime").value(value.getBidTime().getEpochSecond());
             out.endObject();
         }
 
+        // Đọc dữ liệu.
         @Override
         public BidTransaction read(JsonReader in) throws java.io.IOException {
             if (in.peek() == JsonToken.NULL) {
@@ -126,10 +125,9 @@ public class GsonUtils {
         }
     }
 
-    /**
-     * Custom TypeAdapter cho DepositTransaction
-     */
     public static class DepositTransactionTypeAdapter extends TypeAdapter<DepositTransaction> {
+
+        // Ghi dữ liệu.
         @Override
         public void write(JsonWriter out, DepositTransaction value) throws java.io.IOException {
             if (value == null) {
@@ -141,13 +139,13 @@ public class GsonUtils {
             out.name("username").value(value.getUsername());
             out.name("amount").value(value.getAmount());
 
-            // ✅ ĐÃ SỬA: Thay thế phương thức lỗi bằng .getEpochSecond() do thuộc tính đã là kiểu Instant
             out.name("timestamp").value(value.getTimestamp().getEpochSecond());
 
             out.name("status").value(value.getStatus());
             out.endObject();
         }
 
+        // Đọc dữ liệu.
         @Override
         public DepositTransaction read(JsonReader in) throws java.io.IOException {
             if (in.peek() == JsonToken.NULL) {
@@ -163,7 +161,6 @@ public class GsonUtils {
                     case "username": dt.setUsername(in.nextString()); break;
                     case "amount": dt.setAmount(in.nextDouble()); break;
 
-                    // ✅ ĐÃ TỐI ƯU: Khởi tạo trực tiếp Instant từ dữ liệu Long, loại bỏ việc chuyển đổi qua LocalDateTime trung gian
                     case "timestamp": dt.setTimestamp(Instant.ofEpochSecond(in.nextLong())); break;
 
                     case "status": dt.setStatus(in.nextString()); break;

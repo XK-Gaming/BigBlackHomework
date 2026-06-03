@@ -5,6 +5,7 @@ import service.UserService;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
+// Request lấy toàn bộ user.
 public class GetAllUsersHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -12,6 +13,7 @@ public class GetAllUsersHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request lấy toàn bộ user.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         try {

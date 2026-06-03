@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import model.DepositTransaction;
 
+// Model user.
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
     private String username;
@@ -23,12 +24,11 @@ public class User implements Serializable {
     public void setOnline(boolean online) {
         isOnline = online;
     }
-
+    // Cập nhật rồi trả trạng thái.
     public String getStatus() {
         return isOnline ? "Online" : "Offline";
     }
 
-    // ✅ Constructor no-arg cho Gson deserialization
     public User() {
     }
 

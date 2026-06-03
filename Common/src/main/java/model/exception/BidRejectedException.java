@@ -1,8 +1,5 @@
 package model.exception;
 
-/**
- * Đặt giá bị từ chối (nghiệp vụ hoặc lỗi lưu trữ).
- */
 public class BidRejectedException extends AuctionException {
 
     public enum Reason {

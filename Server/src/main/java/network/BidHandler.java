@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request đặt bid.
 public class BidHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -17,6 +18,7 @@ public class BidHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request đặt bid.
     @Override
     @SuppressWarnings("unchecked")
     public void handle(Object payload, ObjectOutputStream out) {
@@ -49,10 +51,8 @@ public class BidHandler extends BaseHandler implements RequestHandler {
                     }
                 }
 
-                // Bid event: dùng helper chung để manual bid và AutoBid phát realtime giống nhau.
                 BidEventPublisher.publishSuccessfulBid(itemId, bidderId, result);
 
-                // Trả thêm dữ liệu chi tiết cho client đặt giá (giúp UI cập nhật lịch sử/biểu đồ nhanh)
                 try {
                     if (result.get("bidHistory") != null) response.put("bidHistory", result.get("bidHistory"));
                     if (result.get("latestAuction") != null) response.put("auction", result.get("latestAuction"));

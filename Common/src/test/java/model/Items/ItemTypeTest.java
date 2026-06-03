@@ -9,9 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ItemTypeTest {
 
-    /**
-     * ## Test parse enum: fromString chap nhan ten enum tieng Anh khong phan biet hoa thuong.
-     */
+    // Test ItemType đọc enum không phân biệt hoa thường.
     @Test
     void fromStringAcceptsEnumNamesCaseInsensitively() {
         assertEquals(ItemType.ART, ItemType.fromString(" art "));
@@ -19,9 +17,7 @@ class ItemTypeTest {
         assertEquals(ItemType.VEHICLE, ItemType.fromString("vehicle"));
     }
 
-    /**
-     * ## Test parse label UI: fromString chap nhan label hien thi cua Item tren giao dien.
-     */
+    // Test ItemType đọc label dùng trên UI.
     @Test
     void fromStringAcceptsDisplayLabelsUsedByItemUi() {
         assertEquals(ItemType.ART, ItemType.fromString(labelFor(ItemType.ART)));
@@ -29,9 +25,7 @@ class ItemTypeTest {
         assertEquals(ItemType.VEHICLE, ItemType.fromString(labelFor(ItemType.VEHICLE)));
     }
 
-    /**
-     * ## Test parse input khong hop le: null/rong/chuoi la phai tra null thay vi crash.
-     */
+    // Test ItemType trả null khi text thiếu hoặc lạ.
     @Test
     void fromStringReturnsNullForUnknownOrMissingText() {
         assertNull(ItemType.fromString(null));

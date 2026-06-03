@@ -10,14 +10,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Bid event: gom phần broadcast realtime để manual bid và AutoBid dùng chung cùng một format payload.
- */
+// Broadcast sự kiện bid.
 final class BidEventPublisher {
     private BidEventPublisher() {
     }
-
-    // Bid event: phát cập nhật giá, cập nhật danh sách và notification sau khi bid đã được DB chấp nhận.
+    // Broadcast bid thành công.
     static void publishSuccessfulBid(String itemId, String bidderId, Map<String, Object> bidResult) {
         Auction latestAuction = (Auction) bidResult.get("latestAuction");
         Item item = (Item) bidResult.get("item");
@@ -50,7 +47,7 @@ final class BidEventPublisher {
         AuctionServer.broadcastToSpecificAuction(itemId, Command.BID_UPDATE, bidUpdate);
         System.out.println("[Server Realtime] Broadcast list update for Item ID: " + itemId);
         AuctionServer.broadcastToSpecificAuction(null, Command.ITEMS_UPDATE, latestAuction);
-        // Bid event: gửi thêm BID_UPDATE ra sảnh chung để các màn hình nền như lịch sử bid cũng bắt được giá mới.
+
         AuctionServer.broadcastToSpecificAuction(null, Command.BID_UPDATE, bidUpdate);
 
         sendBalanceUpdate(bidderId, userValue(bidResult.get("user")), null);
@@ -82,6 +79,7 @@ final class BidEventPublisher {
         return auction.getItem().getAuctionEndTime();
     }
 
+    // Tìm dữ liệu cần dùng.
     @SuppressWarnings("unchecked")
     private static String findPreviousBidder(Map<String, Object> bidResult, String bidderId) {
         String refundedBidderId = stringValue(bidResult.get("refundedBidderId"));
@@ -98,7 +96,7 @@ final class BidEventPublisher {
         }
         return bidderId;
     }
-
+    // Gửi cập nhật số dư.
     private static void sendBalanceUpdate(String username, User user, Object balanceValue) {
         String targetUsername = stringValue(username);
         if (targetUsername == null && user != null) {
@@ -127,11 +125,11 @@ final class BidEventPublisher {
 
         AuctionServer.sendToSpecificUser(targetUsername, Command.BALANCE_UPDATE, payload);
     }
-
+    // Ép kiểu dữ liệu.
     private static User userValue(Object value) {
         return value instanceof User user ? user : null;
     }
-
+    // Ép kiểu dữ liệu.
     private static String stringValue(Object value) {
         if (value == null) {
             return null;

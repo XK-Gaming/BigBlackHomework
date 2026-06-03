@@ -13,14 +13,9 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test cac handler chi doc du lieu tu service roi tra list/object ve client.
- */
 class ReadOnlyQueryHandlerTest {
 
-    /**
-     * ## Test Select_Items: handler tra SELECT_ITEMS_RESULT voi list item service cung cap.
-     */
+    // Test query sản phẩm trả list từ service.
     @Test
     void selectItemsReturnsItemsFromService() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -36,13 +31,7 @@ class ReadOnlyQueryHandlerTest {
         assertEquals(item.getName(), restored.getName());
     }
 
-    /**
-     * ## Test GetAuctionHandler: handler doc itemId payload va tra auction service tim thay.
-     */
-
-    /**
-     * ## Test GetAllAuctionsHandler: handler tra toan bo list auction tu service.
-     */
+    // Test query phiên trả list từ service.
     @Test
     void getAllAuctionsReturnsListFromService() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -69,15 +58,11 @@ class ReadOnlyQueryHandlerTest {
                 "image.png");
     }
 
-    /**
-     * ## Test fake service: mo phong cac query service khong ghi DB.
-     */
     private static final class FakeUserService extends UserService {
         private final ArrayList<Item> items = new ArrayList<>();
         private Auction auction;
         private List<Auction> auctions = List.of();
         private String requestedItemId;
-
 
         @Override
         public ArrayList<Item> select_items(UserRole role) {

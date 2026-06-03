@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request đổi mật khẩu.
 public class ChangePasswordHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -13,6 +14,7 @@ public class ChangePasswordHandler extends BaseHandler implements RequestHandler
         this.userService = userService;
     }
 
+    // Xử lý request đổi mật khẩu.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, String> data = (Map<String, String>) payload;

@@ -18,9 +18,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * AutoBid: lưu cấu hình đang bật trong bộ nhớ server và tự kiểm tra đặt giá mỗi 5 giây.
- */
+// Quản lý AutoBid.
 public final class AutoBidManager {
     private static final long CHECK_INTERVAL_SECONDS = 5;
     private static final AutoBidManager INSTANCE = new AutoBidManager(new UserService());
@@ -38,8 +36,7 @@ public final class AutoBidManager {
     public static AutoBidManager getInstance() {
         return INSTANCE;
     }
-
-    // AutoBid: đăng ký cấu hình mới, tạo lịch kiểm tra 5 giây và chạy kiểm tra đầu tiên ngay.
+    // Bật AutoBid.
     public Map<String, Object> enable(String itemId, String username, double maxBidAllow, double bidGap) {
         AutoBidConfig config = new AutoBidConfig(
                 normalize(itemId),
@@ -79,8 +76,7 @@ public final class AutoBidManager {
         AutoBidAttempt attempt = evaluate(key);
         return response(config, attempt);
     }
-
-    // AutoBid: tắt một cấu hình cụ thể khi user bấm OFF hoặc khi rule không còn hợp lệ.
+    // Tắt AutoBid.
     public Map<String, Object> disable(String itemId, String username, String message) {
         AutoBidConfig config = new AutoBidConfig(
                 normalize(itemId),
@@ -94,8 +90,7 @@ public final class AutoBidManager {
         response.put("message", message == null || message.isBlank() ? "AutoBid da tat." : message);
         return response;
     }
-
-    // AutoBid: dọn toàn bộ cấu hình của user khi logout hoặc disconnect.
+    // Tắt AutoBid của user.
     public void disableAllForUser(String username, String reason) {
         String normalizedUsername = normalize(username);
         registrations.forEach((key, registration) -> {
@@ -105,8 +100,7 @@ public final class AutoBidManager {
         });
         System.out.println("[AutoBid] Disabled all configs for user " + normalizedUsername + ": " + reason);
     }
-
-    // AutoBid: wrapper an toàn cho scheduler, đồng thời gửi trạng thái về user khi có thay đổi cần báo.
+    // Chạy AutoBid và báo kết quả.
     private void safeEvaluateAndNotify(AutoBidKey key) {
         AutoBidRegistration registration = registrations.get(key);
         if (registration == null) {
@@ -129,8 +123,7 @@ public final class AutoBidManager {
                     disabledResponse(registration.config(), "AutoBid da dung do loi he thong: " + e.getMessage(), false));
         }
     }
-
-    // AutoBid: kiểm tra leading bidder/current price/max và đặt bid qua UserService.processBid nếu đủ điều kiện.
+    // Tính lượt AutoBid.
     private AutoBidAttempt evaluate(AutoBidKey key) {
         AutoBidRegistration registration = registrations.get(key);
         if (registration == null) {
@@ -178,6 +171,8 @@ public final class AutoBidManager {
         }
 
         try {
+
+            // Đặt bid tự động.
             Map<String, Object> bidResult = userService.processBid(config.itemId(), config.username(), bidAmount);
             BidEventPublisher.publishSuccessfulBid(config.itemId(), config.username(), bidResult);
             return AutoBidAttempt.placed("AutoBid da dat gia thanh cong.", bidAmount, bidResult);
@@ -186,7 +181,7 @@ public final class AutoBidManager {
             return AutoBidAttempt.disabled("AutoBid dat gia that bai: " + e.getMessage(), true, false);
         }
     }
-
+    // Tắt AutoBid.
     private void disable(AutoBidKey key) {
         AutoBidRegistration removed = registrations.remove(key);
         if (removed != null) {
@@ -216,24 +211,24 @@ public final class AutoBidManager {
             throw new IllegalArgumentException("BidGap phai lon hon 0.");
         }
     }
-
+    // Tính dữ liệu hiện tại.
     private static double currentPrice(Auction auction) {
         Item item = auction.getItem();
         return item != null ? item.getCurrentHighestPrice() : auction.getCurrentPrice();
     }
-
+    // Tính dữ liệu hiện tại.
     private static double minBid(Auction auction) {
         Item item = auction.getItem();
         return item == null ? 0 : Math.max(0, item.getMinBid());
     }
-
+    // Tính giá bid tối thiểu.
     private static double minAllowedBid(Auction auction, double currentPrice) {
         if (isFirstBid(auction)) {
             return Math.nextUp(currentPrice);
         }
         return currentPrice + minBid(auction);
     }
-
+    // Kiểm tra bid đầu tiên.
     private static boolean isFirstBid(Auction auction) {
         String leadingBidder = auction.getLeadingBidder();
         boolean hasLeader = leadingBidder != null && !leadingBidder.isBlank() && !"null".equalsIgnoreCase(leadingBidder);
@@ -314,7 +309,7 @@ public final class AutoBidManager {
         private void setFuture(ScheduledFuture<?> future) {
             this.future = future;
         }
-
+        // Ẩn hoặc hủy trạng thái.
         private void cancel() {
             ScheduledFuture<?> currentFuture = future;
             if (currentFuture != null) {

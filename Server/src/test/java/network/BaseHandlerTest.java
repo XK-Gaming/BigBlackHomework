@@ -10,16 +10,11 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test mapping loi trong BaseHandler ma cac handler server dang ke thua.
- */
 class BaseHandlerTest {
 
     private final TestHandler handler = new TestHandler();
 
-    /**
-     * ## Test dat bid thap hon gia hien tai: response phai co reason PRICE_TOO_LOW cho client hien thi.
-     */
+    // Test lỗi bid trả reason cho client.
     @Test
     void bidRejectedExceptionIncludesReasonForClient() {
         Map<String, Object> response = handler.mapError(new BidRejectedException(
@@ -32,9 +27,7 @@ class BaseHandlerTest {
         assertEquals("Gia dat phai cao hon gia hien tai.", response.get("message"));
     }
 
-    /**
-     * ## Test loi du lieu: AuctionException co cause thi response phai kem causeType de debug.
-     */
+    // Test lỗi auction trả loại cause khi có.
     @Test
     void auctionExceptionIncludesCauseTypeWhenPresent() {
         Map<String, Object> response = handler.mapError(new PersistenceException(
@@ -46,9 +39,6 @@ class BaseHandlerTest {
         assertEquals("SQLException", response.get("causeType"));
     }
 
-    /**
-     * ## Test helper: expose fillErrorResponse trong test ma khong sua code production.
-     */
     private static final class TestHandler extends BaseHandler {
         private Map<String, Object> mapError(Throwable throwable) {
             Map<String, Object> response = new HashMap<>();

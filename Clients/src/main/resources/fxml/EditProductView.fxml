@@ -59,7 +59,8 @@
                 </VBox.margin>
             </Separator>
             <VBox VBox.vgrow="ALWAYS"/>
-            <Button fx:id="btnProductList" mnemonicParsing="false" onAction="#On_Back" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 16;" text="Quay lại danh sách">
+<!-- Nút Quay lại danh sách. -->
+<Button fx:id="btnProductList" mnemonicParsing="false" onAction="#On_Back" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 16;" text="Quay lại danh sách">
                 <font>
                     <Font name="System Bold" size="13.0" />
                 </font>
@@ -67,7 +68,8 @@
                     <Cursor fx:constant="HAND" />
                 </cursor>
             </Button>
-            <Button fx:id="LogOut" mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0"
+<!-- Nút Đăng xuất. -->
+<Button fx:id="LogOut" mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0"
                     style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 16;"
                     text="Đăng xuất">
                 <font>
@@ -191,7 +193,8 @@
                                    AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0"
                                    AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0"/>
                     </AnchorPane>
-                    <Button fx:id="btnUploadImage" mnemonicParsing="false" onAction="#handle_SelectImage" prefHeight="35.0"
+<!-- Nút Đổi ảnh mới. -->
+<Button fx:id="btnUploadImage" mnemonicParsing="false" onAction="#handle_SelectImage" prefHeight="35.0"
                             prefWidth="120.0" style="-fx-background-color: #334155; -fx-text-fill: white;"
                             text="Đổi ảnh mới"/>
                 </VBox>
@@ -200,7 +203,8 @@
             <Separator prefWidth="200.0"/>
 
             <HBox alignment="CENTER_LEFT" spacing="20.0">
-                <Button fx:id="btnSave" mnemonicParsing="false" onAction="#On_Save" prefHeight="50.0"
+<!-- Nút LƯU THAY ĐỔI. -->
+<Button fx:id="btnSave" mnemonicParsing="false" onAction="#On_Save" prefHeight="50.0"
                         prefWidth="250.0"
                         style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 12;"
                         text="LƯU THAY ĐỔI">

@@ -8,10 +8,11 @@ import model.User.UserSession;
 import java.text.DecimalFormat;
 import java.util.Map;
 
+// Đồng bộ số dư client.
 final class UserBalanceSync {
     private UserBalanceSync() {
     }
-
+    // Áp dụng payload số dư.
     static boolean applyBalancePayload(Object payload) {
         if (!(payload instanceof Map<?, ?> data)) {
             return false;
@@ -61,7 +62,7 @@ final class UserBalanceSync {
         UserSession.setLoggedInUser(currentUser);
         return true;
     }
-
+    // Làm mới số dư.
     static void refreshBalanceLabel(Label balanceLabel) {
         User currentUser = UserSession.getLoggedInUser();
         if (currentUser == null || balanceLabel == null) {
@@ -87,11 +88,11 @@ final class UserBalanceSync {
         }
         return updated;
     }
-
+    // Ép kiểu dữ liệu.
     private static User userValue(Object value) {
         return value instanceof User user ? user : null;
     }
-
+    // Ép kiểu dữ liệu.
     private static Double numericValue(Object value) {
         if (value instanceof Number number) {
             return number.doubleValue();
@@ -105,7 +106,7 @@ final class UserBalanceSync {
         }
         return null;
     }
-
+    // Ép kiểu dữ liệu.
     private static String stringValue(Object value) {
         if (value == null) {
             return null;

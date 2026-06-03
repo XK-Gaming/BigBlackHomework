@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.util.Properties;
 
 public class Main extends Application {
+
+    // Bắt đầu xử lý.
     @Override
     public void start(Stage stage) throws IOException {
         String serverIp = "localhost";
@@ -37,7 +39,7 @@ public class Main extends Application {
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LoginView.fxml"));
         Parent root = loader.load();
-        
+
         stage.setTitle("Hệ thống đấu giá trực tuyến");
         Scene scene = new Scene(root);
         SceneHelper.applyGlobalStyles(scene);

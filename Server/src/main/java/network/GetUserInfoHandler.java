@@ -4,6 +4,7 @@ import service.UserService;
 import model.User.User;
 import java.io.ObjectOutputStream;
 
+// Request thông tin user.
 public class GetUserInfoHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -11,6 +12,7 @@ public class GetUserInfoHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request thông tin user.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         try {

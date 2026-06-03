@@ -12,23 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * ## JUnit: test cac rule co ban cua model auction va bid history.
- */
 class AuctionModelTest {
 
-    /**
-     * ## Test bid khong hop le: amount <= 0 phai bi tu choi ngay tai BidTransaction.
-     */
+    // Test bid không nhận số tiền không dương.
     @Test
     void bidTransactionRejectsNonPositiveAmount() {
         assertThrows(IllegalArgumentException.class,
                 () -> new BidTransaction("bid-1", "bidder", 0, Instant.now()));
     }
 
-    /**
-     * ## Test dong goi du lieu: getBidHistory khong cho code ben ngoai sua truc tiep list noi bo.
-     */
+    // Test lịch sử bid không bị sửa từ ngoài.
     @Test
     void bidHistoryCannotBeModifiedFromGetter() {
         Item item = new Item(
@@ -50,18 +43,14 @@ class AuctionModelTest {
                 () -> auction.getBidHistory().add(new BidTransaction("bid-2", "other", 130, Instant.now())));
     }
 
-    /**
-     * ## Test constructor auction: item null phai bi tu choi de tranh auction khong co san pham.
-     */
+    // Test tạo auction thiếu item bị chặn.
     @Test
     void auctionConstructorRejectsMissingItem() {
         assertThrows(IllegalArgumentException.class,
                 () -> new Auction("auction-1", null, "seller", Instant.now()));
     }
 
-    /**
-     * ## Test gia hien tai: khi chua co bid thi lay currentHighestPrice cua item.
-     */
+    // Test giá hiện tại dùng giá item khi chưa có bid.
     @Test
     void currentPriceFallsBackToItemPriceBeforeFirstBid() {
         Item item = new Item(
@@ -79,9 +68,7 @@ class AuctionModelTest {
         assertEquals(520, auction.getCurrentPrice(), 0.001);
     }
 
-    /**
-     * ## Test gia hien tai: khi da co bid history thi lay gia cua transaction cuoi cung.
-     */
+    // Test giá hiện tại lấy bid mới nhất.
     @Test
     void currentPriceUsesLatestBidTransaction() {
         Item item = new Item(
@@ -101,9 +88,7 @@ class AuctionModelTest {
         assertEquals(1250, auction.getCurrentPrice(), 0.001);
     }
 
-    /**
-     * ## Test equals/hashCode: auction duoc so sanh theo itemId thay vi object identity.
-     */
+    // Test so sánh auction theo itemId.
     @Test
     void equalityUsesItemIdInsteadOfObjectIdentity() {
         Item item = new Item(

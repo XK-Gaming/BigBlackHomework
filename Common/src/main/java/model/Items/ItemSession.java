@@ -1,5 +1,6 @@
 package model.Items;
 
+// Item đang chọn.
 public class ItemSession {
     private static Item loggedInItem;
 
@@ -10,8 +11,8 @@ public class ItemSession {
     public static Item getLoggedInItem() {
         return loggedInItem;
     }
-
+    // Dọn trạng thái.
     public static void cleanItemSession() {
-        loggedInItem = null; // Dùng khi Logout
+        loggedInItem = null;
     }
 }

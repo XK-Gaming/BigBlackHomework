@@ -6,6 +6,7 @@ import model.auction.Auction;
 import java.io.ObjectOutputStream;
 import java.util.List;
 
+// Request lấy toàn bộ phiên.
 public class GetAllAuctionsHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -13,6 +14,7 @@ public class GetAllAuctionsHandler extends BaseHandler implements RequestHandler
         this.userService = userService;
     }
 
+    // Xử lý request lấy toàn bộ phiên.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         List<Auction> auctions = userService.getAllAuctions();

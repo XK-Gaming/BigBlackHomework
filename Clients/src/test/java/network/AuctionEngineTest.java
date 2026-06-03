@@ -14,14 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * ## JUnit: test AuctionEngine phia client tinh trang thai OPEN/RUNNING/FINISHED theo thoi gian.
- */
 class AuctionEngineTest {
 
-    /**
-     * ## Test phien chua bat dau: item co startTime tuong lai phai la OPEN.
-     */
+    // Test item chưa tới giờ trả OPEN.
     @Test
     void watchItemReturnsOpenBeforeStartTime() throws Exception {
         Instant now = Instant.now();
@@ -30,9 +25,7 @@ class AuctionEngineTest {
         assertEquals(AuctionStatus.OPEN, firstStatus(item));
     }
 
-    /**
-     * ## Test phien dang dien ra: now nam giua start/end phai la RUNNING.
-     */
+    // Test item trong giờ đấu giá trả RUNNING.
     @Test
     void watchItemReturnsRunningBetweenStartAndEndTime() throws Exception {
         Instant now = Instant.now();
@@ -41,9 +34,7 @@ class AuctionEngineTest {
         assertEquals(AuctionStatus.RUNNING, firstStatus(item));
     }
 
-    /**
-     * ## Test phien da ket thuc: now sau endTime phai la FINISHED.
-     */
+    // Test item quá giờ trả FINISHED.
     @Test
     void watchItemReturnsFinishedAfterEndTime() throws Exception {
         Instant now = Instant.now();
@@ -52,18 +43,13 @@ class AuctionEngineTest {
         assertEquals(AuctionStatus.FINISHED, firstStatus(item));
     }
 
-    /**
-     * ## Test input null: watchItem tra null khi thieu item hoac listener.
-     */
+    // Test watchItem chặn tham số thiếu.
     @Test
     void watchItemRejectsMissingArguments() {
         assertNull(AuctionEngine.getInstance().watchItem(null, (status, seconds) -> { }));
         assertNull(AuctionEngine.getInstance().watchItem(item(Instant.now(), Instant.now()), null));
     }
 
-    /**
-     * ## Test helper: lay status dau tien tu listener roi huy dang ky watch.
-     */
     private AuctionStatus firstStatus(Item item) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<AuctionStatus> firstStatus = new AtomicReference<>();
@@ -82,9 +68,6 @@ class AuctionEngineTest {
         }
     }
 
-    /**
-     * ## Test helper: tao Item mau cho cac case tinh trang thai client.
-     */
     private Item item(Instant start, Instant end) {
         return new Item("Item", "Description", 100, start, end, "seller", ItemType.ART, "image.png");
     }

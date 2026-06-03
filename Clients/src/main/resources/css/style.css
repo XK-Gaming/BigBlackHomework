@@ -1,3 +1,4 @@
+/* Biến màu/font chung. */
 .root {
     -fx-primary-dark: #111827;
     -fx-surface: #ffffff;
@@ -15,6 +16,7 @@
     -fx-font-family: "Segoe UI", "Arial", "System";
 }
 
+/* Nút chung. */
 .button {
     -fx-background-radius: 12;
     -fx-border-radius: 12;
@@ -51,6 +53,7 @@
     -fx-background-radius: 0 12 12 0;
 }
 
+/* Bảng dữ liệu. */
 .table-view {
     -fx-background-color: -fx-surface;
     -fx-background-radius: 14;
@@ -73,11 +76,13 @@
     -fx-background-color: transparent;
 }
 
+/* Phân trang. */
 .pagination {
     -fx-background-radius: 14;
     -fx-page-information-visible: false;
 }
 
+/* Panel thương hiệu. */
 .left-panel {
     -fx-background-color: linear-gradient(to bottom, #101827, #18263d);
 }
@@ -95,6 +100,7 @@
     -fx-text-fill: #c7d2fe;
 }
 
+/* Nút phụ. */
 .btn-outline {
     -fx-background-color: transparent;
     -fx-border-color: rgba(255,255,255,0.72);
@@ -112,6 +118,7 @@
     -fx-border-color: #ffffff;
 }
 
+/* Panel form. */
 .right-panel {
     -fx-background-color: linear-gradient(to bottom right, #ffffff, #f7faff);
     -fx-padding: 0px 55px 0px 55px;
@@ -145,11 +152,13 @@
     -fx-background-color: -fx-surface;
 }
 
+/* Text báo lỗi. */
 .error-text {
     -fx-text-fill: -fx-danger;
     -fx-font-size: 13px;
 }
 
+/* Nút chính. */
 .btn-primary {
     -fx-background-color: linear-gradient(to right, #2563eb, #3b82f6);
     -fx-background-radius: 16;

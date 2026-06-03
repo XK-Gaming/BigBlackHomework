@@ -19,7 +19,8 @@
                   <Insets left="20.0" right="20.0" />
                </padding>
             </Label>
-            <Button fx:id="jbuton_TrangChu" mnemonicParsing="false" onAction="#setJbutton_TrangChu" styleClass="btn-outline" text="QUAY LẠI ĐĂNG NHẬP">
+<!-- Nút QUAY LẠI ĐĂNG NHẬP. -->
+<Button fx:id="jbuton_TrangChu" mnemonicParsing="false" onAction="#setJbutton_TrangChu" styleClass="btn-outline" text="QUAY LẠI ĐĂNG NHẬP">
                <VBox.margin>
                   <Insets top="30.0" />
                </VBox.margin>
@@ -55,8 +56,8 @@
             </VBox>
 
             <Label fx:id="errorLabel1" styleClass="error-text" text="Thông báo lỗi" visible="false" />
-
-            <Button fx:id="jbuton_GhiNhanDangKy" mnemonicParsing="false" onAction="#handleRegister_DangKy" prefHeight="40.0" prefWidth="180.0" styleClass="btn-primary" text="HOÀN TẤT ĐĂNG KÝ">
+<!-- Nút HOÀN TẤT ĐĂNG KÝ. -->
+<Button fx:id="jbuton_GhiNhanDangKy" mnemonicParsing="false" onAction="#handleRegister_DangKy" prefHeight="40.0" prefWidth="180.0" styleClass="btn-primary" text="HOÀN TẤT ĐĂNG KÝ">
                <VBox.margin>
                   <Insets top="10.0" />
                </VBox.margin>

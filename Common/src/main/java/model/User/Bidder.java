@@ -5,7 +5,6 @@ import java.io.Serializable;
 public final class Bidder extends User implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // ✅ Constructor no-arg cho Gson deserialization
     public Bidder() {
         super();
     }
@@ -18,6 +17,4 @@ public final class Bidder extends User implements Serializable {
         this.setBalance(balance);
     }
 
-
 }
-

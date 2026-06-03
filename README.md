@@ -1,149 +1,161 @@
-# Hệ Thống Đấu Giá Trực Tuyến
+# Hệ thống đấu giá trực tuyến
 
-Dự án này được tái cấu trúc để có thể dễ dàng triển khai trên nhiều máy khác nhau và sẵn sàng để đẩy lên GitHub.
+## 1. Mô tả bài toán và phạm vi hệ thống
 
-## Cấu trúc dự án
-- `controller`: Module Server (Xử lý logic đấu giá và kết nối Database).
-- `Clients`: Module Client (Giao diện người dùng JavaFX).
-- `.gitignore`: Cấu hình các file không đẩy lên GitHub (build, logs, idea config).
+Hệ thống đấu giá trực tuyến cho phép người dùng đăng sản phẩm, tham gia đặt giá, theo dõi phiên đấu giá, nạp tiền và thanh toán sản phẩm thắng đấu giá.
 
-## Yêu cầu hệ thống
-- Java 25 trở lên.
-- Maven 3.x.
-- MySQL Database (Hiện đang cấu hình kết nối tới Azure MySQL).
+Phạm vi hệ thống gồm:
 
-## Hướng dẫn cấu hình
+- Client JavaFX cho Admin, Seller và Bidder.
+- Server xử lý nghiệp vụ, đồng bộ dữ liệu và đã được đóng gói JAR để chạy trên Microsoft Azure.
+- Database MySQL do Server sử dụng, Client không cần cài database riêng.
+- Giao tiếp Client/Server qua TCP Socket.
 
-### 1. Cấu hình Server
-Mở file `controller/src/main/resources/server.properties` và chỉnh sửa các thông số sau:
-- `db.host`: Địa chỉ host của Database.
-- `db.name`: Tên database.
-- `db.user`: Tên đăng nhập database.
-- `db.pass`: Mật khẩu database.
-- `server.port`: Cổng mà Server sẽ lắng nghe (Mặc định: 8080).
+## 2. Công nghệ sử dụng, môi trường chạy và yêu cầu cài đặt
 
-### 2. Cấu hình Client
-Mở file `Clients/src/main/resources/client.properties` và chỉnh sửa:
-- `server.ip`: Địa chỉ IP của máy đang chạy Server.
-- `server.port`: Cổng của Server (phải trùng với cấu hình ở Server).
+Công nghệ sử dụng:
 
-## Hướng dẫn chạy dự án
+- Java 21.
+- Maven multi-module.
+- JavaFX 21.
+- TCP Socket và Object Stream.
+- MySQL.
+- HikariCP.
+- Gson/Jackson.
+- Cloudinary SDK.
+- JUnit 5.
+- Microsoft Azure.
 
-### Cách 1: Chạy bằng Maven (Khuyên dùng khi phát triển)
-1. **Chạy Server:**
-   ```bash
-   cd controller
-   mvn clean javafx:run
-   ```
-   *(Hoặc chạy hàm main trong `network.AuctionServer`)*
+Môi trường chạy Client:
 
-2. **Chạy Client:**
-   ```bash
-   cd Clients
-   mvn clean javafx:run
-   ```
-   *(Hoặc chạy hàm main trong `controller.Launcher`)*
+- Windows, Linux hoặc macOS.
+- JDK 21 trở lên.
+- Máy có giao diện đồ họa để mở JavaFX.
+- Có kết nối mạng tới Server Azure.
+- Có thể dùng Maven Wrapper có sẵn trong dự án, không bắt buộc cài Maven global.
 
-### Cách 2: Đóng gói và chạy file JAR
-1. Tại thư mục gốc của dự án, chạy lệnh:
-   ```bash
-   mvn clean package -DskipTests
-   ```
-2. Sau khi build xong:
-   - File chạy của Server sẽ nằm tại: `controller/target/Server-1.0-SNAPSHOT.jar`
-   - File chạy của Client sẽ nằm tại: `Clients/target/Clients-1.0-SNAPSHOT.jar`
-3. Chạy lệnh:
-   ```bash
-   java -jar <tên-file-jar>
-   ```
+Cấu hình Server mặc định trong `Clients/src/main/resources/client.properties`:
 
-## Các lỗi thường gặp khi chạy trên máy khác
-
-### 1. Lỗi phiên bản Java (UnsupportedClassVersionError)
-- **Nguyên nhân:** Dự án đang dùng **JDK 25**. Nếu máy khác chỉ có JDK 21, 17... sẽ không chạy được.
-- **Khắc phục:** Cài đặt JDK 25 trên máy đó hoặc đổi phiên bản Java trong `pom.xml` về bản thấp hơn và build lại.
-
-### 2. Không kết nối được tới Server (Connection Refused / Timeout)
-- **Nguyên nhân:** File `client.properties` vẫn đang để `server.ip=localhost`. Khi sang máy khác, `localhost` trỏ về chính nó chứ không trỏ về máy Server.
-- **Khắc phục:** Mở file `Clients/src/main/resources/client.properties` và đổi `localhost` thành địa chỉ IP thực tế của máy chạy Server (Ví dụ: `192.168.1.15`).
-
-### 3. Lỗi Firewall / Cổng (Port)
-- **Nguyên nhân:** Windows Firewall chặn cổng 8080.
-- **Khắc phục:** Mở cổng 8080 trên Firewall của máy Server hoặc tạm tắt Firewall để kiểm tra.
-
-### 4. Lỗi File FXML (NullPointerException khi load FXML)
-- **Nguyên nhân:** Do sử dụng đường dẫn tuyệt đối (File) thay vì Resource.
-- **Khắc phục:** Tôi đã cập nhật mã nguồn để sử dụng `getClass().getResource()`. Hãy đảm bảo bạn đã chạy `mvn clean package` để đóng gói lại phiên bản mới nhất.
-
-## Kiến trúc Hệ thống
-
-Dưới đây là sơ đồ luồng hoạt động và cấu trúc mã nguồn của hệ thống Đấu giá:
-
-```mermaid
-graph TD
-    %% --- SERVER SIDE ---
-    subgraph "Server (controller)"
-        Main[AuctionServer.main] --> Launch[AuctionServer.launch]
-        Launch --> Accept[ServerSocket.accept loop]
-        Pool[ThreadPoolExecutor / worker pool]
-        
-        Accept -->|New Socket| Pool
-        Pool --> CH[ClientHandler / implements Runnable]
-        
-        subgraph "Handler Architecture"
-            CH --> InitH[initHandlers]
-            InitH --> MapH["Map<String, RequestHandler>"]
-            
-            BaseH[BaseHandler] ---|Kế thừa: cung cấp sendResponse| LogicH
-            ReqH[RequestHandler] ---|Triển khai: handle logic| LogicH
-            
-            subgraph "Specific Handlers (Ví dụ)"
-                LogicH(LoginHandler / BidHandler / etc.)
-            end
-        end
-        
-        CH -->|in.readObject| Dispatch[Điều phối theo Command]
-        Dispatch --> LogicH
-        LogicH -->|sendResponse| out[ObjectOutputStream]
-    end
-
-    %% --- COMMUNICATION ---
-    CH <-->|Object Streams / DataPacket| AC
-
-    %% --- CLIENT SIDE ---
-    subgraph "Client (Clients)"
-        AC[AuctionClient / Singleton]
-        
-        subgraph "Threads & Concurrency"
-            L[auction-client-listener thread] ---|Nghe ngầm| AC
-            IO[ClientNetworkExecutor / client-io-pool] ---|Xử lý tác vụ mạng| UI_Trigger
-        end
-        
-        subgraph "UI & Flow"
-            FX[JavaFX Thread / controller] --> UI_Trigger[Bấm nút / Gửi lệnh]
-            UI_Trigger -->|execute task| IO
-            IO -->|AC.sendCommand| AC
-            AC -->|writeLock| Send[out.writeObject]
-            
-            L -->|in.readObject| Read[DataPacket]
-            Read --> Listener[currentListener / ServerListener]
-            Listener -->|Platform.runLater| UpdateUI[Cập nhật Giao diện]
-        end
-    end
+```properties
+server.ip=20.188.113.2
+server.port=8080
 ```
 
-### Giải thích cấu trúc:
+Kiểm tra Java:
 
-#### Phía Server (`controller`)
-*   **AuctionServer:** Điểm khởi đầu, quản lý cổng kết nối và sử dụng `ThreadPoolExecutor` để xử lý đa luồng hiệu quả.
-*   **ClientHandler:** Đại diện cho mỗi kết nối Client. Nhiệm vụ chính là đọc gói tin (`DataPacket`) và điều phối tới các Handler cụ thể.
-*   **Hệ thống Handler:** 
-    *   `BaseHandler`: Cung cấp công cụ gửi phản hồi (`sendResponse`).
-    *   `RequestHandler`: Interface định nghĩa cách xử lý một yêu cầu.
-    *   Các Handler cụ thể (`LoginHandler`, `BidHandler`...) chứa logic nghiệp vụ riêng biệt.
+```bash
+java -version
+```
 
-#### Phía Client (`Clients`)
-*   **AuctionClient:** Lớp Singleton quản lý kết nối duy nhất tới Server. Chứa `writeLock` để đảm bảo an toàn đa luồng khi gửi dữ liệu.
-*   **Luồng lắng nghe (Listener):** Một luồng chạy ngầm liên tục nhận dữ liệu từ Server mà không làm treo giao diện.
-*   **ClientNetworkExecutor:** Pool luồng riêng cho các tác vụ mạng, giúp tách biệt logic I/O ra khỏi luồng giao diện JavaFX chính.
-*   **Cập nhật UI:** Sử dụng `Platform.runLater` để đảm bảo dữ liệu từ Server được hiển thị lên màn hình một cách an toàn.
+## 3. Cấu trúc thư mục và module chính
+
+```text
+.
+|-- pom.xml                      # Parent Maven POM
+|-- mvnw / mvnw.cmd              # Maven Wrapper
+|-- Common/                      # Model và network class dùng chung
+|-- Server/                      # Server xử lý nghiệp vụ
+|   |-- src/main/java/dao/        # Truy cập dữ liệu
+|   |-- src/main/java/database/   # Kết nối database
+|   |-- src/main/java/network/    # Socket server và handler
+|   `-- src/main/java/service/    # Logic user, auction, bid, payment
+`-- Clients/                     # Ứng dụng JavaFX Client
+    |-- src/main/java/controller/ # Controller giao diện
+    |-- src/main/java/network/    # Kết nối tới Server
+    |-- src/main/resources/fxml/  # Màn hình FXML
+    |-- src/main/resources/css/   # Giao diện CSS
+    `-- src/main/resources/       # Cấu hình và tài nguyên
+```
+
+## 4. Câu lệnh chạy chương trình
+
+Server đã chạy sẵn trên Microsoft Azure. Người dùng chỉ cần build và chạy Client.
+
+Windows:
+
+```powershell
+.\mvnw.cmd -pl Clients -am clean package -DskipTests
+java -jar Clients\target\Clients-1.0-SNAPSHOT.jar
+```
+
+Linux/macOS:
+
+```bash
+chmod +x mvnw
+./mvnw -pl Clients -am clean package -DskipTests
+java -jar Clients/target/Clients-1.0-SNAPSHOT.jar
+```
+
+## 5. Hướng dẫn chạy Server/Client theo thứ tự
+
+1. Đảm bảo Server Azure đang hoạt động với cấu hình:
+
+```properties
+server.ip=20.188.113.2
+server.port=8080
+```
+
+2. Kiểm tra máy chạy Client đã có JDK 21 trở lên:
+
+```bash
+java -version
+```
+
+3. Build Client theo hệ điều hành đang dùng.
+
+4. Chạy Client bằng file `Clients-1.0-SNAPSHOT.jar`.
+
+5. Đăng ký hoặc đăng nhập tài khoản trên giao diện Client.
+
+## 6. Danh sách chức năng đã hoàn thành
+
+Chức năng chung:
+
+- Đăng ký, đăng nhập và đăng xuất.
+- Phân quyền Admin, Seller, Bidder.
+- Cập nhật thông tin tài khoản.
+- Đổi mật khẩu.
+- Theo dõi trạng thái kết nối Client/Server.
+- Xử lý tài khoản đăng nhập trùng và force logout.
+
+Chức năng Admin:
+
+- Xem dashboard tổng quan.
+- Quản lý người dùng.
+- Quản lý sản phẩm.
+- Duyệt hoặc dừng phiên đấu giá.
+- Xem lịch sử bid.
+- Duyệt, từ chối và xóa yêu cầu nạp tiền.
+
+Chức năng Seller:
+
+- Đăng sản phẩm đấu giá.
+- Upload ảnh sản phẩm.
+- Xem danh sách sản phẩm đã đăng.
+- Sửa và xóa sản phẩm.
+- Theo dõi trạng thái phiên đấu giá.
+- Nhận thông báo khi Bidder thanh toán.
+
+Chức năng Bidder:
+
+- Xem và tìm kiếm sản phẩm đấu giá.
+- Xem chi tiết phiên đấu giá.
+- Đặt bid thủ công.
+- Dùng AutoBid với `maxBidAllow` và `bidGap`.
+- Xem lịch sử đấu giá.
+- Bid lại nhanh khi bị vượt giá.
+- Nạp tiền và xem lịch sử nạp tiền.
+- Thanh toán sản phẩm thắng đấu giá.
+- Nhận cập nhật realtime về giá, trạng thái phiên và số dư.
+
+Chức năng Server:
+
+- Quản lý nhiều Client kết nối đồng thời.
+- Xử lý request theo `Command`.
+- Đồng bộ giá và trạng thái đấu giá realtime.
+- Tự động cập nhật trạng thái phiên theo thời gian.
+- Gia hạn phiên khi có bid sát giờ kết thúc.
+- Kiểm tra bid theo giá hiện tại, `MinBid`, trạng thái phiên và số dư.
+- Hoàn tiền người bị vượt bid và trừ tiền người đặt bid mới.
+- Đồng bộ số dư sau bid, nạp tiền và thanh toán.
+- Lưu dữ liệu user, item, auction, bid history và deposit history vào MySQL.

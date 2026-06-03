@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.util.Map;
 import java.util.Properties;
 
+// Màn đăng nhập.
 public class ControllerLogin implements ServerListener {
 
     private final AuctionClient client = AuctionClient.getInstance();
@@ -37,23 +38,18 @@ public class ControllerLogin implements ServerListener {
     @FXML private Label errorLabel;
     @FXML private TextField username;
 
-    // Bộ đếm thời gian tự động xóa trạng thái lỗi sau 5 giây
     private final PauseTransition errorDelay = new PauseTransition(Duration.seconds(5));
-
+    // Khởi tạo màn hình.
     public void initialize() {
-        // Đăng ký controller này làm người nghe tin nhắn từ Server
+
         client.addListener(this);
-        // Cấu hình hành động sau khi hết 5 giây: Ẩn thông báo lỗi và xóa toàn bộ viền đỏ
+
         errorDelay.setOnFinished(event -> clearAllErrors());
 
-        // TỰ ĐỘNG GẮN SỰ KIỆN: Khi bắt đầu nhập liệu, ô đó sẽ hết đỏ lập tức
         username.setOnKeyTyped(event -> resetStyle(username));
         password.setOnKeyTyped(event -> resetStyle(password));
     }
-
-    /**
-     * Hàm tiện ích dùng chung để hiển thị thông báo lỗi, đổi viền đỏ và đếm ngược 5 giây
-     */
+    // Hiển thị giao diện.
     private void showError(String message, boolean redUsername, boolean redPassword) {
         errorLabel.setText(message);
         errorLabel.setVisible(true);
@@ -61,33 +57,25 @@ public class ControllerLogin implements ServerListener {
         if (redUsername) username.setStyle("-fx-border-color: red;");
         if (redPassword) password.setStyle("-fx-border-color: red;");
 
-        // Chạy (hoặc làm mới) bộ đếm 5 giây
         errorDelay.stop();
         errorDelay.play();
     }
-
-    /**
-     * Xóa sạch trạng thái lỗi (được gọi sau khi hết 5 giây)
-     */
+    // Xóa dữ liệu hiển thị.
     private void clearAllErrors() {
         errorLabel.setVisible(false);
         username.setStyle(null);
         password.setStyle(null);
     }
-
-    /**
-     * Xóa viền đỏ của một ô cụ thể khi người dùng gõ vào
-     */
+    // Reset trạng thái.
     private void resetStyle(TextField field) {
         field.setStyle(null);
-        // Nếu ô còn lại không bị đỏ, ta có thể ẩn luôn cái errorLabel cho gọn gàng
+
         if (username.getStyle() == null && password.getStyle() == null) {
             errorLabel.setVisible(false);
-            errorDelay.stop(); // Dừng bộ đếm 5s lại vì lỗi đã được xử lý bằng tay
+            errorDelay.stop();
         }
     }
 
-    // Xử lý chuyển sang màn hình Đăng ký
     @FXML
     public void setJbutton_DangKy() {
         try {
@@ -103,7 +91,7 @@ public class ControllerLogin implements ServerListener {
         }
     }
 
-    // Xử lý nút Đăng nhập
+    // Đăng nhập.
     @FXML
     public void handleLogin() {
         if (username.getText().isEmpty() || password.getText().isEmpty()) {
@@ -130,7 +118,7 @@ public class ControllerLogin implements ServerListener {
             }
         });
     }
-
+    // Đảm bảo kết nối.
     private void ensureConnected() throws IOException {
         if (client.isConnected()) {
             return;
@@ -143,7 +131,7 @@ public class ControllerLogin implements ServerListener {
             throw new IOException("Khong the ket noi toi server.");
         }
     }
-
+    // Đọc cấu hình server.
     private ServerConfig loadServerConfig() {
         String serverIp = DEFAULT_SERVER_IP;
         int serverPort = DEFAULT_SERVER_PORT;
@@ -164,23 +152,24 @@ public class ControllerLogin implements ServerListener {
 
     private record ServerConfig(String ip, int port) {}
 
-    // Nhận phản hồi từ Server qua ObjectStream
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
 
+        // Nhận kết quả đăng nhập.
         if (Command.LOGIN_RESULT.equals(command)) {
-            // Ép kiểu từ Payload
+
             Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = result.containsKey("success") && (boolean) result.get("success");
 
             Platform.runLater(() -> {
                 if (!isSuccess) {
-                    // Khi sai tài khoản mật khẩu thì bôi đỏ cả hai ô
+
                     showError("Đăng nhập không thành công!", true, true);
                 } else {
                     try {
-                        // Xóa bộ đếm lỗi phòng trường hợp chuyển cảnh
+
                         errorDelay.stop();
 
                         p1 = (User) result.get("user");
