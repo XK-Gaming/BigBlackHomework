@@ -214,7 +214,12 @@ class UserServiceTest {
     @Test
     void processBidRejectsPriceLowerThanCurrentPrice() throws Exception {
         Item item = item("seller", 100);
-        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), new FakeAuctionDao(null));
+
+        // SỬA DÒNG NÀY: Khởi tạo một phiên đấu giá ảo đang chạy bằng hàm helper runningAuction(item) có sẵn trong file test của bạn
+        Auction runningAuction = runningAuction(item);
+
+        // Đưa runningAuction vào trong FakeAuctionDao thay vì để null
+        UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(item), new FakeAuctionDao(runningAuction));
 
         BidRejectedException exception = assertThrows(BidRejectedException.class,
                 () -> service.processBid("1", "bidder1", 100));

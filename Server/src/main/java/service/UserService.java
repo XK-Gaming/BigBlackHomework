@@ -161,151 +161,163 @@ public class UserService {
     /**
      *  Tối ưu locking strategy cho Single Server
      */
+    /**
+     * Tối ưu locking strategy: Thu hẹp phạm vi lock và giảm thiểu rủi ro Deadlock DB
+     */
     public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
-        ReentrantLock lock = getLockForItem(itemId);
-        lock.lock(); // Khóa luồng Java để đồng bộ tại tầng Application
-
+        // --- BƯỚC 1: KHỞI TẠO CONNECTION NGOÀI LOCK ---
+        // Tránh việc các thread giữ lock nhưng phải xếp hàng chờ lấy Connection từ Pool
         Connection con = null;
-        // Khai báo các biến trả về ở scope ngoài try để block cuối cùng có thể đọc được (nếu cần) hoặc trả về chính xác
-        String refundedBidderId = null;
-        Double refundedBalance = null;
-        User refundedUser = null;
-
         try {
             con = connectionProvider.getConnection();
-            con.setAutoCommit(false); // 🌟 BẮT ĐẦU TRANSACTION AN TOÀN
+            con.setAutoCommit(false);
+        } catch (SQLException e) {
+            throw new BidRejectedException(BidRejectedException.Reason.PERSIST, "Lỗi kết nối hệ thống.", e);
+        }
 
-            // 1. Đọc dữ liệu CHUẨN từ trong Transaction
+        // Lấy lock theo từng sản phẩm
+        ReentrantLock lock = getLockForItem(itemId);
+        lock.lock();
+
+        try {
+            // --- BƯỚC 2: ĐỌC VÀ KIỂM TRA TRẠNG THÁI PHIÊN ---
             Item txItem = itemDAO.selectById(con, itemId);
             if (txItem == null) {
                 throw new NotFoundException("item", "Không tìm thấy sản phẩm.");
             }
 
-            // 2. Kiểm tra các điều kiện chặn
-            if (bidderId != null && txItem.getSellerId() != null && bidderId.equals(txItem.getSellerId())) {
-                throw new BidRejectedException(BidRejectedException.Reason.SELLER_BID,
-                        "Người bán không thể đặt giá cho sản phẩm của mình.");
+            if (bidderId != null && bidderId.equals(txItem.getSellerId())) {
+                throw new BidRejectedException(BidRejectedException.Reason.SELLER_BID, "Người bán không thể tự đặt giá.");
             }
 
             Auction txAuction = auctionDAO.selectByItemId(con, txItem);
             if (txAuction == null) {
-                if (amount <= txItem.getCurrentHighestPrice()) {
-                    throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                            "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
-                }
                 throw new NotFoundException("auction", "Không tìm thấy phiên đấu giá.");
             }
             txAuction.setItem(txItem);
 
             if (txAuction.getStatus() != AuctionStatus.RUNNING) {
-                throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING,
-                        "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
+                throw new BidRejectedException(BidRejectedException.Reason.NOT_RUNNING, "Phiên đấu giá hiện không diễn ra hoặc đã kết thúc.");
             }
 
+            // --- BƯỚC 3: KIỂM TRA GIÁ ĐẶT (FAIL-FAST) ---
             boolean firstBid = isFirstBid(txAuction);
             double minAllowedBid = minAllowedBid(txItem, txAuction);
+
             if (firstBid && amount <= txItem.getCurrentHighestPrice()) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Giá đặt phải cao hơn giá hiện tại: " + txItem.getCurrentHighestPrice());
+                        "Giá đặt phải cao hơn giá khởi điểm: " + txItem.getCurrentHighestPrice());
             }
             if (!firstBid && amount < minAllowedBid) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Giá đặt tối thiểu là " + String.format("%,.0f", minAllowedBid)
-                                + " (giá hiện tại + MinBid).");
+                        "Giá đặt tối thiểu là " + String.format(Locale.US, "%,.0f", minAllowedBid) + " (giá hiện tại + MinBid).");
             }
 
-            User currentBidder = userDAO.selectByUsernameOnly(con, bidderId);
+            // --- BƯỚC 4: XỬ LÝ LƯU TRỮ VÀ HOÀN TIỀN (ATOMIC UPDATE ĐỂ TRÁNH DEADLOCK) ---
+            String oldBidderId = txAuction.getLeadingBidder();
+            double oldHighestPrice = txItem.getCurrentHighestPrice();
+
+            User currentBidder = userDAO.selectByUsernameOnly(bidderId);
             if (currentBidder == null) {
                 throw new NotFoundException("user", "Không tìm thấy người dùng.");
             }
 
-            // Check chung cho tất cả các case: Số dư hiện tại phải lớn hơn hoặc bằng giá muốn đặt
-            if (amount > currentBidder.getBalance()) {
-                throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                        "Số dư tài khoản không đủ để đặt giá.");
-            }
+            User refundedUser = null;
+            String refundedBidderId = null;
+            Double refundedBalance = null;
 
-            // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI
-            String oldBidderId = txAuction.getLeadingBidder();
-            double oldHighestPrice = txItem.getCurrentHighestPrice();
+            double currentBalance = currentBidder.getBalance();
+            double currentBidderNewBalance;
 
+            // Xử lý logic dòng tiền thông qua câu UPDATE có điều kiện (Atomic) ở DAO thay vì SELECT FOR UPDATE
             if (oldBidderId != null && !oldBidderId.isEmpty()) {
                 if (oldBidderId.equals(bidderId)) {
-                    // =============== CASE 1: TỰ NÂNG GIÁ (SELF-OVERBIDDING) ===============
-                    // Số dư mới = Số dư hiện tại + Hoàn lại tiền cũ - Trừ đi tiền mới
-                    double newBalance = currentBidder.getBalance() + oldHighestPrice - amount;
-
-                    if (newBalance < 0) {
-                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
-                                "Số dư tài khoản không đủ để nâng giá (Thiếu " + String.format("%,.0f", Math.abs(newBalance)) + ").");
+                    // Trường hợp tự nâng giá chính mình
+                    double delta = amount - oldHighestPrice;
+                    currentBidderNewBalance = currentBalance - delta;
+                    if (currentBidderNewBalance < 0) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Số dư tài khoản không đủ để nâng giá.");
                     }
 
-                    userDAO.UpdateBalance(con, bidderId, newBalance);
-                    currentBidder.setBalance(newBalance);
-
+                    // Thực hiện update trực tiếp, tận dụng WHERE balance >= delta
+                    int rows = userDAO.UpdateBalanceWithCondition(con, bidderId, currentBidderNewBalance, delta);
+                    if (rows <= 0) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Số dư thay đổi bất thường, vui lòng thử lại.");
+                    }
                 } else {
-                    // =============== CASE 2: NGƯỜI KHÁC VÀO ĐÈ GIÁ ===============
-                    // Đã check balance của currentBidder ở trên, không cần check lại ở đây.
-
-                    refundedUser = userDAO.selectByUsernameOnly(con, oldBidderId);
-                    if (refundedUser != null) {
-                        refundedBidderId = oldBidderId;
-                        refundedBalance = refundedUser.getBalance() + oldHighestPrice;
-
-                        userDAO.UpdateBalance(con, oldBidderId, refundedBalance);
-                        refundedUser.setBalance(refundedBalance);
+                    // Trường hợp đè giá người khác
+                    if (currentBalance < amount) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Số dư tài khoản không đủ để đặt giá.");
                     }
 
-                    // Trừ tiền người đặt mới
-                    double newBalance = currentBidder.getBalance() - amount;
-                    userDAO.UpdateBalance(con, bidderId, newBalance);
-                    currentBidder.setBalance(newBalance);
+                    // Hoàn tiền cho người cũ trước
+                    if (!oldBidderId.equalsIgnoreCase("null")) {
+                        refundedUser = userDAO.selectByUsernameOnly(oldBidderId);
+                        if (refundedUser != null) {
+                            refundedBidderId = oldBidderId;
+                            refundedBalance = refundedUser.getBalance() + oldHighestPrice;
+                            userDAO.UpdateBalance(con, oldBidderId, refundedBalance);
+                        }
+                    }
+
+                    // Trừ tiền người mới kèm điều kiện kiểm tra số dư tại tầng SQL
+                    currentBidderNewBalance = currentBalance - amount;
+                    int rows = userDAO.UpdateBalanceWithCondition(con, bidderId, currentBidderNewBalance, amount);
+                    if (rows <= 0) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Đặt giá thất bại do số dư không khớp.");
+                    }
                 }
             } else {
-                // =============== CASE 3: LƯỢT ĐẶT GIÁ ĐẦU TIÊN CỦA PHÒNG ===============
-                double newBalance = currentBidder.getBalance() - amount;
-                userDAO.UpdateBalance(con, bidderId, newBalance);
-                currentBidder.setBalance(newBalance);
+                // Lượt đặt giá đầu tiên
+                if (currentBalance < amount) {
+                    throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Số dư tài khoản không đủ để đặt giá.");
+                }
+                currentBidderNewBalance = currentBalance - amount;
+                int rows = userDAO.UpdateBalanceWithCondition(con, bidderId, currentBidderNewBalance, amount);
+                if (rows <= 0) {
+                    throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW, "Đặt giá thất bại.");
+                }
             }
 
-            // 4. CẬP NHẬT LỊCH SỬ ĐẤU GIÁ
-            List<BidTransaction> newHistory = new ArrayList<>(txAuction.getBidHistory());
-            String transactionId = "BID-" + UUID.randomUUID().toString().substring(0, 8) + "-" + bidderId;
-            BidTransaction newBid = new BidTransaction(
-                    transactionId,
-                    bidderId,
-                    amount,
-                    Instant.now(clock) // Đảm bảo biến clock đã được khai báo ở tầng thuộc tính class
-            );
-            newHistory.add(newBid);
-            txAuction.setBidHistory(newHistory);
-            txAuction.setLeadingBidder(bidderId);
-
-            applyAntiSnipingExtension(txItem);
-
-            // 5. UPDATE CÁC BẢNG DATABASE
-            int auctionResult = auctionDAO.Update(con, txAuction, txItem.getDatabaseId(), bidderId, amount);
-            if (auctionResult <= 0) {
+            // --- BƯỚC 5: CẬP NHẬT TRẠNG THÁI PHIÊN VÀ ITEM ---
+            if (auctionDAO.Update(con, txAuction, txItem.getDatabaseId(), bidderId, amount) <= 0) {
                 throw new SQLException("Không thể cập nhật bảng auction_items.");
             }
 
             txItem.setCurrentHighestPrice(amount);
-            int itemResult = itemDAO.Update(con, txItem);
-            if (itemResult <= 0) {
+            applyAntiSnipingExtension(txItem);
+
+            if (itemDAO.Update(con, txItem) <= 0) {
                 throw new SQLException("Không thể cập nhật bảng items.");
             }
 
-            // 🌟 THÀNH CÔNG TOÀN DIỆN -> ĐỒNG BỘ LƯU VÀO DB
+            // Commit tất cả xuống database một lần duy nhất
             con.commit();
 
-            // Chuẩn bị dữ liệu trả về
+            // --- BƯỚC 6: ĐỒNG BỘ IN-MEMORY SAU KHI THÀNH CÔNG ---
+            currentBidder.setBalance(currentBidderNewBalance);
+            if (refundedUser != null && refundedBalance != null) {
+                refundedUser.setBalance(refundedBalance);
+            }
+
+            txAuction.setLeadingBidder(bidderId);
+            List<BidTransaction> history = new ArrayList<>(txAuction.getBidHistory());
+            BidTransaction newTransaction = new BidTransaction(
+                    "BID-" + UUID.randomUUID().toString().substring(0, 8) + "-" + bidderId,
+                    bidderId,
+                    amount,
+                    Instant.now(clock)
+            );
+            history.add(newTransaction);
+            txAuction.setBidHistory(history);
+
+            // Chuẩn bị map kết quả trả về
             Map<String, Object> finalResult = new HashMap<>();
             finalResult.put("item", txItem);
             finalResult.put("user", currentBidder);
             finalResult.put("latestAuction", txAuction);
             finalResult.put("newPrice", amount);
-            finalResult.put("bidHistory", new ArrayList<>(txAuction.getBidHistory()));
-
+            finalResult.put("bidHistory", history);
             if (refundedBidderId != null) {
                 finalResult.put("refundedBidderId", refundedBidderId);
                 finalResult.put("refundedBalance", refundedBalance);
@@ -314,25 +326,28 @@ public class UserService {
             return finalResult;
 
         } catch (BidRejectedException | NotFoundException e) {
-            if (con != null) {
-                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
+            rollbackConnection(con);
             throw e;
         } catch (Exception e) {
-            System.err.println("❌ processBid: Lỗi: " + e.getMessage());
-            if (con != null) {
-                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
-            throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
-                    "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
+            rollbackConnection(con);
+            e.printStackTrace();
+            throw new BidRejectedException(BidRejectedException.Reason.PERSIST, "Lỗi hệ thống khi xử lý lượt đặt giá. Vui lòng thử lại.", e);
         } finally {
-            if (con != null) {
-                try {
-                    con.setAutoCommit(true);
-                    con.close();
-                } catch (SQLException e) { e.printStackTrace(); }
-            }
-            lock.unlock(); // ✅ Giải phóng lock an toàn trong mọi trường hợp
+            closeConnection(con);
+            lock.unlock(); // Giải phóng khóa nhanh nhất có thể
+        }
+    }
+
+    private void rollbackConnection(Connection con) {
+        if (con != null) {
+            try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+        }
+    }
+
+    private void closeConnection(Connection con) {
+        if (con != null) {
+            // Loại bỏ việc setAutoCommit(true) thừa thãi trước khi đóng
+            try { con.close(); } catch (SQLException e) { e.printStackTrace(); }
         }
     }
 
