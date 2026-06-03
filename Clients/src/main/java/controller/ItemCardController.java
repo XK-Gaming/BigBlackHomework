@@ -6,19 +6,25 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import model.Items.Item;
 import network.AuctionEngine;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.text.DecimalFormat;
+import java.time.Instant;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-// Card sản phẩm.
 public class ItemCardController {
     private final AuctionEngine auctionEngine = AuctionEngine.getInstance();
     private String watchToken;
 
+    @FXML
+    private AnchorPane cardRoot;
+    @FXML
+    private Label lblBadge;
     @FXML
     private Label j_EndTime;
     @FXML
@@ -31,7 +37,8 @@ public class ItemCardController {
     private Label j_name;
     @FXML
     private Label j_status;
-    // Cập nhật giá card.
+
+    // HÀM MỚI: Chỉ nhận lệnh cập nhật trực tiếp nhãn giá tiền hiển thị độc lập
     public void updatePriceOnly(Item item) {
         DecimalFormat df = new DecimalFormat("#,###");
         double price = item.getCurrentHighestPrice();
@@ -39,7 +46,7 @@ public class ItemCardController {
             j_StartPrice.setText(df.format(price) + " VNĐ");
         });
     }
-    // Nạp dữ liệu card.
+
     public void setData(Item item) throws IOException, URISyntaxException {
         if (watchToken != null) {
             auctionEngine.unwatch(watchToken);
@@ -87,12 +94,47 @@ public class ItemCardController {
                 watchToken = null;
             }
         });
+
+        // Setup dynamic badge overlay based on price/time
+        if (lblBadge != null) {
+            Instant now = Instant.now();
+            if (item.getAuctionEndTime() != null &&
+                    item.getAuctionEndTime().isAfter(now) &&
+                    item.getAuctionEndTime().isBefore(now.plus(Duration.ofHours(2)))) {
+                lblBadge.setText("⏰ SẮP HẾT HẠN");
+                lblBadge.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 9px; -fx-padding: 3 8 3 8; -fx-background-radius: 8;");
+                lblBadge.setVisible(true);
+            } else if (item.getCurrentHighestPrice() > item.getStartingPrice() * 1.2) {
+                lblBadge.setText("🔥 HOT");
+                lblBadge.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 9px; -fx-padding: 3 8 3 8; -fx-background-radius: 8;");
+                lblBadge.setVisible(true);
+            } else if (item.getAuctionStartTime() != null &&
+                    item.getAuctionStartTime().isBefore(now) &&
+                    item.getAuctionStartTime().isAfter(now.minus(Duration.ofHours(2)))) {
+                lblBadge.setText("🆕 MỚI ĐĂNG");
+                lblBadge.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 9px; -fx-padding: 3 8 3 8; -fx-background-radius: 8;");
+                lblBadge.setVisible(true);
+            } else {
+                lblBadge.setVisible(false);
+            }
+        }
+
+        // Hover animations
+        if (cardRoot != null) {
+            cardRoot.setOnMouseEntered(event -> {
+                cardRoot.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(three-pass-box, rgba(37,99,235,0.25), 15, 0.2, 0, 8);");
+                cardRoot.setTranslateY(-4);
+            });
+            cardRoot.setOnMouseExited(event -> {
+                cardRoot.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-effect: dropshadow(three-pass-box, rgba(15,23,42,0.12), 10, 0, 0, 5);");
+                cardRoot.setTranslateY(0);
+            });
+        }
     }
 
-    // Chọn card sản phẩm.
     @FXML
     void on_choice(MouseEvent event) {}
-    // Định dạng hiển thị.
+
     private String formatDuration(long totalSeconds) {
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;
