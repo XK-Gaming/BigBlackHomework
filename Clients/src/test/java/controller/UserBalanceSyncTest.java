@@ -14,9 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * ## JUnit: test dong bo so du client tu payload realtime ma khong can mo JavaFX UI.
- */
 class UserBalanceSyncTest {
 
     @AfterEach
@@ -24,9 +21,7 @@ class UserBalanceSyncTest {
         UserSession.cleanUserSession();
     }
 
-    /**
-     * ## Test bid thanh cong: payload user/balance cua chinh user cap nhat ngay UserSession.
-     */
+    // Test đồng bộ số dư đúng user hiện tại.
     @Test
     void appliesMatchingUserPayloadToCurrentSession() {
         User sessionUser = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 1_000);
@@ -40,9 +35,7 @@ class UserBalanceSyncTest {
         assertEquals(850.0, UserSession.getLoggedInUser().getBalance());
     }
 
-    /**
-     * ## Test bi vuot bid: payload refund phai cap nhat so du cho refundedBidderId, khong nham sang bidder moi.
-     */
+    // Test hoàn tiền khi user bị vượt bid.
     @Test
     void appliesRefundedBalanceWhenCurrentUserWasOutbid() {
         User sessionUser = new Bidder("oldBidder", "secret", "Old Bidder", "old@example.com", 300);
@@ -59,9 +52,7 @@ class UserBalanceSyncTest {
         assertEquals(450.0, UserSession.getLoggedInUser().getBalance());
     }
 
-    /**
-     * ## Test an toan: payload so du cua user khac khong duoc ghi de vao session hien tai.
-     */
+    // Test bỏ qua payload số dư của user khác.
     @Test
     void ignoresBalancePayloadForAnotherUser() {
         User sessionUser = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com", 1_000);

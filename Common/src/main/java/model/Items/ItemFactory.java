@@ -3,16 +3,9 @@ package model.Items;
 import java.time.Instant;
 import java.util.Map;
 
-/**
- * Factory tạo subclass Item phù hợp với loại sản phẩm được chọn.
- */
+// Tạo item theo loại.
 public class ItemFactory {
-    /**
-     * Precondition: type là một trong các chuỗi loại item được UI hỗ trợ; extraFields chứa
-     * các key cần cho từng loại; fileName là tên ảnh đã chọn.
-     * Postcondition: Method trả về Electronics, Vehicle hoặc Art tương ứng với type.
-     * NOTE: Ném IllegalArgumentException nếu type không hợp lệ.
-     */
+
     public static Item createItem(String type, String name, String desc, double price,
                                   Instant start, Instant end, String owner,
                                   Map<String, String> extraFields, String fileName) {

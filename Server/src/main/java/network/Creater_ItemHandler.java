@@ -6,6 +6,7 @@ import model.exception.PersistenceException;
 
 import java.io.ObjectOutputStream;
 
+// Request tạo sản phẩm.
 public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -13,10 +14,10 @@ public class Creater_ItemHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request tạo sản phẩm.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
 
-        // Kiểm tra và ép kiểu trực tiếp từ payload
         if (payload instanceof Item item) {
             try {
                 userService.creater_item(item);

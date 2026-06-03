@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+// Quản lý user admin.
 public class ControllerManagerUser implements ServerListener {
 
     @FXML private BorderPane Pane1;
@@ -37,18 +38,15 @@ public class ControllerManagerUser implements ServerListener {
     @FXML private Circle connectionStatus;
     @FXML private ComboBox<String> cbRole;
 
-    // Bảng danh sách User chính (Bên trái)
     @FXML private TableView<User> tableUsers;
     @FXML private TableColumn<User, String> colUsername;
     @FXML private TableColumn<User, String> colPassword;
     @FXML private TableColumn<User, String> colRole;
 
-    // Các thành phần thông tin cơ bản chi tiết
     @FXML private Label detailUsername;
     @FXML private Label detailRole;
     @FXML private Label paymentHistory;
 
-    // ĐÃ SỬA: Chuyển đổi từ ListView sang TableView cho các bảng phụ bo tròn bên phải
     @FXML private TableView<String> tableTransactionHistory;
     @FXML private TableView<String> tableBidHistory;
     @FXML private TableView<String> tableSellHistory;
@@ -59,6 +57,7 @@ public class ControllerManagerUser implements ServerListener {
     private ObservableList<User> masterData = FXCollections.observableArrayList();
     private ConnectionStatusManager statusManager;
 
+    // Khởi tạo màn hình.
     @FXML
     public void initialize() {
         client.addListener(this);
@@ -74,14 +73,13 @@ public class ControllerManagerUser implements ServerListener {
             }
         });
     }
-
+    // Cấu hình bảng.
     private void setupTable() {
-        // Thiết lập bảng chính bên trái
+
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colPassword.setCellValueFactory(new PropertyValueFactory<>("password"));
         colRole.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getRole_toString()));
 
-        // Thiết lập cột động hiển thị chuỗi thông tin cho 3 bảng phụ bo tròn bên phải
         TableColumn<String, String> colTx = new TableColumn<>("Chi tiết lịch sử");
         colTx.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
         tableTransactionHistory.getColumns().add(colTx);
@@ -94,7 +92,6 @@ public class ControllerManagerUser implements ServerListener {
         colSell.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
         tableSellHistory.getColumns().add(colSell);
 
-        // Thiết lập cột trạng thái Online/Offline tô màu tự động cho bảng chính
         TableColumn<User, String> statusCol = new TableColumn<>("Trạng thái");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(column -> new TableCell<User, String>() {
@@ -103,6 +100,7 @@ public class ControllerManagerUser implements ServerListener {
             private final HBox container = new HBox(6, dot, label);
             { container.setAlignment(javafx.geometry.Pos.CENTER_LEFT); }
 
+            // Cập nhật sản phẩm.
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -113,10 +111,10 @@ public class ControllerManagerUser implements ServerListener {
                     label.setText(item.toUpperCase());
                     String statusClean = item.trim().toUpperCase();
                     if (statusClean.contains("ONLINE") || statusClean.contains("ON")) {
-                        label.setTextFill(Color.web("#16a34a")); // Xanh lá
+                        label.setTextFill(Color.web("#16a34a"));
                         dot.setFill(Color.web("#16a34a"));
                     } else {
-                        label.setTextFill(Color.web("#dc2626")); // Đỏ
+                        label.setTextFill(Color.web("#dc2626"));
                         dot.setFill(Color.web("#dc2626"));
                     }
                     setGraphic(container);
@@ -125,12 +123,12 @@ public class ControllerManagerUser implements ServerListener {
         });
         tableUsers.getColumns().add(statusCol);
     }
-
+    // Cấu hình ban đầu.
     private void setupComboBox() {
         cbRole.setItems(FXCollections.observableArrayList("-- Tất cả vai trò --", "Admin", "Người bán", "Người đấu giá"));
         cbRole.getSelectionModel().selectFirst();
     }
-
+    // Tải dữ liệu.
     private void loadData() {
         try {
             client.sendCommand(network.Command.GET_ALL_USERS, (Object) "");
@@ -138,13 +136,12 @@ public class ControllerManagerUser implements ServerListener {
             e.printStackTrace();
         }
     }
-
+    // Hiện chi tiết user.
     private void showUserDetails(User user) {
         detailUsername.setText(user.getUsername());
         detailRole.setText("Vai trò: " + user.getRole_toString());
         paymentHistory.setText("Số dư: " + String.format("%,.0f VNĐ", user.getBalance()));
 
-        // Làm sạch dữ liệu cũ trong TableView phụ
         tableBidHistory.getItems().clear();
         tableSellHistory.getItems().clear();
         tableTransactionHistory.getItems().clear();
@@ -173,6 +170,7 @@ public class ControllerManagerUser implements ServerListener {
         }
     }
 
+    // Lọc dữ liệu.
     @FXML
     public void On_Filter(ActionEvent event) {
         String selectedRole = cbRole.getSelectionModel().getSelectedItem();
@@ -186,19 +184,22 @@ public class ControllerManagerUser implements ServerListener {
         }
     }
 
+    // Xử lý nút giao diện.
     @FXML
     public void On_UserManager(ActionEvent event) {
         loadData();
     }
 
+    // Đăng xuất.
     @FXML
     public void On_LogOut(ActionEvent event) {
-        client.removeListener(this); // Hủy lắng nghe luồng socket tránh rò rỉ khi chuyển cảnh
+        client.removeListener(this);
         SceneHelper.changeScene(LogOut, "/fxml/AdminView.fxml");
     }
-
+    // Xử lý nút giao diện.
     @FXML public void On_MouseClickImg(MouseEvent mouseEvent) {}
 
+    // Xóa user.
     @FXML
     public void On_DeleteUser(ActionEvent event) {
         User selected = tableUsers.getSelectionModel().getSelectedItem();
@@ -219,11 +220,13 @@ public class ControllerManagerUser implements ServerListener {
         });
     }
 
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(network.DataPacket response) {
         network.Command command = response.command();
         Object payload = response.payload();
 
+        // Nhận danh sách user.
         if (network.Command.GET_ALL_USERS_RESULT.equals(command)) {
             List<User> users = (List<User>) payload;
             Platform.runLater(() -> {
@@ -275,7 +278,7 @@ public class ControllerManagerUser implements ServerListener {
             });
         }
     }
-
+    // Hiển thị giao diện.
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -284,6 +287,7 @@ public class ControllerManagerUser implements ServerListener {
         alert.showAndWait();
     }
 
+    // Làm mới dữ liệu.
     @FXML
     public void On_RefreshData(ActionEvent event) {
         loadData();

@@ -7,14 +7,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test LogoutHandler goi service logout va tra LOGOUT_RESULT.
- */
 class LogoutHandlerTest {
 
-    /**
-     * ## Test logout: username tu request duoc truyen vao service va handler tra success=true.
-     */
+    // Test logout gọi service và trả thành công.
     @Test
     void logoutCallsServiceAndReturnsSuccess() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -28,9 +23,6 @@ class LogoutHandlerTest {
         assertEquals(true, payload.get("success"));
     }
 
-    /**
-     * ## Test fake service: ghi nhan username logout thay vi chay server/session that.
-     */
     private static final class FakeUserService extends UserService {
         private String loggedOutUsername;
 

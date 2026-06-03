@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+// Màn duyệt nạp tiền.
 public class ControllerAdminViewerPayment implements ServerListener {
     @FXML private TableView<DepositTransaction> paymentTable;
     @FXML private TableColumn<DepositTransaction, String> colUser;
@@ -26,17 +27,17 @@ public class ControllerAdminViewerPayment implements ServerListener {
     @FXML private TableColumn<DepositTransaction, String> colStatus;
 
     private final ObservableList<DepositTransaction> masterData = FXCollections.observableArrayList();
-
+    // Khởi tạo màn hình.
     public void initialize() {
         AuctionClient.getInstance().addListener(this);
         colUser.setCellValueFactory(new PropertyValueFactory<>("username"));
         colAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
         colTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        
+
         loadPendingDeposits();
     }
-
+    // Tải dữ liệu.
     private void loadPendingDeposits() {
         try {
             AuctionClient.getInstance().sendCommand(network.Command.GET_PENDING_DEPOSITS, null);
@@ -45,6 +46,7 @@ public class ControllerAdminViewerPayment implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handleApprove(ActionEvent event) {
         DepositTransaction selected = paymentTable.getSelectionModel().getSelectedItem();
@@ -60,6 +62,7 @@ public class ControllerAdminViewerPayment implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handleReject(ActionEvent event) {
         DepositTransaction selected = paymentTable.getSelectionModel().getSelectedItem();
@@ -75,12 +78,14 @@ public class ControllerAdminViewerPayment implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handleReturn(ActionEvent event) {
         AuctionClient.getInstance().removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/AdminView.fxml");
     }
 
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         switch (response.command()) {
@@ -105,7 +110,7 @@ public class ControllerAdminViewerPayment implements ServerListener {
                 break;
         }
     }
-
+    // Hiển thị giao diện.
     private void showAlert(String title, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

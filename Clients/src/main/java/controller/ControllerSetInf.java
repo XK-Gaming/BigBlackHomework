@@ -24,42 +24,37 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import model.DepositTransaction;
 import java.util.Map;
 
+// Thông tin tài khoản.
 public class ControllerSetInf implements ServerListener {
     User p1 = UserSession.getLoggedInUser();
     private AuctionClient client = AuctionClient.getInstance();
 
-    // Menu Components
     @FXML private ImageView j_image;
     @FXML private Button j_return;
     @FXML private Label j_LabelName;
     @FXML private Label show_userName;
     @FXML private Label show_Password;
 
-    // Panes
     @FXML private AnchorPane Pane_ThongTinTaiKhoan;
     @FXML private AnchorPane Pane_DoiMatKhau;
     @FXML private AnchorPane Pane_ThanhToan;
     @FXML private AnchorPane Pane_CaiDat;
 
-    // Menu Buttons
     @FXML private Button j_buttonThongTinDangNhap;
     @FXML private Button j_buttonThanhToan;
     @FXML private Button j_buttonDoiMatKhau;
     @FXML private Button j_buttonCaiDat;
     @FXML private Button j_buttonDangXuat;
 
-    // FXML IDs: Cập nhật thông tin
     @FXML private TextField j_inputNewName;
     @FXML private TextField j_inputNewTel;
     @FXML private Label j_labelMessageName;
 
-    // FXML IDs: Đổi mật khẩu
     @FXML private PasswordField j_inputOldPassword;
     @FXML private PasswordField j_inputNewPassword;
     @FXML private PasswordField j_inputConfirmPassword;
     @FXML private Label j_labelMessagePassword;
 
-    // FXML IDs: Thanh toán
     @FXML private TextField j_inputMoney;
     @FXML private Label j_labelMessagePayment;
     @FXML private TableView<DepositTransaction> depositHistoryTable;
@@ -71,37 +66,38 @@ public class ControllerSetInf implements ServerListener {
     @FXML private Circle connectionStatus;
     @FXML private Label connectionText;
     private ConnectionStatusManager statusManager;
-
+    // Khởi tạo màn hình.
     public void initialize() {
         client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
         if (p1 != null) {
-            // Set thông tin hiển thị ở Menu Trái
+
             show_userName.setText(p1.getUsername());
             show_Password.setText("********");
             j_LabelName.setText(p1.getName());
 
-            // Cấu hình TableView
             colDepositAmount.setCellValueFactory(new PropertyValueFactory<>("amount"));
             colDepositTime.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
             colDepositStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
             updateDepositTable();
         }
     }
-
+    // Cập nhật bảng nạp tiền.
     private void updateDepositTable() {
         if (p1 != null && p1.getDepositHistory() != null) {
             depositHistoryTable.getItems().setAll(p1.getDepositHistory());
         }
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_MouseClickImg(MouseEvent event) {
-        // Có thể thêm tính năng upload avatar ở đây
+
     }
 
+    // Nút quay lại.
     @FXML
     void j_event_return(ActionEvent event) {
         client.removeListener(this);
@@ -113,11 +109,7 @@ public class ControllerSetInf implements ServerListener {
             SceneHelper.changeScene((Node) j_return, "/fxml/AdminView.fxml");
         }
     }
-
-    // ----------------------------------------------------
-    // ĐIỀU HƯỚNG MENU (CHUYỂN PANE)
-    // ----------------------------------------------------
-
+    // Ẩn panel tài khoản.
     private void hideAllPanes() {
         Pane_ThongTinTaiKhoan.setVisible(false);
         Pane_ThanhToan.setVisible(false);
@@ -125,30 +117,35 @@ public class ControllerSetInf implements ServerListener {
         Pane_CaiDat.setVisible(false);
     }
 
+    // Nút thông tin tài khoản.
     @FXML
     void j_OnbuttonThongTinDangNhap(ActionEvent event) {
         hideAllPanes();
         Pane_ThongTinTaiKhoan.setVisible(true);
     }
 
+    // Nút thanh toán.
     @FXML
     void j_OnbuttonThanhToan(ActionEvent event) {
         hideAllPanes();
         Pane_ThanhToan.setVisible(true);
     }
 
+    // Nút đổi mật khẩu.
     @FXML
     void j_OnbuttonDoiMatKhau(ActionEvent event) {
         hideAllPanes();
         Pane_DoiMatKhau.setVisible(true);
     }
 
+    // Nút cài đặt.
     @FXML
     void j_OnbuttonCaiDat(ActionEvent event) {
         hideAllPanes();
         Pane_CaiDat.setVisible(true);
     }
 
+    // Nút đăng xuất.
     @FXML
     void j_OnbuttonDangXuat(ActionEvent event) {
         try {
@@ -158,10 +155,7 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
-    // ----------------------------------------------------
-    // XỬ LÝ NGHIỆP VỤ (CẬP NHẬT TT, ĐỔI MẬT KHẨU, NẠP TIỀN)
-    // ----------------------------------------------------
-
+    // Nút cập nhật thông tin.
     @FXML
     void j_OnUpdateInfo(ActionEvent event) {
         String newName = j_inputNewName.getText();
@@ -175,14 +169,13 @@ public class ControllerSetInf implements ServerListener {
         }
 
         try {
-            // Gửi cập nhật Tên
+
             client.sendCommand(Command.UPDATE_USER, Map.of(
                     "username", p1.getUsername(),
                     "field", "name",
                     "value", newName
             ));
 
-            // Gửi cập nhật SĐT (Nếu có nhập)
             if (newTel != null && !newTel.trim().isEmpty()) {
                 client.sendCommand(Command.UPDATE_USER, Map.of(
                         "username", p1.getUsername(),
@@ -203,6 +196,7 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
+    // Nút đổi mật khẩu.
     @FXML
     void j_OnChangePassword(ActionEvent event) {
         User p1 = UserSession.getLoggedInUser();
@@ -243,10 +237,9 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
-    // ----------------------------------------------------
-    // XỬ LÝ NGHIỆP VỤ NẠP TIỀN
-    // ----------------------------------------------------
     String moneyStr;
+
+    // Nút nạp tiền.
     @FXML
     void j_OnPayMent(ActionEvent event) {
         moneyStr = j_inputMoney.getText();
@@ -278,7 +271,6 @@ public class ControllerSetInf implements ServerListener {
                     "amount", money
             ));
 
-
         } catch (NumberFormatException e) {
             j_labelMessagePayment.setTextFill(Color.RED);
             j_labelMessagePayment.setText("Vui lòng chỉ nhập số (VD: 100000)!");
@@ -288,6 +280,7 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handleDeleteDepositHistory(ActionEvent event) {
         DepositTransaction selected = depositHistoryTable.getSelectionModel().getSelectedItem();
@@ -303,14 +296,12 @@ public class ControllerSetInf implements ServerListener {
         }
     }
 
-    // ----------------------------------------------------
-    // LẮNG NGHE PHẢN HỒI TỪ SERVER
-    // ----------------------------------------------------
-
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
 
+        // Nhận kết quả cập nhật user.
         if (Command.UPDATE_USER_RESULT.equals(command) || "UPDATE_USER_RESULT".equals(command.toString())) {
             Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
@@ -328,6 +319,8 @@ public class ControllerSetInf implements ServerListener {
                 }
             });
         }
+
+        // Nhận kết quả đổi mật khẩu.
         if (Command.CHANGE_PASSWORD_RESULT.equals(command) || "CHANGE_PASSWORD_RESULT".equals(command.toString())) {
             Map<String, Object> result = (Map<String, Object>) response.payload();
             boolean isSuccess = (boolean) result.get("success");
@@ -385,6 +378,8 @@ public class ControllerSetInf implements ServerListener {
                 });
             }
         }
+
+        // Nhận thông báo realtime.
         if (Command.NOTIFICATION.equals(command)) {
             String msg = (String) response.payload();
             Platform.runLater(() -> {
@@ -393,6 +388,8 @@ public class ControllerSetInf implements ServerListener {
                 j_labelMessagePayment.setVisible(true);
             });
         }
+
+        // Nhận lệnh đăng xuất cưỡng chế.
         if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -403,14 +400,16 @@ public class ControllerSetInf implements ServerListener {
                 System.exit(0);
             });
         }
+
+        // Nhận kết quả đăng xuất.
         if (Command.LOGOUT_RESULT.equals(command)) {
             Platform.runLater(() -> {
-                // 1. Ngắt kết nối socket hiện tại ở máy khách
+
                 client.removeListener(this);
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_buttonDangXuat, "/fxml/LoginView.fxml");
-                // 2. Chuyển về màn hình đăng nhập
+
             });
         }
     }

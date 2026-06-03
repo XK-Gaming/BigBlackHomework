@@ -11,6 +11,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+// DAO phiên đấu giá.
 public class DAOAuction_Items{
     private static final DAOAuction_Items INSTANCE = new DAOAuction_Items();
 
@@ -18,14 +19,8 @@ public class DAOAuction_Items{
         return INSTANCE;
     }
 
-    private final Gson gson = GsonUtils.createGson();  // Dùng custom Gson với TypeAdapter cho Instant
-    /**
-     * Precondition: auction và item1 mô tả item đấu giá mới; item1.databaseId đã được
-     * DAOItems.Insert() gán sau khi insert items.
-     * Postcondition: auction_items có thêm dòng mới với status OPEN, bidHistory rỗng,
-     * seller id, leading bidder và current price.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu lỗi.
-     */
+    private final Gson gson = GsonUtils.createGson();
+    // Thao tác database.
     public int Insert(Auction auction, Item item) {
         String sql = "INSERT INTO auction_items (id_item, sellerID, status, leadingbider, bidHistory, currentPrice) VALUES (?, ?, ?, ?, ?, ?)";
 
@@ -37,7 +32,7 @@ public class DAOAuction_Items{
             pstmt.setString(3, gson.toJson(null));
 
             String leadingUsername = auction.getLeadingBidder();
-            pstmt.setString(4, leadingUsername);  // Lưu username string trực tiếp, không qua gson
+            pstmt.setString(4, leadingUsername);
             pstmt.setString(5, gson.toJson(new ArrayList<BidTransaction>()));
 
             pstmt.setDouble(6, item.getCurrentHighestPrice());
@@ -48,14 +43,7 @@ public class DAOAuction_Items{
         }
         return 0;
     }
-
-    /**
-     * Precondition: itemId xác định một dòng auction_items, UsernameLeadingBiddder là username
-     * đang dẫn đầu, CurrentPrice là mức giá vừa được chấp nhận.
-     * Postcondition: Cập nhật currentPrice, leadingbider và bidHistory cho item.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu validate/database lỗi.
-     * NOTE: leading bidder rỗng sẽ bị từ chối trước khi chạy SQL.
-     */
+    // Thao tác database.
     public int Update(Connection con, Auction auction, int itemId, String bidderId, Double price) throws SQLException {
         String sql = "UPDATE auction_items SET currentPrice = ?, leadingbider = ?, bidHistory = ? WHERE id_item = ?";
         try (PreparedStatement pstmt = con.prepareStatement(sql)) {
@@ -66,20 +54,13 @@ public class DAOAuction_Items{
             return pstmt.executeUpdate();
         }
     }
-
-    /**
-     * Precondition: item khác null và item.databaseId xác định dòng items/auction_items.
-     * Postcondition: Method trả về Auction đã nạp item, status, leadingBidder và bidHistory.
-     * Trả null nếu không có dòng auction.
-     * NOTE: Nếu parse JSON bidHistory lỗi thì gán lịch sử rỗng.
-     */
+    // Truy vấn dữ liệu.
     public Auction selectByItemId(Item item) {
         String sql = "SELECT * FROM auction_items WHERE id_item = ?";
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
             pstmt.setLong(1, item.getDatabaseId());
-
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
@@ -121,24 +102,17 @@ public class DAOAuction_Items{
         }
         return null;
     }
-    /**
-     * Precondition: item1.databaseId xác định dòng auction_items và status là trạng thái đích.
-     * Postcondition: Cập nhật auction_items.status và cập nhật cả status trong object auction
-     * nếu dòng database tồn tại.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
-     */
+    // Thao tác database.
     public void Update_Status(Auction auction, Item item1, AuctionStatus status) {
-// 1. SQL: Cập nhật status trong auction_items table
+
         String sql = "UPDATE auction_items SET status = ? WHERE id_item = ?";
 
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            // Dùng gson.toJson() để serialized status thành JSON
             pstmt.setString(1, gson.toJson(status));
             pstmt.setLong(2, item1.getDatabaseId());
 
-            // Thực thi
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) { auction.setStatus(status); }
 
@@ -146,17 +120,10 @@ public class DAOAuction_Items{
             e.printStackTrace();
         }
     }
-    /**
-     * Precondition: item1.databaseId và sellerId đã có dữ liệu.
-     * Postcondition: Insert một dòng auction_items tối thiểu với currentPrice.
-     * Method trả về số dòng bị ảnh hưởng, hoặc 0 nếu SQLException.
-     * NOTE: Overload Insert(Auction, Item) là luồng đầy đủ hơn mà UserService.creater_item() dùng.
-     */
+    // Thao tác database.
     public int Insert(Item item) {
         String sql = "INSERT INTO auction_items (id_item, sellerID, currentPrice) VALUES (?, ?, ?)";
 
-        // KHAI BÁO CẢ HAI TRONG TRY: con sẽ tự đóng, pstmt sẽ tự đóng.
-        // Không cần dùng biến con ở ngoài, không cần finally.
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
@@ -171,18 +138,12 @@ public class DAOAuction_Items{
             e.printStackTrace();
             return 0;
         }
-        // Không cần finally ở đây nữa!
-    }
 
-    /**
-     * Precondition: Có thể tạo kết nối database và bảng auction_items tồn tại.
-     * Postcondition: Method trả về toàn bộ dòng auction_items đã map sang Auction object.
-     * NOTE: Method này chưa gắn Item object; AuctionEngine sẽ load Item sau bằng itemId.
-     */
+    }
+    // Truy vấn dữ liệu.
     public List<Auction> selectAll() {
         List<Auction> list = new ArrayList<>();
 
-        // ✅ Đã cấu hình chính xác theo các cột thực tế: auctionStartTime, auctionEndTime, imgdata
         String sql = "SELECT " +
                 "    a.id_item, a.status, a.currentPrice, a.leadingbider, a.bidHistory, " +
                 "    i.name AS item_name, " +
@@ -199,19 +160,15 @@ public class DAOAuction_Items{
             while (rs.next()) {
                 Auction auction = new Auction();
 
-                // 1. Đồng bộ ID phiên đấu giá
                 auction.setItemId(rs.getLong("id_item"));
 
-                // 2. Khởi tạo và nạp đầy đủ thuộc tính cho thực thể Item để nuôi UI AssetCard
                 model.Items.Item item = new model.Items.Item();
                 item.setDatabaseId(rs.getInt("id_item"));
                 item.setName(rs.getString("item_name"));
                 item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
 
-                // Lấy link/tên ảnh từ cột imgdata
                 item.setImg(rs.getString("item_img"));
 
-                // ⚡ SỬA LỖI CHÍ MẠNG: Đọc dữ liệu mốc thời gian an toàn từ DB
                 Timestamp startTimestamp = rs.getTimestamp("item_start");
                 Timestamp endTimestamp = rs.getTimestamp("item_end");
 
@@ -222,10 +179,8 @@ public class DAOAuction_Items{
                     item.setAuctionEndTime(endTimestamp.toInstant());
                 }
 
-                // Gán đối tượng Item hoàn chỉnh vào Auction
                 auction.setItem(item);
 
-                // 3. Giải mã trạng thái phiên (status)
                 String statusJson = rs.getString("status");
                 if (statusJson != null) {
                     try {
@@ -235,13 +190,11 @@ public class DAOAuction_Items{
                     }
                 }
 
-                // 4. Giải mã tài khoản đang dẫn đầu (leadingbider)
                 String leadingUsername = rs.getString("leadingbider");
                 if (leadingUsername != null && !leadingUsername.trim().isEmpty() && !"null".equals(leadingUsername)) {
                     auction.setLeadingBidder(leadingUsername);
                 }
 
-                // 5. Giải mã lịch sử các lượt đặt giá (bidHistory)
                 String historyJson = rs.getString("bidHistory");
                 if (historyJson != null && !historyJson.isEmpty()) {
                     try {
@@ -263,33 +216,31 @@ public class DAOAuction_Items{
 
         return list;
     }
-    // ✅ SELECT bình thường
+    // Truy vấn dữ liệu.
     public Auction selectByItemId(Connection con, Item item) throws SQLException {
         String sql = "SELECT * FROM auction_items WHERE id_item = ?";
         try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, item.getDatabaseId());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    // ✅ TRUYỀN THÊM biến item vào đây
+
                     return mapResultSetToAuction(rs, item);
                 }
             }
         }
         return null;
     }
+    // Map dữ liệu database.
     private Auction mapResultSetToAuction(ResultSet rs, Item item) throws SQLException {
         Auction auction = new Auction();
 
         long idItem = rs.getLong("id_item");
         auction.setItemId(idItem);
 
-        // ✅ SỬA TẠI ĐÂY: Cập nhật giá mới nhất từ bảng đấu giá vào item có sẵn
         item.setCurrentHighestPrice(rs.getDouble("currentPrice"));
 
-        // Gán object item đã có sẵn từ ngoài vào auction
         auction.setItem(item);
 
-        // --- Các đoạn dưới giữ nguyên ---
         String statusJson = rs.getString("status");
         if (statusJson != null) {
             try {
@@ -317,6 +268,7 @@ public class DAOAuction_Items{
 
         return auction;
     }
+    // Thao tác database.
     public int Delete(Item item) {
         String sql = "DELETE FROM auction_items WHERE id_item = ?";
         try (Connection con = JDBCUtil.getConnection();
@@ -328,17 +280,13 @@ public class DAOAuction_Items{
             return 0;
         }
     }
-    /**
-     * Thực hiện cập nhật lại giá hiện tại (currentPrice) trong bảng đấu giá
-     * dựa theo giá hiện tại mới của Item (khi phiên chưa bắt đầu).
-     */
+    // Cập nhật dữ liệu.
     public int updatePriceByItemIdWhenEditItem(Item item) {
         String sql = "UPDATE auction_items SET currentPrice = ? WHERE id_item = ?";
 
         try (Connection con = JDBCUtil.getConnection();
              PreparedStatement pstmt = con.prepareStatement(sql)) {
 
-            // Vì chưa đấu giá, currentHighestPrice của đối tượng item chính là startingPrice mới
             pstmt.setDouble(1, item.getCurrentHighestPrice());
             pstmt.setLong(2, item.getDatabaseId());
 

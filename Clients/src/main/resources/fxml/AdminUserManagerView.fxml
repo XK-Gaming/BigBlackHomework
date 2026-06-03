@@ -41,10 +41,12 @@
                </children>
             </VBox>
             <Region prefHeight="20.0" />
-            <Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-cursor: hand;" text="👥  Quản lý người dùng">
+<!-- Nút Quản lý người dùng. -->
+<Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-cursor: hand;" text="👥  Quản lý người dùng">
                <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
             </Button>
-            <Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold;" text="Quay lại">
+<!-- Nút Quay lại. -->
+<Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold;" text="Quay lại">
                <padding><Insets bottom="10.0" top="10.0" /></padding>
             </Button>
             <Region VBox.vgrow="ALWAYS" />
@@ -82,8 +84,10 @@
                               <ComboBox fx:id="cbRole" prefWidth="180.0" promptText="-- Tất cả vai trò --" />
                            </children>
                         </VBox>
-                        <Button onAction="#On_Filter" prefHeight="32.0" prefWidth="120.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="LỌC TÀI KHOẢN"><font><Font size="12.0" /></font></Button>
-                        <Button fx:id="btnRefresh" onAction="#On_RefreshData" prefHeight="32.0" prefWidth="100.0" style="-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="🔄 LÀM MỚI"><font><Font size="12.0" /></font></Button>
+<!-- Nút LỌC TÀI KHOẢN. -->
+<Button onAction="#On_Filter" prefHeight="32.0" prefWidth="120.0" style="-fx-background-color: linear-gradient(to bottom, #101827, #18263d); -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="LỌC TÀI KHOẢN"><font><Font size="12.0" /></font></Button>
+<!-- Nút LÀM MỚI. -->
+<Button fx:id="btnRefresh" onAction="#On_RefreshData" prefHeight="32.0" prefWidth="100.0" style="-fx-background-color: #0288D1; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="🔄 LÀM MỚI"><font><Font size="12.0" /></font></Button>
                      </children>
                   </HBox>
                </children>
@@ -120,7 +124,8 @@
                                                       <Label fx:id="detailRole" text="Vai trò: ---" textFill="#64748b"><font><Font size="12.0" /></font></Label>
                                                    </children>
                                                 </VBox>
-                                                <Button fx:id="btnDeleteUser" onAction="#On_DeleteUser" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10;" text="XÓA USER"><font><Font size="11.0" /></font></Button>
+<!-- Nút XÓA USER. -->
+<Button fx:id="btnDeleteUser" onAction="#On_DeleteUser" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10;" text="XÓA USER"><font><Font size="11.0" /></font></Button>
                                              </children>
                                           </HBox>
                                        </children>

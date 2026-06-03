@@ -11,9 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ItemFactoryTest {
 
-    /**
-     * ## Test tao item My thuat: factory phai tra Art va giu dung cac field dau gia/artist.
-     */
+    // Test tạo Art giữ thông tin đấu giá và artist.
     @Test
     void createArtPreservesAuctionFieldsAndArtist() {
         Instant start = Instant.parse("2026-05-29T01:00:00Z");
@@ -40,9 +38,7 @@ class ItemFactoryTest {
         assertEquals("Original work", art.getProperties().get("description"));
     }
 
-    /**
-     * ## Test tao item Dien tu: factory phai tra Electronics va giu dung brand/model/MinBid.
-     */
+    // Test tạo Electronics giữ brand/model.
     @Test
     void createElectronicsPreservesBrandAndModel() {
         Item item = ItemFactory.createItem(
@@ -64,9 +60,7 @@ class ItemFactoryTest {
         assertEquals(50, electronics.getMinBid(), 0.001);
     }
 
-    /**
-     * ## Test tao item Phuong tien: factory phai tra Vehicle va giu dung manufacturer/year/MinBid.
-     */
+    // Test tạo Vehicle giữ hãng/năm.
     @Test
     void createVehiclePreservesManufacturerAndYear() {
         Item item = ItemFactory.createItem(
@@ -88,9 +82,7 @@ class ItemFactoryTest {
         assertEquals(80, vehicle.getMinBid(), 0.001);
     }
 
-    /**
-     * ## Test loai item khong ho tro: factory phai nem IllegalArgumentException.
-     */
+    // Test factory chặn loại item không hỗ trợ.
     @Test
     void createItemRejectsUnsupportedType() {
         assertThrows(IllegalArgumentException.class,

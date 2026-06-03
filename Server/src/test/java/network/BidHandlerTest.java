@@ -20,14 +20,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test BidHandler xu ly BID_RESULT ma khong can ket noi MySQL that.
- */
 class BidHandlerTest {
 
-    /**
-     * ## Test bid hop le: handler tra success=true va newPrice khi service chap nhan gia.
-     */
+    // Test bid thành công trả payload kết quả.
     @Test
     void successfulBidReturnsBidResultPayload() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -48,9 +43,7 @@ class BidHandlerTest {
         assertEquals("bidder1", ((User) payload.get("user")).getUsername());
     }
 
-    /**
-     * ## Test bid hop le: handler dua auctionEndTime tu latestAuction vao payload de client dong bo countdown.
-     */
+    // Test bid trả giờ kết thúc mới nhất.
     @Test
     void successfulBidIncludesLatestAuctionEndTimeWhenAuctionIsLoaded() throws Exception {
         Instant endTime = Instant.parse("2026-05-20T10:05:30Z");
@@ -81,9 +74,7 @@ class BidHandlerTest {
         assertEquals(endTime, payload.get("auctionEndTime"));
     }
 
-    /**
-     * ## Test dat bid thap hon gia hien tai: BidRejectedException duoc map thanh reason PRICE_TOO_LOW.
-     */
+    // Test bid thấp map đúng reason.
     @Test
     void lowBidExceptionIsMappedToReasonInResponse() throws Exception {
         FakeUserService userService = new FakeUserService();
@@ -104,9 +95,7 @@ class BidHandlerTest {
         assertEquals("PRICE_TOO_LOW", payload.get("reason"));
     }
 
-    /**
-     * ## Test input khong hop le: amount khong phai so phai tra success=false thay vi lam crash handler.
-     */
+    // Test số tiền bid không phải số trả lỗi.
     @Test
     void nonNumericBidAmountIsReturnedAsErrorResponse() throws Exception {
         BidHandler handler = new BidHandler(new FakeUserService());
@@ -122,9 +111,6 @@ class BidHandlerTest {
         assertEquals("NumberFormatException", payload.get("errorType"));
     }
 
-    /**
-     * ## Test helper: doc DataPacket tu ObjectOutputStream de kiem tra response server gui ve.
-     */
     private DataPacket handle(BidHandler handler, Object payload) throws Exception {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
@@ -135,9 +121,6 @@ class BidHandlerTest {
         }
     }
 
-    /**
-     * ## Test fake service: mo rong UserService de test handler ma khong cham database.
-     */
     private static final class FakeUserService extends UserService {
         private RuntimeException failure;
         private double acceptedPrice;

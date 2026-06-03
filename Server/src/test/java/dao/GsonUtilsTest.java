@@ -9,14 +9,9 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-/**
- * ## JUnit: test GsonUtils parse/serialize JSON thuan input-output, khong can database.
- */
 class GsonUtilsTest {
 
-    /**
-     * ## Test Instant adapter: Instant duoc serialize thanh epoch seconds va parse nguoc dung thoi diem.
-     */
+    // Test adapter Instant giữ epoch seconds.
     @Test
     void instantAdapterRoundTripsEpochSeconds() {
         Gson gson = GsonUtils.createGson();
@@ -29,9 +24,7 @@ class GsonUtilsTest {
         assertEquals(instant, restored);
     }
 
-    /**
-     * ## Test null safety: Instant null van serialize/deserialize an toan.
-     */
+    // Test adapter Instant xử lý null.
     @Test
     void instantAdapterHandlesNull() {
         Gson gson = GsonUtils.createGson();
@@ -40,9 +33,7 @@ class GsonUtilsTest {
         assertNull(gson.fromJson("null", Instant.class));
     }
 
-    /**
-     * ## Test BidTransaction adapter: giu dung id, bidder, amount va bidTime khi qua JSON.
-     */
+    // Test adapter BidTransaction giữ dữ liệu bid.
     @Test
     void bidTransactionAdapterRoundTripsBidData() {
         Gson gson = GsonUtils.createGson();
@@ -61,9 +52,7 @@ class GsonUtilsTest {
         assertEquals(Instant.ofEpochSecond(1_700_000_100L), restored.getBidTime());
     }
 
-    /**
-     * ## Test forward-compatible JSON: field la trong bidHistory bi bo qua thay vi lam fail parse.
-     */
+    // Test adapter BidTransaction bỏ field lạ.
     @Test
     void bidTransactionAdapterSkipsUnknownFields() {
         Gson gson = GsonUtils.createGson();

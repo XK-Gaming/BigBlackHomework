@@ -8,11 +8,11 @@ import java.net.Socket;
 import java.util.EnumMap;
 import java.util.Map;
 
+// Xử lý một client.
 public class ClientHandler implements Runnable {
     private static final UserService userService = new UserService();
     private final Socket socket;
 
-    // Sử dụng volatile đảm bảo cập nhật luồng an toàn giữa các Thread
     private volatile ObjectOutputStream out;
     private volatile ObjectInputStream in;
     private volatile User user;
@@ -37,7 +37,7 @@ public class ClientHandler implements Runnable {
         }
         initHandlers();
     }
-
+    // Cấu hình ban đầu.
     public void initHandlers() {
         handlers.put(Command.LOGIN, new LoginHandler(this.userService, this));
         handlers.put(Command.REGISTER, new RegisterHandler(this.userService));
@@ -101,7 +101,7 @@ public class ClientHandler implements Runnable {
             cleanup(loggedInUsername);
         }
     }
-
+    // Dọn listener/tài nguyên.
     private void cleanup(String usernameToDisconnect) {
         synchronized (streamLock) {
             try {
@@ -112,7 +112,6 @@ public class ClientHandler implements Runnable {
                     AuctionServer.removeOnlineClient(user.getUsername());
                 }
 
-                // Đóng an toàn các kết nối vật lý và gán null ngay lập tức
                 if (in != null) { try { in.close(); } catch (IOException ignored) {} in = null; }
                 if (out != null) { try { out.close(); } catch (IOException ignored) {} out = null; }
                 if (socket != null && !socket.isClosed()) { try { socket.close(); } catch (IOException ignored) {} }
@@ -123,7 +122,7 @@ public class ClientHandler implements Runnable {
             }
         }
     }
-
+    // Gửi packet cho client.
     public void sendPacket(DataPacket packet) {
         synchronized (streamLock) {
             try {
@@ -137,14 +136,14 @@ public class ClientHandler implements Runnable {
             }
         }
     }
-
+    // Đóng cưỡng chế.
     public void forceClose() {
         synchronized (streamLock) {
             try {
                 if (socket != null && !socket.isClosed()) {
                     System.out.println("[Server SSO] Đang ép đóng kết nối socket của user: "
                             + (user != null ? user.getUsername() : "Chưa đăng nhập"));
-                    socket.close(); // Đóng socket ép luồng in.readObject() dừng lại
+                    socket.close();
                 }
             } catch (IOException e) {
                 System.err.println("[ClientHandler] Lỗi khi ép đóng socket: " + e.getMessage());

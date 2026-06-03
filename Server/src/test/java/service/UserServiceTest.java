@@ -41,14 +41,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * ## JUnit: test UserService xu ly nghiep vu truoc khi ghi DB hoac tra ket qua ve handler.
- */
 class UserServiceTest {
 
-    /**
-     * ## Test dang nhap hop le: DAO tra user dung password thi service tra user cho handler.
-     */
+    // Test login đúng trả user.
     @Test
     void loginReturnsUserWhenCredentialsMatch() throws Exception {
         User user = new Bidder("bidder1", "secret", "Bidder One", "bidder@example.com");
@@ -59,9 +54,7 @@ class UserServiceTest {
         assertSame(user, service.loginAndGetUser("bidder1", "secret"));
     }
 
-    /**
-     * ## Test dang nhap sai: service nem UnauthorizedException truoc khi tra ve client.
-     */
+    // Test login thiếu user báo Unauthorized.
     @Test
     void loginThrowsUnauthorizedWhenDaoReturnsNoUser() throws Exception {
         UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(null), new FakeAuctionDao(null));
@@ -69,9 +62,7 @@ class UserServiceTest {
         assertThrows(UnauthorizedException.class, () -> service.loginAndGetUser("bidder1", "wrong"));
     }
 
-    /**
-     * ## Test dang ky: username da ton tai thi service tra EXSITED va khong insert lan nua.
-     */
+    // Test register trả existing khi username trùng.
     @Test
     void registerReturnsExistingWhenUsernameAlreadyExists() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -85,9 +76,7 @@ class UserServiceTest {
         assertEquals(0, userDao.insertCalls);
     }
 
-    /**
-     * ## Test dang ky: user moi duoc insert qua DAO va service tra TRUE.
-     */
+    // Test register thêm user mới.
     @Test
     void registerInsertsNewUserAndReturnsTrue() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -102,9 +91,7 @@ class UserServiceTest {
         assertSame(newUser, userDao.selectByUsernameOnly("bidder1"));
     }
 
-    /**
-     * ## Test dang san pham: service luu item truoc roi tao auction tu item da co databaseId.
-     */
+    // Test tạo item rồi tạo auction.
     @Test
     void createItemPersistsItemThenAuction() throws Exception {
         FakeItemDao itemDao = new FakeItemDao(null);
@@ -125,9 +112,7 @@ class UserServiceTest {
         assertTrue(item.getDatabaseId() > 0);
     }
 
-    /**
-     * ## Test dang san pham: MinBid bat buoc lon hon 0 khi tao auction moi.
-     */
+    // Test tạo item thiếu minBid bị chặn.
     @Test
     void createItemRejectsMissingMinBid() throws Exception {
         FakeItemDao itemDao = new FakeItemDao(null);
@@ -142,9 +127,7 @@ class UserServiceTest {
         assertEquals(0, itemDao.insertCalls);
     }
 
-    /**
-     * ## Test dang san pham: MinBid khong duoc vuot qua 20% gia khoi diem.
-     */
+    // Test minBid quá 20% giá khởi điểm bị chặn.
     @Test
     void createItemRejectsMinBidAboveTwentyPercentOfStartingPrice() throws Exception {
         FakeItemDao itemDao = new FakeItemDao(null);
@@ -159,9 +142,7 @@ class UserServiceTest {
         assertEquals(0, itemDao.insertCalls);
     }
 
-    /**
-     * ## Test select_items: admin thay ca item chua co status, bidder chi thay item da co status dau gia.
-     */
+    // Test non-admin không thấy item chưa duyệt.
     @Test
     void selectItemsFiltersUnapprovedItemsForNonAdminRoles() throws Exception {
         Item visible = item("seller", 100);
@@ -179,9 +160,7 @@ class UserServiceTest {
         assertSame(visible, bidderItems.getFirst());
     }
 
-    /**
-     * ## Test item khong ton tai: processBid dung o buoc select item va nem NotFoundException.
-     */
+    // Test đặt bid khi item không tồn tại.
     @Test
     void processBidThrowsNotFoundWhenItemDoesNotExist() throws Exception {
         UserService service = serviceWith(new FakeUserDao(), new FakeItemDao(null), new FakeAuctionDao(null));
@@ -192,9 +171,7 @@ class UserServiceTest {
         assertEquals("item", exception.getResource());
     }
 
-    /**
-     * ## Test seller tu dat gia: service tu choi voi reason SELLER_BID truoc khi load auction.
-     */
+    // Test seller không được bid item của mình.
     @Test
     void processBidRejectsSellerBiddingOwnItem() throws Exception {
         Item item = item("seller", 100);
@@ -208,9 +185,7 @@ class UserServiceTest {
         assertFalse(auctionDao.selectCalled);
     }
 
-    /**
-     * ## Test dat bid thap hon gia hien tai: service tra reason PRICE_TOO_LOW truoc khi luu DB.
-     */
+    // Test bid thấp hơn giá hiện tại bị chặn.
     @Test
     void processBidRejectsPriceLowerThanCurrentPrice() throws Exception {
         Item item = item("seller", 100);
@@ -227,9 +202,7 @@ class UserServiceTest {
         assertEquals(BidRejectedException.Reason.PRICE_TOO_LOW, exception.getReason());
     }
 
-    /**
-     * ## Test MinBid: bid dau tien chi can cao hon gia hien tai, chua bi ep current + MinBid.
-     */
+    // Test bid đầu tiên không bắt buộc cộng minBid.
     @Test
     void processBidAllowsFirstBidBelowMinBidIncrement() throws Exception {
         Item item = item("seller", 100);
@@ -249,9 +222,7 @@ class UserServiceTest {
         assertEquals(1, auctionDao.updateCalls);
     }
 
-    /**
-     * ## Test MinBid: tu bid thu hai tro di, gia phai dat toi thieu current price + MinBid.
-     */
+    // Test bid sau phải đạt giá hiện tại cộng minBid.
     @Test
     void processBidRejectsSecondBidBelowCurrentPlusMinBid() throws Exception {
         Item item = item("seller", 100);
@@ -270,9 +241,7 @@ class UserServiceTest {
         assertTrue(exception.getMessage().contains("MinBid"));
     }
 
-    /**
-     * ## Test auction khong ton tai: item co nhung auction null thi service nem NotFoundException resource auction.
-     */
+    // Test đặt bid khi auction không tồn tại.
     @Test
     void processBidThrowsNotFoundWhenAuctionDoesNotExist() throws Exception {
         Item item = item("seller", 100);
@@ -284,9 +253,7 @@ class UserServiceTest {
         assertEquals("auction", exception.getResource());
     }
 
-    /**
-     * ## Test auction da dong/chua chay: service tu choi reason NOT_RUNNING truoc khi tao transaction DB.
-     */
+    // Test đặt bid khi phiên không RUNNING.
     @Test
     void processBidRejectsAuctionThatIsNotRunning() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -306,9 +273,7 @@ class UserServiceTest {
         assertEquals(BidRejectedException.Reason.NOT_RUNNING, exception.getReason());
     }
 
-    /**
-     * ## Test anti-sniping: bid hop le trong 60 giay cuoi thi keo dai gio ket thuc them 90 giay.
-     */
+    // Test anti-sniping gia hạn trong phút cuối.
     @Test
     void processBidExtendsAuctionEndTimeInsideLastMinute() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -336,9 +301,7 @@ class UserServiceTest {
         assertEquals(1, auctionDao.updateCalls);
     }
 
-    /**
-     * ## Test anti-sniping: bid ngoai 60 giay cuoi thi khong doi thoi gian ket thuc.
-     */
+    // Test anti-sniping không gia hạn ngoài phút cuối.
     @Test
     void processBidDoesNotExtendAuctionEndTimeOutsideLastMinute() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -364,9 +327,7 @@ class UserServiceTest {
         assertEquals(1, auctionDao.updateCalls);
     }
 
-    /**
-     * ## Test anti-sniping: hai bid lien tiep cung luc khong lam cong don 2 lan neu bid thu hai khong con nam trong 60 giay cuoi.
-     */
+    // Test anti-sniping không gia hạn trùng liên tiếp.
     @Test
     void processBidDoesNotDoubleExtendForImmediateConsecutiveBids() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -396,9 +357,7 @@ class UserServiceTest {
         assertEquals(2, auctionDao.updateCalls);
     }
 
-    /**
-     * ## Test bid co leader cu: bidder cu duoc hoan tien, bidder moi bi tru tien va auction doi leader.
-     */
+    // Test hoàn tiền leader cũ và trừ tiền leader mới.
     @Test
     void processBidRefundsPreviousLeaderAndChargesNewLeader() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -434,9 +393,7 @@ class UserServiceTest {
         assertEquals(2, latestAuction.getBidHistory().size());
     }
 
-    /**
-     * ## Test self-outbid: bidder dang dan dau duoc tinh lai balance tu gia cu roi tru gia moi, khong gui refund notification.
-     */
+    // Test leader tự nâng giá không gửi hoàn tiền.
     @Test
     void processBidRechargesAndChargesSameLeaderWithoutRefundNotification() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -469,9 +426,7 @@ class UserServiceTest {
         assertEquals(2, latestAuction.getBidHistory().size());
     }
 
-    /**
-     * ## Test bid: user khong ton tai thi rollback va tra NotFoundException resource user.
-     */
+    // Test đặt bid khi bidder không tồn tại.
     @Test
     void processBidThrowsNotFoundWhenBidderDoesNotExist() throws Exception {
         FakeConnectionState connection = new FakeConnectionState(1);
@@ -487,9 +442,7 @@ class UserServiceTest {
         assertEquals(0, connection.commitCalls);
     }
 
-    /**
-     * ## Test bid: so du khong du thi service tu choi va rollback transaction.
-     */
+    // Test thiếu số dư bị rollback.
     @Test
     void processBidRejectsInsufficientBalanceAndRollsBack() throws Exception {
         FakeConnectionState connection = new FakeConnectionState(1);
@@ -506,9 +459,7 @@ class UserServiceTest {
         assertEquals(0, connection.commitCalls);
     }
 
-    /**
-     * ## Test transaction: update auction fail thi rollback va khong update item.
-     */
+    // Test update auction lỗi thì rollback.
     @Test
     void processBidRollsBackWhenAuctionUpdateFails() throws Exception {
         FakeConnectionState connection = new FakeConnectionState(1);
@@ -531,9 +482,7 @@ class UserServiceTest {
         assertEquals(0, connection.commitCalls);
     }
 
-    /**
-     * ## Test transaction: update item fail sau update auction thi van rollback.
-     */
+    // Test update item lỗi thì rollback.
     @Test
     void processBidRollsBackWhenItemUpdateFails() throws Exception {
         FakeConnectionState connection = new FakeConnectionState(1);
@@ -556,9 +505,7 @@ class UserServiceTest {
         assertEquals(0, connection.commitCalls);
     }
 
-    /**
-     * ## Test lay auction theo itemId: service nap item truoc roi moi lay auction tu DAO.
-     */
+    // Test lấy item trước khi lấy auction.
     @Test
     void getAuctionByItemIdLoadsItemThenAuction() throws Exception {
         Item item = item("seller", 100);
@@ -570,9 +517,7 @@ class UserServiceTest {
         assertSame(item, auctionDao.selectedItem);
     }
 
-    /**
-     * ## Test getAllAuctions: auction thieu item se duoc hydrate bang itemDAO theo itemId.
-     */
+    // Test nạp item cho auction thiếu item.
     @Test
     void getAllAuctionsHydratesAuctionItemsWhenMissing() throws Exception {
         Item item = item("seller", 100);
@@ -589,9 +534,7 @@ class UserServiceTest {
         assertSame(item, auctions.getFirst().getItem());
     }
 
-    /**
-     * ## Test bid history: service tra ban copy cua lich su bid theo itemId.
-     */
+    // Test lịch sử bid trả bản copy.
     @Test
     void getBidHistoryReturnsCopyOfAuctionHistory() throws Exception {
         Item item = item("seller", 100);
@@ -606,9 +549,7 @@ class UserServiceTest {
         assertEquals(1, auction.getBidHistory().size());
     }
 
-    /**
-     * ## Test update status: service load item/auction roi ghi status moi qua DAO.
-     */
+    // Test cập nhật trạng thái lưu xuống DAO.
     @Test
     void updateAuctionStatusPersistsStatusWhenItemAndAuctionExist() throws Exception {
         Item item = item("seller", 100);
@@ -623,9 +564,7 @@ class UserServiceTest {
         assertEquals(AuctionStatus.FINISHED, auction.getStatus());
     }
 
-    /**
-     * ## Test duyet auction: choose=true mo phien, choose=false xoa status cho phien.
-     */
+    // Test duyệt/dừng phiên set OPEN hoặc null.
     @Test
     void setAllowAppliesOpenOrNullStatus() throws Exception {
         Item item = item("seller", 100);
@@ -642,9 +581,7 @@ class UserServiceTest {
         assertEquals(null, auctionDao.updatedStatus);
     }
 
-    /**
-     * ## Test xoa san pham: service lay item theo id roi goi DAO delete.
-     */
+    // Test xóa item gọi DAO khi item tồn tại.
     @Test
     void deleteItemDelegatesToItemDaoWhenItemExists() throws Exception {
         Item item = item("seller", 100);
@@ -657,9 +594,7 @@ class UserServiceTest {
         assertSame(item, itemDao.deletedItem);
     }
 
-    /**
-     * ## Test thanh toan: seller nhan gia thang va auction duoc chuyen sang PAID.
-     */
+    // Test thanh toán cộng tiền seller và đánh dấu PAID.
     @Test
     void payHandlerTransfersAmountToSellerAndMarksAuctionPaid() throws Exception {
         Item item = item("seller", 500);
@@ -674,9 +609,7 @@ class UserServiceTest {
         assertEquals(AuctionStatus.PAID, auctionDao.updatedStatus);
     }
 
-    /**
-     * ## Test nap tien: service tao giao dich PENDING va luu lich su deposit.
-     */
+    // Test nạp tiền tạo pending deposit.
     @Test
     void rechargeAmountAddsPendingDepositAndPersistsHistory() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -694,9 +627,7 @@ class UserServiceTest {
         assertEquals(1, userDao.depositHistoryUpdateCalls);
     }
 
-    /**
-     * ## Test duyet nap tien: transaction PENDING thanh APPROVED va balance duoc cong.
-     */
+    // Test duyệt nạp cộng số dư.
     @Test
     void approveDepositApprovesPendingTransactionAndAddsBalance() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -713,9 +644,7 @@ class UserServiceTest {
         assertEquals(1, userDao.depositHistoryUpdateCalls);
     }
 
-    /**
-     * ## Test tu choi nap tien: transaction PENDING thanh REJECTED va khong cong balance.
-     */
+    // Test từ chối nạp không cộng số dư.
     @Test
     void rejectDepositRejectsPendingTransactionWithoutAddingBalance() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -732,9 +661,7 @@ class UserServiceTest {
         assertEquals(1, userDao.depositHistoryUpdateCalls);
     }
 
-    /**
-     * ## Test xoa lich su nap tien: transaction dung id bi remove va lich su duoc luu lai.
-     */
+    // Test xóa đúng giao dịch nạp.
     @Test
     void deleteDepositHistoryRemovesMatchingTransaction() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -749,9 +676,7 @@ class UserServiceTest {
         assertEquals(1, userDao.depositHistoryUpdateCalls);
     }
 
-    /**
-     * ## Test pending deposits: service tra danh sach pending tu DAO.
-     */
+    // Test pending deposits lấy từ DAO.
     @Test
     void getPendingDepositsDelegatesToUserDao() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -762,9 +687,7 @@ class UserServiceTest {
         assertSame(pending, service.getPendingDeposits().getFirst());
     }
 
-    /**
-     * ## Test lich su bidder: service map WINNING/OUTBID/WON/LOST theo status va leader.
-     */
+    // Test map trạng thái thắng/thua lịch sử bid.
     @Test
     void getBidderHistoryMapsAuctionOutcomeStatuses() throws Exception {
         Instant now = Instant.parse("2026-05-18T10:00:00Z");
@@ -794,9 +717,7 @@ class UserServiceTest {
         assertEquals(160, history.get(1).getCurrentHighestPrice(), 0.001);
     }
 
-    /**
-     * ## Test lich su bidder: getStatus tu tinh lai RUNNING khi endTime con han, nhung service khong persist status qua DAO.
-     */
+    // Test phiên được gia hạn vẫn hiển thị RUNNING.
     @Test
     void getBidderHistoryTreatsExtendedAuctionAsRunningWhenStoredStatusIsFinished() throws Exception {
         Instant now = Instant.now();
@@ -826,9 +747,7 @@ class UserServiceTest {
         assertEquals(0, auctionDao.statusUpdateCalls);
     }
 
-    /**
-     * ## Test update user: field khong hop le thi service tra false va khong goi DAO update.
-     */
+    // Test cập nhật user chặn field không hỗ trợ.
     @Test
     void updateUserRejectsUnsupportedField() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -839,9 +758,7 @@ class UserServiceTest {
         assertFalse(userDao.updated);
     }
 
-    /**
-     * ## Test doi mat khau: sai mat khau cu thi service tra false va khong luu DAO.
-     */
+    // Test đổi mật khẩu chặn mật khẩu cũ sai.
     @Test
     void changePasswordRejectsWrongOldPassword() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -852,9 +769,7 @@ class UserServiceTest {
         assertFalse(userDao.updated);
     }
 
-    /**
-     * ## Test doi mat khau: dung mat khau cu thi SQL update thanh cong va service tra true.
-     */
+    // Test đổi mật khẩu thành công khi DB update có row.
     @Test
     void changePasswordReturnsTrueWhenSqlUpdateAffectsRow() throws Exception {
         FakeUserDao userDao = new FakeUserDao();
@@ -989,9 +904,6 @@ class UserServiceTest {
         }
     }
 
-    /**
-     * ## Test fake DAO user: mo phong login, update profile va change password.
-     */
     private static final class FakeUserDao extends DAOUser {
         private final Map<String, User> users = new HashMap<>();
         private User user;
@@ -1040,12 +952,9 @@ class UserServiceTest {
             return user != null && user.getUsername().equals(username) ? user : null;
         }
 
-        // =========================================================================
-        // 🌟 1. FIX CHÍ MẠNG: Override hàm nhận Connection dùng trong Transaction
-        // =========================================================================
         @Override
         public User selectByUsernameOnly(Connection con, String username) throws java.sql.SQLException {
-            // Gọi lại chính hàm giả lập nội bộ bên trên để lấy từ Memory Map, bỏ qua Connection gốc
+
             return selectByUsernameOnly(username);
         }
 
@@ -1059,9 +968,6 @@ class UserServiceTest {
             return 0;
         }
 
-        // =========================================================================
-        // 🌟 2. FIX ĐỒNG BỘ: Override luôn bản UpdateBalance có Connection
-        // =========================================================================
         @Override
         public int UpdateBalance(Connection con, String username, double newBalance) throws java.sql.SQLException {
             return UpdateBalance(username, newBalance);
@@ -1071,12 +977,9 @@ class UserServiceTest {
         public void Update(User user) {
             this.updated = true;
             this.user = user;
-            this.users.put(user.getUsername(), user); // Cập nhật luôn vào bản đồ giả lập
+            this.users.put(user.getUsername(), user);
         }
 
-        // =========================================================================
-        // 🌟 3. FIX ĐỒNG BỘ: Override hàm Update chạy trong Transaction
-        // =========================================================================
         @Override
         public int Update(Connection con, User user) throws java.sql.SQLException {
             Update(user);
@@ -1100,9 +1003,6 @@ class UserServiceTest {
         }
     }
 
-    /**
-     * ## Test fake DAO item: tra item cho processBid/getAuctionByItemId va chan ghi DB that.
-     */
     private static final class FakeItemDao extends DAOItems {
         private final Map<String, Item> itemsById = new HashMap<>();
         private final ArrayList<Item> allItems = new ArrayList<>();
@@ -1178,9 +1078,6 @@ class UserServiceTest {
         }
     }
 
-    /**
-     * ## Test fake DAO auction: tra auction cho processBid va ghi nhan item duoc service truyen vao.
-     */
     private static final class FakeAuctionDao extends DAOAuction_Items {
         private final Map<Long, Auction> auctionsByItemId = new HashMap<>();
         private final ArrayList<Auction> allAuctions = new ArrayList<>();
@@ -1268,9 +1165,6 @@ class UserServiceTest {
 
     }
 
-    /**
-     * ## Test fake connection: ghi nhan commit/rollback/close ma khong can database.
-     */
     private final class FakeConnectionState {
         private final int updateCount;
         private int commitCalls;

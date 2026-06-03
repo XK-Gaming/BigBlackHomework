@@ -34,20 +34,23 @@
             </Label>
 
             <Region prefHeight="30.0" />
-
-            <Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="📦 Quản lý sản phẩm">
+<!-- Nút Quản lý sản phẩm. -->
+<Button fx:id="j_ItemManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_ItemManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="📦 Quản lý sản phẩm">
                <font><Font size="14.0" /></font>
                <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
             </Button>
-            <Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="👥 Quản lý người dùng">
+<!-- Nút Quản lý người dùng. -->
+<Button fx:id="j_UserManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_UserManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="👥 Quản lý người dùng">
                <font><Font size="14.0" /></font>
                <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
             </Button>
-            <Button fx:id="j_PaymentManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_PaymentManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="💳 Xử lý thanh toán">
+<!-- Nút Xử lý thanh toán. -->
+<Button fx:id="j_PaymentManager" alignment="BASELINE_LEFT" maxWidth="Infinity" onAction="#On_PaymentManager" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-cursor: hand;" text="💳 Xử lý thanh toán">
                <font><Font size="14.0" /></font>
                <padding><Insets bottom="10.0" left="15.0" top="10.0" /></padding>
             </Button>
-            <Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" prefHeight="39.0" prefWidth="209.0" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-background-radius: 12;" text="Đăng xuất" />
+<!-- Nút Đăng xuất. -->
+<Button fx:id="LogOut" maxWidth="Infinity" onAction="#On_LogOut" prefHeight="39.0" prefWidth="209.0" style="-fx-background-color: #24334f; -fx-text-fill: white; -fx-background-radius: 12;" text="Đăng xuất" />
 
             <Region VBox.vgrow="ALWAYS" />
          </children>

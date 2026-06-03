@@ -6,6 +6,7 @@ import java.time.Instant;
 import model.Entity.Entity;
 import model.User.Bidder;
 
+// Một lượt bid.
 public class BidTransaction extends Entity implements Serializable {
     private static final long serialVersionUID = 1L;
     private final String Usernamebidder;

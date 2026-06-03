@@ -7,29 +7,28 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request thanh toán.
 public class PaymentHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
     public PaymentHandler(UserService userService) {
         this.userService = userService;
     }
-
+    // Xử lý request thanh toán.
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> bidInfo = (Map<String, Object>) payload;
         Map<String, Object> response = new HashMap<>();
         try {
-            // SỬA TẠI ĐÂY: Thay "itemId" bằng "item" để khớp với Client gửi lên
+
             Item item = (Item) bidInfo.get("item");
 
-            // THÊM ĐOẠN KIỂM TRA NÀY: Phòng trường hợp lỗi truyền nhận dữ liệu qua mạng
             if (item == null) {
                 System.err.println("[Server] Giao dịch thất bại: Đối tượng Item bị null trong gói tin BIDDER_PAY!");
                 response.put("success", false);
                 sendResponse(out, Command.BIDDER_PAY_RESULT, response);
-                return; // Dừng xử lý luôn, không để chạy xuống dưới gây sập app
+                return;
             }
 
-            // Server-side validation & helpful error messages
             if (item.getSellerId() == null || item.getSellerId().isBlank()) {
                 response.put("success", false);
                 response.put("message", "Seller id missing for item: " + item.getDatabaseId());
@@ -51,7 +50,7 @@ public class PaymentHandler extends BaseHandler implements RequestHandler {
                 response.put("item", item);
                 AuctionServer.broadcastToSpecificAuction(item.getSellerId(), Command.NOTIFICATION_BIDDER_PAY, response);
             } else {
-                // Try to provide a helpful reason for failure
+
                 model.auction.Auction auction = userService.getAuctionByItemId(String.valueOf(item.getDatabaseId()));
                 if (auction == null) {
                     response.put("message", "Auction not found for item: " + item.getDatabaseId());
@@ -65,7 +64,7 @@ public class PaymentHandler extends BaseHandler implements RequestHandler {
         } catch (Exception e) {
             System.err.println("[Server] Lỗi nghiêm trọng tại PaymentHandler: " + e.getMessage());
             e.printStackTrace();
-            // Trả về lỗi cho client thay vì quăng RuntimeException làm sập luồng của hệ thống
+
             response.put("success", false);
             try {
                 sendResponse(out, Command.BIDDER_PAY_RESULT, response);

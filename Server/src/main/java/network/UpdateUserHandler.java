@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request cập nhật user.
 public class UpdateUserHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -13,6 +14,7 @@ public class UpdateUserHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request cập nhật user.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, String> data = (Map<String, String>) payload;

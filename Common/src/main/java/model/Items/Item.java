@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+// Model sản phẩm.
 public class Item implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -30,7 +31,6 @@ public class Item implements Serializable {
     private Map<String, String> properties = new HashMap<>();
     private AuctionStatus auctionStatus;
 
-    // PROPERTY JAVAFX ĐỂ BINDING LÊN TABLEVIEW (Transient để tránh lỗi Serialization)
     private transient StringProperty displayStatus;
 
     public Item(String name, String description, double startingPrice, Instant auctionStartTime, Instant auctionEndTime, String sellerId, ItemType itemType, String img) {
@@ -48,7 +48,7 @@ public class Item implements Serializable {
         this.sellerId = sellerId;
         this.itemType = itemType;
         this.img = img;
-        initDisplayStatus(); // Đảm bảo luôn được khởi tạo khi dùng Constructor chính
+        initDisplayStatus();
     }
 
     public Item() {
@@ -69,20 +69,13 @@ public class Item implements Serializable {
         this.itemType = itemType;
         initDisplayStatus();
     }
-
-    /**
-     * Hàm helper đảm bảo tài nguyên JavaFX Property luôn tồn tại an toàn
-     */
+    // Cấu hình ban đầu.
     private void initDisplayStatus() {
         if (this.displayStatus == null) {
             this.displayStatus = new SimpleStringProperty("");
         }
     }
-
-    /**
-     * ✅ ĐÃ SỬA LỖI TOOLKIT NOT INITIALIZED:
-     * Hỗ trợ chạy an toàn trên cả môi trường Server/Engine chạy ngầm (không có UI)
-     */
+    // Cập nhật dữ liệu.
     public void updateStatus(AuctionStatus status) {
         this.auctionStatus = status;
         String statusText = "";
@@ -99,29 +92,27 @@ public class Item implements Serializable {
         final String finalStatusText = statusText;
 
         try {
-            // Kiểm tra xem Toolkit có tồn tại và đang chạy hay không
+
             if (Platform.isFxApplicationThread()) {
                 setDisplayStatus(finalStatusText);
             } else {
-                // Đẩy vào luồng FX nếu đang ở Client UI
+
                 Platform.runLater(() -> setDisplayStatus(finalStatusText));
             }
         } catch (IllegalStateException e) {
-            // 💡 CỨU CÁNH CHO SERVER / ENGINE:
-            // Nếu Toolkit chưa được khởi tạo (Môi trường Server/Test), gán thẳng giá trị
-            // mà không đi qua hàng đợi sự kiện của JavaFX nữa.
+
             if (e.getMessage() != null && e.getMessage().contains("Toolkit not initialized")) {
                 if (this.displayStatus != null) {
                     this.displayStatus.set(finalStatusText);
                 }
             } else {
-                throw e; // Nếu là lỗi IllegalStateException khác thì vẫn ném ra
+                throw e;
             }
         }
     }
 
     public StringProperty displayStatusProperty() {
-        initDisplayStatus(); // Cơ chế phòng vệ kép (Lazy-load)
+        initDisplayStatus();
         return displayStatus;
     }
 
@@ -138,22 +129,18 @@ public class Item implements Serializable {
     }
 
     public void setAuctionStatus(AuctionStatus auctionStatus) {
-        // Tự động cập nhật thuộc tính và đồng bộ text hiển thị
+
         updateStatus(auctionStatus);
     }
-
-    /**
-     * ✅ ĐÃ THÊM MỚI: Khôi phục thuộc tính transient displayStatus sau khi giải tuần tự hóa (Deserialize)
-     */
+    // Đọc dữ liệu.
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-        ois.defaultReadObject(); // Đọc các thuộc tính mặc định không transient trước
-        initDisplayStatus();     // Khởi tạo lại ngay lập tức StringProperty để tránh NullPointerException sau này
+        ois.defaultReadObject();
+        initDisplayStatus();
         if (this.auctionStatus != null) {
-            updateStatus(this.auctionStatus); // Đồng bộ lại text hiển thị dựa trên trạng thái cũ
+            updateStatus(this.auctionStatus);
         }
     }
 
-    // --- Các Getter và Setter chuẩn hóa bảo vệ dữ liệu ---
     public Map<String, String> getProperties() {
         if (this.properties == null) this.properties = new HashMap<>();
         return this.properties;
@@ -167,9 +154,11 @@ public class Item implements Serializable {
     public double getStartingPrice() { return startingPrice; }
     public double getMinBid() { return minBid; }
     public double getCurrentHighestPrice() { return currentHighestPrice; }
+    // Cập nhật dữ liệu.
     public void updateCurrentHighestPrice(double currentHighestPrice) { this.currentHighestPrice = currentHighestPrice; }
     public Instant getAuctionStartTime() { return auctionStartTime; }
     public Instant getAuctionEndTime() { return auctionEndTime; }
+    // Cập nhật dữ liệu.
     public void updateAuctionEndTime(Instant auctionEndTime) { this.auctionEndTime = auctionEndTime; }
     public String getSellerId() { return sellerId; }
     public String getImg(){ return img; }

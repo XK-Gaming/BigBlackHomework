@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+// Màn sửa sản phẩm.
 public class ControllerEditProduct implements ServerListener {
 
     private File selectedFile = null;
@@ -79,7 +80,6 @@ public class ControllerEditProduct implements ServerListener {
     @FXML private Label error_Label;
     private ConnectionStatusManager statusManager;
 
-
     private ActionEvent currentEvent;
     @FXML
     private javafx.scene.shape.Circle connectionStatus;
@@ -87,6 +87,7 @@ public class ControllerEditProduct implements ServerListener {
     @FXML
     private Label connectionText;
 
+    // Khởi tạo màn hình.
     @FXML
     public void initialize() {
         client.addListener(this);
@@ -113,7 +114,7 @@ public class ControllerEditProduct implements ServerListener {
 
         setupDatePickerConstraints();
     }
-
+    // Cấu hình Cloudinary.
     private void initCloudinary() {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
             Properties prop = new Properties();
@@ -134,20 +135,18 @@ public class ControllerEditProduct implements ServerListener {
             ex.printStackTrace();
         }
     }
-
+    // Nhận dữ liệu màn trước.
     public void initData(Item item, AuctionStatus status, boolean hasBids) {
         this.currentItem = item;
         this.currentStatus = status;
         this.itemHasBids = hasBids;
         this.uploadedImageUrl = item.getImg();
 
-        //set description
         txtName.setText(item.getName());
         String jsonString =  item.getDescription();
         com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonString).getAsJsonObject();
         String pureDescription = jsonObject.get("description").getAsString();
         txtDescription.setText(pureDescription);
-
 
         txtStartPrice.setText(String.format("%.0f", item.getStartingPrice()));
         txtMinBid.setText(String.format("%.0f", item.getMinBid()));
@@ -183,7 +182,7 @@ public class ControllerEditProduct implements ServerListener {
 
         applyPermissionRules();
     }
-
+    // Khóa form theo trạng thái.
     private void applyPermissionRules() {
         setCoreFieldsDisabled(false);
         txtDescription.setDisable(false);
@@ -237,6 +236,7 @@ public class ControllerEditProduct implements ServerListener {
         j_artist.setDisable(disabled);
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_Save(ActionEvent event) {
         if (txtName.getText().trim().isEmpty()) {
@@ -340,7 +340,6 @@ public class ControllerEditProduct implements ServerListener {
                             Instant startInstant = createInstantFromData(startDate, timeStartText);
                             Instant endInstant = createInstantFromData(endDate, timeEndText);
 
-                            // ĐÃ SỬA: Chỉ chặn khi thời gian bắt đầu bị người dùng cố ý lùi về quá khứ so với mốc cũ của sản phẩm
                             if (currentItem.getAuctionStartTime() != null && startInstant.isBefore(Instant.now()) && !startInstant.equals(currentItem.getAuctionStartTime())) {
                                 showErrorInUIThread("Mốc thời gian bắt đầu mới chỉnh sửa không được nhỏ hơn hiện tại!");
                                 return;
@@ -368,11 +367,11 @@ public class ControllerEditProduct implements ServerListener {
         });
     }
 
-    /**
-     * Nhận phản hồi bất đồng bộ từ Server qua Listener
-     */
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(network.DataPacket response) {
+
+        // Nhận kết quả sửa sản phẩm.
         if (Command.EDIT_ITEM_RESULT.equals(response.command())) {
             boolean isSuccess = (boolean) response.payload();
 
@@ -384,7 +383,6 @@ public class ControllerEditProduct implements ServerListener {
                     Alert alert = new Alert(Alert.AlertType.INFORMATION, "Cập nhật thành công!", ButtonType.OK);
                     alert.showAndWait();
 
-                    // ĐÃ SỬA: Giải phóng bộ nhớ và Listener cũ trước khi rời Scene
                     client.removeListener(this);
 
                     if (currentEvent != null) {
@@ -397,7 +395,8 @@ public class ControllerEditProduct implements ServerListener {
                 }
             });
         }
-        // 🚀 2. ĐÃ SỬA: Đón nhận cập nhật trạng thái Real-time từ Engine tự động quét
+
+        // Nhận trạng thái phiên realtime.
         if (Command.UPDATE_AUCTION_STATUS.equals(response.command())) {
             if (response.payload() instanceof Map<?, ?> map) {
                 try {
@@ -408,14 +407,11 @@ public class ControllerEditProduct implements ServerListener {
                         Platform.runLater(() -> {
                             System.out.println("[Seller Realtime] Sản phẩm " + targetItemId + " đã chuyển sang trạng thái: " + newStatusStr);
 
-                            // ✅ THAY THẾ: Sử dụng biến currentItem thay cho item1
                             if (currentItem != null && currentItem.getDatabaseId() == targetItemId) {
                                 try {
                                     this.currentStatus = AuctionStatus.valueOf(newStatusStr);
                                     this.currentItem.setAuctionStatus(this.currentStatus);
 
-                                    // Tự động kích hoạt lại các quy tắc khóa/mở trường nhập liệu (TextField)
-                                    // dựa trên trạng thái mới mà không cần Seller phải F5 quay lại màn hình
                                     applyPermissionRules();
 
                                     error_Label.setTextFill(Color.ORANGE);
@@ -432,9 +428,13 @@ public class ControllerEditProduct implements ServerListener {
                 }
             }
         }
+
+        // Nhận bid realtime.
         if (Command.BID_UPDATE.equals(response.command())) {
             handleBidUpdate(response.payload());
         }
+
+        // Nhận thông báo nạp tiền.
         if (Command.NOTIFICATION_NEW_PAY.equals(response.command())) {
             User user = UserSession.getLoggedInUser();
             Map<String, Object> notifData = (Map<String, Object>) response.payload();
@@ -444,6 +444,8 @@ public class ControllerEditProduct implements ServerListener {
                 ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, UserSession.getLoggedInUser());
             });
         }
+
+        // Nhận kết quả duyệt/dừng.
         if (Command.SET_ALLOW_RESULT.equals(response.command())) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
@@ -465,6 +467,8 @@ public class ControllerEditProduct implements ServerListener {
                 }
             });
         }
+
+        // Nhận kết quả xóa sản phẩm.
         if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.get("success");
@@ -478,6 +482,8 @@ public class ControllerEditProduct implements ServerListener {
                 });
             }
         }
+
+        // Nhận lệnh đăng xuất cưỡng chế.
         if (Command.FORCE_LOGOUT.equals(response.command())) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -488,18 +494,20 @@ public class ControllerEditProduct implements ServerListener {
                 System.exit(0);
             });
         }
+
+        // Nhận kết quả đăng xuất.
         if (Command.LOGOUT_RESULT.equals(response.command())) {
             Platform.runLater(() -> {
-                // 1. Ngắt kết nối socket hiện tại ở máy khách
+
                 client.removeListener(this);
                 AuctionClient.getInstance().closeConnection();
                 UserSession.cleanUserSession();
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
-                // 2. Chuyển về màn hình đăng nhập
+
             });
         }
     }
-
+    // Nhận bid realtime.
     private void handleBidUpdate(Object payload) {
         if (!(payload instanceof Map<?, ?> map)) {
             return;
@@ -537,7 +545,7 @@ public class ControllerEditProduct implements ServerListener {
             System.err.println("Lá»—i xá»­ lÃ½ BID_UPDATE trong EditProduct: " + e.getMessage());
         }
     }
-
+    // Gộp item realtime.
     private void mergeRealtimeItem(Item updatedItem) {
         currentItem.setCurrentHighestPrice(updatedItem.getCurrentHighestPrice());
         currentItem.setAuctionStartTime(updatedItem.getAuctionStartTime());
@@ -547,7 +555,7 @@ public class ControllerEditProduct implements ServerListener {
             currentItem.setAuctionStatus(currentStatus);
         }
     }
-
+    // Đọc dữ liệu.
     private long parseLongValue(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -555,7 +563,7 @@ public class ControllerEditProduct implements ServerListener {
         String itemIdStr = String.valueOf(value);
         return itemIdStr.contains(".") ? Double.valueOf(itemIdStr).longValue() : Long.parseLong(itemIdStr);
     }
-
+    // Tạo dữ liệu.
     public Instant createInstantFromData(LocalDate date, String timeStr) throws DateTimeParseException {
         if (timeStr.matches("^\\d{1,2}:\\d{2}$")) {
             timeStr += ":00";
@@ -564,7 +572,7 @@ public class ControllerEditProduct implements ServerListener {
                 .atZone(ZoneId.systemDefault())
                 .toInstant();
     }
-
+    // Upload ảnh.
     public String uploadToCloudinary(File localFile) {
         try {
             Map uploadResult = cloudinary.uploader().upload(localFile, ObjectUtils.emptyMap());
@@ -575,6 +583,7 @@ public class ControllerEditProduct implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handle_SelectImage(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
@@ -588,12 +597,14 @@ public class ControllerEditProduct implements ServerListener {
         }
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_Back(ActionEvent event) {
         client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
     }
 
+    // Đăng xuất.
     @FXML
     void On_LogOut(ActionEvent event) {
         client.removeListener(this);
@@ -601,19 +612,20 @@ public class ControllerEditProduct implements ServerListener {
             client.sendCommand(Command.LOGOUT, UserSession.getLoggedInUser().getUsername());
         } catch (IOException e) {
             System.err.println("Lỗi kết nối khi gửi yêu cầu Đăng xuất: " + e.getMessage());
-            // Tùy chọn: Bạn có thể thông báo lỗi nhẹ cho người dùng bằng Alert nếu muốn
+
         }
     }
-
+    // Đọc dữ liệu.
     private void parseAndSetAuctionTime(Instant instant, DatePicker datePicker, TextField timeField) {
         if (instant == null) return;
         LocalDateTime ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
         datePicker.setValue(ldt.toLocalDate());
         timeField.setText(ldt.toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
     }
-
+    // Cấu hình ban đầu.
     private void setupDatePickerConstraints() {
         dpStartDate.setDayCellFactory(picker -> new DateCell() {
+            // Cập nhật sản phẩm.
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
@@ -621,6 +633,7 @@ public class ControllerEditProduct implements ServerListener {
             }
         });
         dpEndDate.setDayCellFactory(picker -> new DateCell() {
+            // Cập nhật sản phẩm.
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
@@ -639,13 +652,13 @@ public class ControllerEditProduct implements ServerListener {
             default -> categoryList[0];
         };
     }
-
+    // Hiển thị giao diện.
     private void showError(String message) {
         error_Label.setTextFill(Color.RED);
         error_Label.setText(message);
         error_Label.setVisible(true);
     }
-
+    // Hiển thị giao diện.
     private void showErrorInUIThread(String message) {
         Platform.runLater(() -> {
             showError(message);
@@ -653,6 +666,7 @@ public class ControllerEditProduct implements ServerListener {
         });
     }
 
+    // Xử lý thao tác.
     @FXML
     void handle_Info(ActionEvent event) {
         String selectedCategory = j_ItemType.getValue();

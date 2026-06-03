@@ -7,14 +7,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * ## JUnit: test UpdateUserHandler doc field can update va tra UPDATE_USER_RESULT.
- */
 class UpdateUserHandlerTest {
 
-    /**
-     * ## Test cap nhat user thanh cong: handler goi service voi dung username/field/value.
-     */
+    // Test cập nhật user thành công.
     @Test
     void updateUserSuccessReturnsSuccessResponse() throws Exception {
         FakeUserService userService = new FakeUserService(true);
@@ -33,9 +28,7 @@ class UpdateUserHandlerTest {
         assertEquals("New Name", userService.value);
     }
 
-    /**
-     * ## Test cap nhat user that bai: service tra false thi handler tra success=false.
-     */
+    // Test cập nhật user thất bại.
     @Test
     void updateUserFailureReturnsFailureResponse() throws Exception {
         UpdateUserHandler handler = new UpdateUserHandler(new FakeUserService(false));
@@ -50,9 +43,6 @@ class UpdateUserHandlerTest {
         assertEquals(false, payload.get("success"));
     }
 
-    /**
-     * ## Test fake service: dong vai mock UserService cho UpdateUserHandler.
-     */
     private static final class FakeUserService extends UserService {
         private final boolean success;
         private String username;

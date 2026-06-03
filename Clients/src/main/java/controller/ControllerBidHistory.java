@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 
+// Lịch sử bid.
 public class ControllerBidHistory implements ServerListener {
 
     private final AuctionClient client = AuctionClient.getInstance();
@@ -50,12 +51,12 @@ public class ControllerBidHistory implements ServerListener {
     private VBox containerCardList;
     private long targetItemId = -1;
 
-    // Lưu danh sách lịch sử cục bộ để cập nhật realtime
     private List<BidHistoryDTO> allHistoryData = new ArrayList<>();
 
+    // Khởi tạo màn hình.
     @FXML
     public void initialize() {
-        // Đảm bảo đăng ký listener với client khi vào màn hình này
+
         client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
@@ -81,7 +82,7 @@ public class ControllerBidHistory implements ServerListener {
 
         Platform.runLater(this::requestDataFromServer);
     }
-
+    // Yêu cầu dữ liệu server.
     private void requestDataFromServer() {
         if (currentUsername != null && !currentUsername.isBlank()) {
             try {
@@ -92,12 +93,13 @@ public class ControllerBidHistory implements ServerListener {
         }
     }
 
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
         System.out.println("[Client Debug] Nhận phản hồi tại Lịch sử, Command: " + command);
 
-        // TRƯỜNG HỢP 1: Tải toàn bộ danh sách lịch sử ban đầu từ Server
+        // Nhận lịch sử bidder.
         if (Command.GET_BIDDER_HISTORY_RESULT.equals(command)) {
             @SuppressWarnings("unchecked")
             List<BidHistoryDTO> historyList = (List<BidHistoryDTO>) response.payload();
@@ -106,7 +108,7 @@ public class ControllerBidHistory implements ServerListener {
             return;
         }
 
-        //  TRƯỜNG HỢP MỚI: Đón nhận sự thay đổi trạng thái tự động từ Engine quét định kỳ
+        // Nhận trạng thái phiên realtime.
         if (Command.UPDATE_AUCTION_STATUS.equals(command)) {
             if (response.payload() instanceof Map<?, ?> map) {
                 try {
@@ -118,18 +120,16 @@ public class ControllerBidHistory implements ServerListener {
                         Platform.runLater(() -> {
                             System.out.println("[Client History Realtime] Item " + targetItemId + " đổi trạng thái sang: " + newStatusStr);
 
-                            // Cập nhật trạng thái mới trực tiếp vào danh sách dữ liệu trong bộ nhớ RAM của Client
                             boolean isUpdated = false;
-                            // Nếu Server báo FINISHED — có thể DB chưa đồng bộ endTime khi anti-sniping kéo dài,
-                            // nên yêu cầu tải lại toàn bộ lịch sử từ Server để có trạng thái chính xác.
+
                             if ("FINISHED".equalsIgnoreCase(newStatusStr)) {
-                                // Tải lại dữ liệu lịch sử từ Server để tránh hiện trạng sai khi thời gian bị kéo dài
+
                                 new Thread(this::requestDataFromServer).start();
                                 return;
                             }
                             for (BidHistoryDTO dto : allHistoryData) {
                                 if (dto.getItemId() == targetItemId) {
-                                    // Server có thể gửi trạng thái RUNNING; chuyển sang WINNING/OUTBID cho hiển thị lịch sử
+
                                     if ("RUNNING".equalsIgnoreCase(newStatusStr)) {
                                         if (dto.getMyHighestBid() >= dto.getCurrentHighestPrice()) {
                                             dto.setStatus("WINNING");
@@ -137,14 +137,13 @@ public class ControllerBidHistory implements ServerListener {
                                             dto.setStatus("OUTBID");
                                         }
                                     } else {
-                                        // Fallback: giữ nguyên mapping nếu Server gửi WON/LOST/WINNING/OUTBID
+
                                         dto.setStatus(newStatusStr);
                                     }
                                     isUpdated = true;
                                 }
                             }
 
-                            // Nếu tìm thấy item trong list lịch sử hiện tại, vẽ lại giao diện Table/List để đồng bộ chữ ngay
                             if (isUpdated) {
                                 updateUIWithData(this.allHistoryData);
                             }
@@ -157,7 +156,7 @@ public class ControllerBidHistory implements ServerListener {
             }
         }
 
-        // TRƯỜNG HỢP 3: Cập nhật biến động Realtime từng Item từ sảnh hoặc kết quả Bid cá nhân
+        // Nhận bid realtime.
         if (Command.BID_UPDATE.equals(command) || Command.ITEMS_UPDATE.equals(command) || Command.BID_RESULT.equals(command)) {
             System.out.println("[Client History DEBUG] BID_RESULT payload: " + response.payload());
             Object payload = response.payload();
@@ -168,24 +167,22 @@ public class ControllerBidHistory implements ServerListener {
             double updatedMinBid = -1.0;
             String highestBidder = "";
 
-            // 1. Nhận dạng cấu trúc phòng đấu giá (ITEMS_UPDATE được broadcast toàn hệ thống)
             if (payload instanceof Auction auction) {
                 updatedItemId = auction.getItem() != null ? auction.getItem().getDatabaseId() : -1;
                 updatedPrice = auction.getCurrentPrice();
                 updatedMinBid = auction.getItem() != null ? auction.getItem().getMinBid() : -1.0;
                 highestBidder = auction.getLeadingBidder() != null ? auction.getLeadingBidder() : "";
             }
-            // 2. Nhận dạng Object sản phẩm đơn lẻ (Item)
+
             else if (payload instanceof Item item) {
                 updatedItemId = item.getDatabaseId();
                 updatedPrice = item.getCurrentHighestPrice();
                 updatedMinBid = item.getMinBid();
             }
-            // 3. Khối bóc tách ép kiểu an toàn từ cấu trúc Map chuỗi/số
+
             else if (payload instanceof Map<?, ?> map) {
-                // Special-case: BID_RESULT failure may return a formatted message like
-                // "Giá đặt tối thiểu là 1.641.000 (giá hiện tại + MinBid)." without itemId.
-                // Try to extract suggested minimum and update modal input so user can retry.
+
+                // Nhận kết quả bid.
                 if (Command.BID_RESULT.equals(command)) {
                     Object successObj = map.get("success");
                     Object messageObj = map.get("message");
@@ -198,21 +195,20 @@ public class ControllerBidHistory implements ServerListener {
                             String digits = numStr.replaceAll("[^0-9]", "");
                             if (!digits.isEmpty()) {
                                 double minAllowed = Double.parseDouble(digits);
-                                // Update input and also update local DTO minBid so future validation uses server value
+
                                 final double finalMinAllowed = Math.ceil(minAllowed);
                                 final String textVal = String.format(Locale.ROOT, "%.0f", finalMinAllowed);
                                 Platform.runLater(() -> {
                                     if (txtBidAmount != null) txtBidAmount.setText(textVal);
-                                    // Update DTO in-memory minBid for targetItemId
+
                                     if (targetItemId != -1) {
                                         for (BidHistoryDTO dto : allHistoryData) {
                                             if (dto.getItemId() == targetItemId) {
-                                                // Server gave absolute minimum required (minAllowed). To ensure suggestion equals server's requirement,
-                                                // set currentHighestPrice to minAllowed and clear minBid locally — this makes suggestedPrice == minAllowed.
+
                                                 double derived = finalMinAllowed - dto.getCurrentHighestPrice();
                                                 double derivedMin = derived > 0 ? derived : 0;
                                                 dto.setMinBid(derivedMin);
-                                                // Update modal minBid label if modal is visible
+
                                                 if (lblModalMinBid != null) {
                                                     DecimalFormat df = new DecimalFormat("#,###");
                                                     lblModalMinBid.setText(df.format(derivedMin) + " VNĐ");
@@ -244,7 +240,6 @@ public class ControllerBidHistory implements ServerListener {
                             updatedPrice = Double.parseDouble(map.get("amount").toString());
                         }
 
-                        // Thử lấy minBid nếu server gửi kèm trong payload Map
                         if (map.containsKey("minBid") && map.get("minBid") != null) {
                             try {
                                 updatedMinBid = Double.parseDouble(map.get("minBid").toString());
@@ -261,7 +256,6 @@ public class ControllerBidHistory implements ServerListener {
                             highestBidder = map.get("username").toString();
                         }
 
-                        // BÓC TÁCH TÊN SẢN PHẨM TỪ MAP REALTIME
                         String updatedItemName = "";
                         if (map.get("name") != null) {
                             updatedItemName = map.get("name").toString();
@@ -279,6 +273,7 @@ public class ControllerBidHistory implements ServerListener {
                             Platform.runLater(() -> {
                                 updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName, targetMinBid);
 
+                                // Nhận kết quả bid.
                                 if (Command.BID_RESULT.equals(command)) {
                                     hideQuickBidModal();
                                     System.out.println("[Client History] Đã cập nhật xong kết quả BID_RESULT cho Item: " + targetId);
@@ -294,7 +289,6 @@ public class ControllerBidHistory implements ServerListener {
                 }
             }
 
-            // Tiến hành cập nhật luồng UI an toàn cho trường hợp Object là Auction hoặc Item
             if (updatedItemId > 0) {
                 final long targetId = updatedItemId;
                 final double targetPrice = updatedPrice;
@@ -312,6 +306,7 @@ public class ControllerBidHistory implements ServerListener {
                 Platform.runLater(() -> {
                     updateSingleHistoryItem(targetId, targetPrice, topBidder.isEmpty() ? currentUsername : topBidder, finalItemName, targetMinBid);
 
+                    // Nhận kết quả bid.
                     if (Command.BID_RESULT.equals(command)) {
                         hideQuickBidModal();
                         System.out.println("[Client History] Đã cập nhật xong kết quả BID_RESULT cho Item: " + targetId);
@@ -320,7 +315,7 @@ public class ControllerBidHistory implements ServerListener {
             }
         }
 
-        // TRƯỜNG HỢP 4: Tài khoản bị cưỡng chế đăng xuất do Admin xử lý danh sách đen
+        // Nhận lệnh đăng xuất cưỡng chế.
         if (Command.FORCE_LOGOUT.equals(command)) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -332,13 +327,7 @@ public class ControllerBidHistory implements ServerListener {
             });
         }
     }
-
-    /**
-     * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp lên giao diện
-     */
-    /**
-     * XỬ LÝ REALTIME: Tìm kiếm item thay đổi và cập nhật trực tiếp cả GIÁ và TRẠNG THÁI
-     */
+    // Cập nhật một lịch sử bid.
     private void updateSingleHistoryItem(long itemId, double newPrice, String topBidder, String newItemName, double newMinBid) {
         boolean hasChanged = false;
 
@@ -351,21 +340,17 @@ public class ControllerBidHistory implements ServerListener {
         for (BidHistoryDTO dto : allHistoryData) {
             if (dto.getItemId() == itemId) {
 
-                // --- THÊM: CẬP NHẬT LẠI TÊN SẢN PHẨM NẾU TRÊN SERVER CÓ THAY ĐỔI HOẶC BỊ KHUYẾT ---
                 if (newItemName != null && !newItemName.isBlank()) {
                     dto.setItemName(newItemName);
                 }
 
-                // --- CẬP NHẬT minBid NẾU Server gửi kèm ---
                 if (newMinBid >= 0) {
                     dto.setMinBid(newMinBid);
                 }
 
-                // 1. Cập nhật lại giá cao nhất trên thị trường hiện tại
                 dto.setCurrentHighestPrice(newPrice);
                 dto.setLastBidTime(currentTimeStr);
 
-                // 2. BIỆN PHÁP ĐỊNH ĐOẠT TRẠNG THÁI CHÍNH XÁC
                 String safeTopBidder = (topBidder != null) ? topBidder.trim() : "";
 
                 if (!safeTopBidder.isEmpty()) {
@@ -400,7 +385,7 @@ public class ControllerBidHistory implements ServerListener {
             updateUIWithData(allHistoryData);
         }
     }
-
+    // Vẽ lịch sử bid.
     private void updateUIWithData(List<BidHistoryDTO> historyList) {
         containerCardList.getChildren().clear();
 
@@ -419,7 +404,7 @@ public class ControllerBidHistory implements ServerListener {
         containerCardList.requestLayout();
         scrollPane.requestLayout();
     }
-
+    // Dựng card lịch sử.
     private HBox createSmartCard(BidHistoryDTO dto) {
         HBox card = new HBox(20);
         card.setAlignment(Pos.CENTER_LEFT);
@@ -429,7 +414,7 @@ public class ControllerBidHistory implements ServerListener {
         String statusColorStyle = "";
         String statusText = "";
         boolean showRebidButton = false;
-        boolean showPaymentButton = false; // Thêm biến cờ để kiểm soát nút thanh toán
+        boolean showPaymentButton = false;
 
         switch (dto.getStatus()) {
             case "WINNING" -> {
@@ -444,7 +429,7 @@ public class ControllerBidHistory implements ServerListener {
             case "WON" -> {
                 statusColorStyle = "-fx-background-color: #FFFDE7; -fx-border-color: #FFC107; -fx-border-radius: 10; -fx-border-width: 1.5;";
                 statusText = "🏆 Thắng cuộc";
-                showPaymentButton = true; // Bật hiển thị nút thanh toán khi đấu giá thành công
+                showPaymentButton = true;
             }
             case "LOST" -> {
                 statusColorStyle = "-fx-background-color: #F5F5F5; -fx-border-color: #BDBDBD; -fx-border-radius: 10; -fx-border-width: 1.5;";
@@ -455,7 +440,6 @@ public class ControllerBidHistory implements ServerListener {
 
         VBox txtSection = new VBox(6);
 
-        // ==================== ĐOẠN ĐÃ ĐƯỢC NÂNG CẤP HIỂN THỊ TÊN ====================
         String rawName = dto.getItemName();
         String finalDisplayName;
 
@@ -470,7 +454,6 @@ public class ControllerBidHistory implements ServerListener {
 
         nameLabel.setWrapText(false);
         nameLabel.setMaxWidth(280);
-        // ===========================================================================
 
         Label timeLabel = new Label("Lượt đặt cuối: " + dto.getLastBidTime());
         timeLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #616161;");
@@ -482,7 +465,6 @@ public class ControllerBidHistory implements ServerListener {
         double myHighestBid = dto.getMyHighestBid();
         double currentHighestPrice = dto.getCurrentHighestPrice();
 
-// Định dạng hiển thị chuỗi tiền tệ VNĐ (ví dụ: 10,000,000 VNĐ)
         Label myBidLabel = new Label(String.format("Mức đặt của bạn: %,.0f VNĐ", myHighestBid));
         myBidLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #424242;");
 
@@ -496,7 +478,6 @@ public class ControllerBidHistory implements ServerListener {
         statusLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
         actionSection.getChildren().add(statusLabel);
 
-        // 1. NÚT RE-BID NHANH (KHI BỊ VƯỢT MẶT)
         if (showRebidButton) {
             Button rebidBtn = new Button("Re-bid nhanh");
             rebidBtn.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
@@ -505,26 +486,24 @@ public class ControllerBidHistory implements ServerListener {
             actionSection.getChildren().add(rebidBtn);
         }
 
-        // 2. NÚT VÀO THANH TOÁN (KHI ĐẤU GIÁ THÀNH CÔNG - WON)
         if (showPaymentButton) {
             Button btnPayment = new Button("Vào thanh toán");
-            // Giao diện màu Cam nổi bật phong cách Payment
+
             btnPayment.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
             btnPayment.setPadding(new Insets(5, 10, 5, 10));
 
             btnPayment.setOnAction(e -> {
-                client.removeListener(this); // Gỡ bỏ listener hiện tại trước khi chuyển màn hình
+                client.removeListener(this);
 
                 var targetController = SceneHelper.changeSceneAndGetController(btnPayment, "/fxml/PayingView.fxml");
                 if (targetController instanceof ControllerPayment paymentCtrl) {
-                    paymentCtrl.initData(dto); // Gọi hàm truyền dữ liệu vừa viết ở Bước 1
+                    paymentCtrl.initData(dto);
                     System.out.println("[Chuyển hướng] Đã kích hoạt initData cho ControllerPayment thành công.");
                 }
             });
             actionSection.getChildren().add(btnPayment);
         }
 
-        // 3. NÚT VÀO PHÒNG ĐẤU GIÁ (Nên ẩn đi hoặc giữ lại tùy bạn, ở đây giữ nguyên theo code cũ)
         Button btnGoToAuction = new Button("Vào phòng ĐG");
         btnGoToAuction.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
         btnGoToAuction.setPadding(new Insets(5, 10, 5, 10));
@@ -542,7 +521,7 @@ public class ControllerBidHistory implements ServerListener {
         card.getChildren().addAll(txtSection, priceSection, actionSection);
         return card;
     }
-
+    // Popup bid nhanh.
     private void showQuickBidModal(BidHistoryDTO dto) {
         System.out.println("[Debug Modal] Hiển thị modal cho Item ID: " + dto.getItemId());
 
@@ -557,12 +536,11 @@ public class ControllerBidHistory implements ServerListener {
         double suggestedPrice = dto.getCurrentHighestPrice() + (minBid > 0 ? minBid : 10.0);
 
         txtBidAmount.clear();
-        // Use culture-neutral integer formatting (no grouping) to avoid locale grouping parsing issues
+
         txtBidAmount.setText(String.format(Locale.ROOT, "%.0f", suggestedPrice));
         txtBidAmount.requestFocus();
         txtBidAmount.selectAll();
 
-        // Show MinBid explicitly on modal
         try {
             if (lblModalMinBid != null) {
                 DecimalFormat df = new DecimalFormat("#,###");
@@ -577,11 +555,12 @@ public class ControllerBidHistory implements ServerListener {
         System.out.println("[Debug Modal] Modal hiển thị thành công, targetItemId = " + this.targetItemId);
     }
 
+    // Xử lý thao tác.
     @FXML
     private void handleCloseModal(ActionEvent event) {
         hideQuickBidModal();
     }
-
+    // Ẩn popup bid nhanh.
     private void hideQuickBidModal() {
         paneModalOverlay.setVisible(false);
         paneModalOverlay.setDisable(true);
@@ -590,6 +569,7 @@ public class ControllerBidHistory implements ServerListener {
         System.out.println("[Debug Modal] Modal đã đóng");
     }
 
+    // Gửi bid nhanh.
     @FXML
     private void handleConfirmQuickBid(ActionEvent event) {
         System.out.println("[Debug Bid] handleConfirmQuickBid được gọi!");
@@ -607,7 +587,7 @@ public class ControllerBidHistory implements ServerListener {
         }
 
         try {
-            // Sanitize input: remove any non-digit characters (commas, dots, spaces) since VND uses whole numbers
+
             String sanitized = amountText.replaceAll("[^0-9]", "");
             if (sanitized.isEmpty()) {
                 System.err.println("[Lỗi Nhập Liệu] Mức giá nhập vào không đúng định dạng số! Input: " + amountText);
@@ -617,7 +597,6 @@ public class ControllerBidHistory implements ServerListener {
 
             System.out.println("[Debug Bid] Chuẩn bị BID: itemId=" + targetItemId + ", amount=" + amount + ", bidder=" + currentUsername);
 
-            // Client-side validation: ensure amount >= currentHighestPrice + minBid
             BidHistoryDTO targetDto = null;
             for (BidHistoryDTO dto : allHistoryData) {
                 if (dto.getItemId() == targetItemId) { targetDto = dto; break; }
@@ -627,7 +606,7 @@ public class ControllerBidHistory implements ServerListener {
                 double minBid = targetDto.getMinBid();
                 if (minBid <= 0) minBid = 10.0;
                 minAllowed = targetDto.getCurrentHighestPrice() + minBid;
-                // Round up to whole number (no fractional VND)
+
                 minAllowed = Math.ceil(minAllowed);
                 if (amount < minAllowed) {
                     System.err.println("[Client Validation] Giá quá thấp. Mức đặt tối thiểu là " + String.format("%,.0f", minAllowed) + " VNĐ (hiện tại + MinBid). Đã điều chỉnh ô nhập.");
@@ -658,6 +637,7 @@ public class ControllerBidHistory implements ServerListener {
         }
     }
 
+    // Quay lại màn trước.
     @FXML
     private void handleBackAction(ActionEvent event) {
         client.removeListener(this);

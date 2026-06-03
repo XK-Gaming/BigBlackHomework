@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+// Socket client.
 public class AuctionClient {
     private volatile Socket socket;
     private volatile ObjectOutputStream out;
@@ -16,7 +17,6 @@ public class AuctionClient {
     private final Object writeLock = new Object();
     private final Object connectionLock = new Object();
 
-    // 🌟 SỬA: Thay đổi từ 1 biến đơn lẻ thành Danh sách Listener an toàn luồng
     private final List<ServerListener> listeners = new CopyOnWriteArrayList<>();
 
     private static volatile AuctionClient instance;
@@ -34,7 +34,6 @@ public class AuctionClient {
         return instance;
     }
 
-    // 🌟 SỬA: Thay thế hàm setListener cũ thành cơ chế ĐĂNG KÝ (Thêm vào danh sách)
     public void addListener(ServerListener listener) {
         if (listener != null && !listeners.contains(listener)) {
             listeners.add(listener);
@@ -42,14 +41,13 @@ public class AuctionClient {
         }
     }
 
-    // 🌟 BỔ SUNG: Hàm HỦY ĐĂNG KÝ khi một màn hình bị đóng lại để giải phóng bộ nhớ
     public void removeListener(ServerListener listener) {
         if (listener != null) {
             listeners.remove(listener);
             System.out.println("[AuctionClient] Đã gỡ bỏ bộ lắng nghe: " + listener.getClass().getSimpleName() + " (Còn lại: " + listeners.size() + ")");
         }
     }
-
+    // Mở socket.
     public void connect(String serverIp, int serverPort) {
         synchronized (connectionLock) {
             if (socket != null && !socket.isClosed()) {
@@ -73,7 +71,7 @@ public class AuctionClient {
             }
         }
     }
-
+    // Gửi lệnh lên server.
     public void sendCommand(Command command, Object payload) throws IOException {
         synchronized (writeLock) {
             ObjectOutputStream localOut = this.out;
@@ -88,7 +86,7 @@ public class AuctionClient {
             }
         }
     }
-
+    // Lắng nghe server.
     public void listenForMessages() {
         try {
             while (true) {
@@ -132,18 +130,18 @@ public class AuctionClient {
             System.out.println("Luồng lắng nghe đã kết thúc.");
         }
     }
-
+    // Phân phối response.
     private void handleServerResponse(DataPacket response) {
         Command command = response.command();
 
-        // 1. XỬ LÝ LỆNH ĐĂNG XUẤT THÀNH CÔNG (LOGOUT_RESULT)
+        // Nhận kết quả đăng xuất.
         if (Command.LOGOUT_RESULT.equals(command)) {
             System.out.println("[Global Clean] Đăng xuất thành công. Tiến hành dọn dẹp giao diện...");
             Platform.runLater(() -> executeGlobalUiCleanup(null));
             return;
         }
 
-        // 2. XỬ LÝ KHI BỊ HỆ THỐNG ĐÁ (FORCE_LOGOUT)
+        // Nhận lệnh đăng xuất cưỡng chế.
         if (Command.FORCE_LOGOUT.equals(command) || Command.FORCE_LOGOUT_MULTIPLE_USER.equals(command)) {
             System.out.println("[Global SSO] Nhận lệnh FORCE_LOGOUT từ Server.");
 
@@ -157,7 +155,6 @@ public class AuctionClient {
             return;
         }
 
-        // 🌟 SỬA: Phát tín hiệu cho TẤT CẢ các màn hình đang sống cùng nghe chung
         if (!listeners.isEmpty()) {
             for (ServerListener listener : listeners) {
                 try {
@@ -189,7 +186,6 @@ public class AuctionClient {
 
         closeConnection();
 
-        // 🌟 BỔ SUNG: Xóa sạch danh sách listener cũ khi đăng xuất hệ thống
         listeners.clear();
 
         try {
@@ -211,7 +207,7 @@ public class AuctionClient {
             System.exit(0);
         }
     }
-
+    // Đóng socket.
     public void closeConnection() {
         synchronized (connectionLock) {
             if (socket == null && in == null && out == null) return;
@@ -228,7 +224,7 @@ public class AuctionClient {
             return socket != null && !socket.isClosed() && socket.isConnected();
         }
     }
-
+    // Dọn trạng thái.
     private void cleanUpVariables() {
         synchronized (connectionLock) {
             in = null;

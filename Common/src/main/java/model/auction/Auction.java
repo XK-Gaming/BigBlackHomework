@@ -8,6 +8,7 @@ import java.util.List;
 import model.Entity.Entity;
 import model.Items.Item;
 
+// Model phiên đấu giá.
 public class Auction extends Entity implements Serializable {
     private static final long serialVersionUID = 1L;
     private long itemId;
@@ -25,33 +26,26 @@ public class Auction extends Entity implements Serializable {
         this.item = item;
         this.sellerID = sellerID;
         this.status = AuctionStatus.OPEN;
-        this.item.setAuctionStatus(AuctionStatus.OPEN); // Đồng bộ trạng thái ban đầu
+        this.item.setAuctionStatus(AuctionStatus.OPEN);
     }
 
     public Auction() {}
-
+    // Cập nhật rồi trả trạng thái.
     public AuctionStatus getStatus() {
         updateStatusByTime();
         return status;
     }
 
-    // Cập nhật logic: Đồng bộ dữ liệu sang thực thể Item liên kết
     public AuctionStatus getStoredStatus() {
         return status;
     }
-    /**
-     * Precondition: item có auctionStartTime và auctionEndTime.
-     * Postcondition: status thành FINISHED sau giờ kết thúc, RUNNING sau giờ bắt đầu, hoặc OPEN
-     * trước giờ bắt đầu. Thay đổi RUNNING/FINISHED được lưu xuống auction_items.status.
-     * Method không trả về giá trị.
-     * NOTE: CANCELED và PAID là trạng thái kết thúc, không tự động đổi.
-     */
+    // Đồng bộ trạng thái theo giờ.
     public void updateStatusByTime() {
         if (item == null) return;
         Instant now = Instant.now();
 
         if (this.status == AuctionStatus.CANCELLED || this.status == AuctionStatus.PAID || this.status == null) {
-            // Đồng bộ trạng thái cuối cùng sang Item nếu chưa khớp
+
             if (item.getAuctionStatus() != this.status) {
                 item.setAuctionStatus(this.status);
             }
@@ -71,7 +65,6 @@ public class Auction extends Entity implements Serializable {
             this.status = targetStatus;
         }
 
-        // LUÔN LUÔN ÉP ĐỒNG BỘ TRẠNG THÁI SANG CẢ THỰC THỂ ITEM
         if (item.getAuctionStatus() != targetStatus) {
             item.setAuctionStatus(targetStatus);
         }
@@ -80,30 +73,30 @@ public class Auction extends Entity implements Serializable {
     public void setStatus(AuctionStatus status){
         this.status = status;
         if (this.item != null) {
-            this.item.setAuctionStatus(status); // Đồng bộ ngay lập tức
+            this.item.setAuctionStatus(status);
         }
     }
 
     public void setItem(Item item) {
         this.item = item;
         if (item != null && this.status != null) {
-            item.setAuctionStatus(this.status); // Đảm bảo nạp dữ liệu xong là đồng bộ ngay
+            item.setAuctionStatus(this.status);
         }
     }
 
-    // --- Các hàm logic nghiệp vụ khác giữ nguyên ---
     @Override public String printInfo() { return ""; }
     public Item getItem() { return item; }
     public String getSellerID() { return sellerID; }
     public String getDefaultBidder() { return "Người bán"; }
     public String getLeadingBidder() { return leadingBidder; }
     public void setLeadingBidder(String leadingBidder){ this.leadingBidder = leadingBidder; }
+    // Lấy lịch sử bid.
     public List<BidTransaction> getBidHistory() { return Collections.unmodifiableList(bidHistory); }
     public void setItemId(long idItem) { this.itemId = idItem; }
     public long getItemId() { return itemId; }
     public void setBidHistory(List history) { this.bidHistory = history; }
     public AuctionStatus getRawStatus() { return this.status; }
-
+    // Lấy giá hiện tại.
     public double getCurrentPrice() {
         if (bidHistory == null || bidHistory.isEmpty()) {
             return (item != null) ? item.getCurrentHighestPrice() : 0.0;

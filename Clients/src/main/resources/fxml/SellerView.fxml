@@ -59,7 +59,8 @@
             </VBox.margin>
          </Separator>
          <VBox VBox.vgrow="ALWAYS"/>
-         <Button fx:id="btnProductList" mnemonicParsing="false" onAction="#On_ProductList" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 16;" text="Danh sách sản phẩm">
+<!-- Nút Danh sách sản phẩm. -->
+<Button fx:id="btnProductList" mnemonicParsing="false" onAction="#On_ProductList" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 16;" text="Danh sách sản phẩm">
             <font>
                <Font name="System Bold" size="13.0" />
             </font>
@@ -67,7 +68,8 @@
                <Cursor fx:constant="HAND" />
             </cursor>
          </Button>
-         <Button fx:id="LogOut" mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0"
+<!-- Nút Đăng xuất. -->
+<Button fx:id="LogOut" mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0"
                  style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 16;"
                  text="Đăng xuất">
             <font>
@@ -207,7 +209,8 @@
                              AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0"
                              AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0"/>
                </AnchorPane>
-               <Button mnemonicParsing="false" onAction="#handle_SelectImage" prefHeight="35.0"
+<!-- Nút Chọn ảnh. -->
+<Button mnemonicParsing="false" onAction="#handle_SelectImage" prefHeight="35.0"
                        prefWidth="120.0" style="-fx-background-color: #334155; -fx-text-fill: white;"
                        text="Chọn ảnh"/>
             </VBox>
@@ -216,7 +219,8 @@
          <Separator prefWidth="200.0"/>
 
          <HBox alignment="CENTER_LEFT" spacing="20.0">
-            <Button fx:id="j_ApplyItem" mnemonicParsing="false" onAction="#handle_Items" prefHeight="50.0"
+<!-- Nút ĐĂNG SẢN PHẨM NGAY. -->
+<Button fx:id="j_ApplyItem" mnemonicParsing="false" onAction="#handle_Items" prefHeight="50.0"
                     prefWidth="250.0"
                     style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 12;"
                     text="ĐĂNG SẢN PHẨM NGAY">

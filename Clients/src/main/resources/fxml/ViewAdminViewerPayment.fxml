@@ -24,9 +24,12 @@
       </TableView>
       <HBox alignment="CENTER" layoutX="30.0" layoutY="440.0" prefWidth="640.0" spacing="30.0">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleApprove" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="PHÊ DUYỆT" />
-            <Button mnemonicParsing="false" onAction="#handleReject" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="TỪ CHỐI" />
-            <Button mnemonicParsing="false" onAction="#handleReturn" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #64748b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="QUAY LẠI" />
+<!-- Nút PHÊ DUYỆT. -->
+<Button mnemonicParsing="false" onAction="#handleApprove" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="PHÊ DUYỆT" />
+<!-- Nút TỪ CHỐI. -->
+<Button mnemonicParsing="false" onAction="#handleReject" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="TỪ CHỐI" />
+<!-- Nút QUAY LẠI. -->
+<Button mnemonicParsing="false" onAction="#handleReturn" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #64748b; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="QUAY LẠI" />
          </children>
       </HBox>
    </children>

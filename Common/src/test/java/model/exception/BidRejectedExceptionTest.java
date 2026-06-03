@@ -6,14 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * ## JUnit: test custom exception BidRejectedException dang duoc du an dung cho invalid bid.
- */
 class BidRejectedExceptionTest {
 
-    /**
-     * ## Test exception: giu dung reason, message va cause de handler tra loi client chinh xac.
-     */
+    // Test BidRejectedException giữ reason, message và cause.
     @Test
     void storesReasonMessageAndCause() {
         RuntimeException cause = new RuntimeException("database down");

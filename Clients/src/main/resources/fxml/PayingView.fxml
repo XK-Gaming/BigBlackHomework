@@ -140,8 +140,8 @@
                         <Font size="13.0" />
                      </font>
                   </Label>
-
-                  <Button fx:id="j_apply" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_apply" prefHeight="45.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-background-radius: 12;" text="XÁC NHẬN THANH TOÁN">
+<!-- Nút XÁC NHẬN THANH TOÁN. -->
+<Button fx:id="j_apply" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_apply" prefHeight="45.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px; -fx-background-radius: 12;" text="XÁC NHẬN THANH TOÁN">
                      <cursor>
                         <Cursor fx:constant="HAND" />
                      </cursor>
@@ -149,12 +149,14 @@
 
                   <HBox maxWidth="Infinity" spacing="10.0">
                      <children>
-                        <Button fx:id="j_return" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #94a3b8; -fx-border-radius: 12; -fx-text-fill: #475569; -fx-font-weight: bold;" text="Về Sảnh" HBox.hgrow="ALWAYS">
+<!-- Nút Về Sảnh. -->
+<Button fx:id="j_return" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #94a3b8; -fx-border-radius: 12; -fx-text-fill: #475569; -fx-font-weight: bold;" text="Về Sảnh" HBox.hgrow="ALWAYS">
                            <cursor>
                               <Cursor fx:constant="HAND" />
                            </cursor>
                         </Button>
-                        <Button fx:id="j_return_history" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return_History" prefHeight="40.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Lịch sử" HBox.hgrow="ALWAYS">
+<!-- Nút Lịch sử. -->
+<Button fx:id="j_return_history" maxWidth="Infinity" mnemonicParsing="false" onAction="#On_Return_History" prefHeight="40.0" style="-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 12;" text="Lịch sử" HBox.hgrow="ALWAYS">
                            <cursor>
                               <Cursor fx:constant="HAND" />
                            </cursor>

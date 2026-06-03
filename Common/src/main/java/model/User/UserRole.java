@@ -4,6 +4,7 @@ public enum UserRole {
     BIDDER,
     SELLER,
     ADMIN;
+    // Đổi chuỗi sang enum.
     public static UserRole fromString(String text) {
         if(text.equals("Người bán")){
             return SELLER;
@@ -14,6 +15,6 @@ public enum UserRole {
         if (text.equals("Admin")){
             return ADMIN;
         }
-        return null; // Hoặc trả về một Role mặc định
+        return null;
     }
 }

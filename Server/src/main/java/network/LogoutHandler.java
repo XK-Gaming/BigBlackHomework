@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+// Request đăng xuất.
 public class LogoutHandler extends BaseHandler implements RequestHandler {
     private final UserService userService;
 
@@ -13,11 +14,11 @@ public class LogoutHandler extends BaseHandler implements RequestHandler {
         this.userService = userService;
     }
 
+    // Xử lý request đăng xuất.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         String username = extractUsername(payload);
 
-        // Logout: gọi removeOnlineClient để vừa xóa online user vừa tắt AutoBid đang chạy.
         userService.logout(username);
         AuctionServer.removeOnlineClient(username);
 

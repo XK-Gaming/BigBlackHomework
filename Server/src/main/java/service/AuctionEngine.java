@@ -12,10 +12,9 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
+// Theo dõi trạng thái phiên.
 public final class AuctionEngine implements AutoCloseable {
 
-    /** Chu kỳ quét — có thể ghi JVM property {@code auction.engine.tick.seconds}. */
     private static final long TICK_SECONDS = Long.getLong("auction.engine.tick.seconds", 5);
 
     private static final AtomicInteger SEQ = new AtomicInteger();
@@ -41,12 +40,11 @@ public final class AuctionEngine implements AutoCloseable {
             return t;
         };
     }
-
-    /** Bắt đầu quét sau 2 giây, lặp mỗi {@link #TICK_SECONDS} giây. */
+    // Bật engine quét phiên.
     public void startEngine() {
         scheduler.scheduleAtFixedRate(this::safeTick, 2, TICK_SECONDS, TimeUnit.SECONDS);
     }
-
+    // Quét phiên an toàn.
     private void safeTick() {
         try {
             tick();
@@ -55,7 +53,7 @@ public final class AuctionEngine implements AutoCloseable {
             t.printStackTrace();
         }
     }
-
+    // Quét trạng thái.
     void tick() {
         List<Auction> auctions = userService.getAllAuctions();
         if (auctions == null || auctions.isEmpty()) {
@@ -70,27 +68,24 @@ public final class AuctionEngine implements AutoCloseable {
             }
         }
     }
-
-    /** Nạp item theo khóa id_item, sau đó cập nhật trạng thái theo thời gian hiện tại (và DAO nếu đổi trạng thái). */
+    // Cập nhật trạng thái theo giờ.
     private void applyTimeRules(Auction auction) {
         if (auction == null) {
             return;
         }
 
-        // BẤT KỂ item có null hay không, đọc lại từ DB để lấy Giá/Tên/Ảnh mới nhất
         long pk = auction.getItemId();
         if (pk > 0) {
             Item freshItem = items.selectById(String.valueOf(pk));
             if (freshItem != null) {
-                // Nạp item mới nhất vừa được cập nhật ở DB vào phiên đấu giá trên RAM
+
                 auction.setItem(freshItem);
             }
         }
 
-        /* updateStatusByTime được gọi từ getStatus(); đồng bộ OPEN/RUNNING/FINISHED vào DB khi có thay đổi */
         auction.getStatus();
     }
-    /** Dừng lịch; gọi khi tắt ứng dụng server (JavaFX). */
+    // Dừng xử lý.
     public void stopEngine() {
         scheduler.shutdown();
     }

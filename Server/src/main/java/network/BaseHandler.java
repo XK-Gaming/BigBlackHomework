@@ -7,11 +7,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Map;
 
-
+// Xử lý lỗi/response chung.
 public abstract class BaseHandler{
-    /**
-     * Điền {@code success=false}, thông điệp và loại lỗi cho client (và {@code reason} nếu là {@link BidRejectedException}).
-     */
+
     protected void fillErrorResponse(Map<String, Object> response, Throwable t) {
         response.put("success", false);
         String msg = t.getMessage();
@@ -25,7 +23,6 @@ public abstract class BaseHandler{
         }
     }
 
-    // Đây chính là hàm sendResponse bạn đang tìm
     protected void sendResponse(ObjectOutputStream out, Command command, Object payload) {
         DataPacket responsePacket = new DataPacket(command, payload);
 

@@ -12,14 +12,9 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-/**
- * ## JUnit: test goi tin Socket Serializable dung chung giua client va server.
- */
 class DataPacketSerializationTest {
 
-    /**
-     * ## Test protocol: DataPacket van giu command va payload sau khi serialize/deserialize.
-     */
+    // Test DataPacket serialize giữa client-server.
     @Test
     void dataPacketCanBeSerializedBetweenClientAndServer() throws Exception {
         Map<String, Object> payload = new HashMap<>();

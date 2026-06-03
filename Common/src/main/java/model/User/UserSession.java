@@ -1,5 +1,6 @@
 package model.User;
 
+// User đang đăng nhập.
 public class UserSession {
     private static User loggedInUser;
 
@@ -10,8 +11,8 @@ public class UserSession {
     public static User getLoggedInUser() {
         return loggedInUser;
     }
-
+    // Dọn trạng thái.
     public static void cleanUserSession() {
-        loggedInUser = null; // Dùng khi Logout
+        loggedInUser = null;
     }
 }

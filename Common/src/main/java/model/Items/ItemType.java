@@ -1,13 +1,13 @@
 package model.Items;
 
+// Loại sản phẩm.
 public enum ItemType {
     ART, ELECTRONICS, VEHICLE;
-
+    // Đổi chuỗi sang enum.
     public static ItemType fromString(String text) {
         if (text == null) return null;
         String trimmed = text.trim();
 
-        // Chấp nhận cả dữ liệu dạng tiếng Việt cũ lẫn định dạng Enum tiếng Anh mới
         if (trimmed.equalsIgnoreCase("Mỹ thuật") || trimmed.equalsIgnoreCase("ART")) {
             return ItemType.ART;
         }

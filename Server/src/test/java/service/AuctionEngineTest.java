@@ -14,14 +14,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-/**
- * ## JUnit: test service.AuctionEngine quet auction va nap item truoc khi ap dung rule thoi gian.
- */
 class AuctionEngineTest {
 
-    /**
-     * ## Test luong nap du lieu: auction chua co Item thi engine lay Item theo itemId tu DAO.
-     */
+    // Test engine nạp item trước khi áp luật thời gian.
     @Test
     void tickHydratesAuctionItemBeforeApplyingTimeRules() {
         Auction auction = new Auction();
@@ -39,9 +34,7 @@ class AuctionEngineTest {
         assertSame(item, auction.getItem());
     }
 
-    /**
-     * ## Test luong bo qua: auction khong co itemId hop le thi engine khong goi DAO va khong crash.
-     */
+    // Test engine bỏ qua auction thiếu itemId.
     @Test
     void tickSkipsAuctionWithoutValidItemId() {
         Auction auction = new Auction();
@@ -57,9 +50,7 @@ class AuctionEngineTest {
         assertNull(auction.getItem());
     }
 
-    /**
-     * ## Test luong rong: khong co auction thi engine ket thuc tick ngay.
-     */
+    // Test engine không lỗi khi không có phiên.
     @Test
     void tickReturnsWhenThereAreNoAuctions() {
         FakeUserService userService = new FakeUserService(List.of());
@@ -85,9 +76,6 @@ class AuctionEngineTest {
                 "image.png");
     }
 
-    /**
-     * ## Test fake service: tra ve danh sach auction de AuctionEngine xu ly ma khong can DB.
-     */
     private static final class FakeUserService extends UserService {
         private final List<Auction> auctions;
 
@@ -101,9 +89,6 @@ class AuctionEngineTest {
         }
     }
 
-    /**
-     * ## Test fake DAO: ghi nhan itemId ma engine yeu cau nap.
-     */
     private static final class FakeItemDao extends DAOItems {
         private final Item item;
         private String selectedId;

@@ -30,6 +30,7 @@ import java.util.Properties;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 
+// Màn đăng sản phẩm.
 public class ControllerSeller implements ServerListener {
     private User user = UserSession.getLoggedInUser();
 
@@ -69,8 +70,8 @@ public class ControllerSeller implements ServerListener {
     @FXML private TextField j_artist;
     @FXML private TextField j_brand;
 
+    // Khởi tạo màn hình.
     @FXML private Label j_textSoDu;
-
     public void initialize() {
         client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
@@ -78,7 +79,6 @@ public class ControllerSeller implements ServerListener {
 
         initCloudinary();
 
-        // Ánh xạ phục vụ việc ẩn/hiện động
         categoryPaneMap.put("Mỹ thuật", j_paneArt);
         categoryPaneMap.put("Điện tử", j_paneElectronics);
         categoryPaneMap.put("Phương tiện giao thông", j_paneVehicle);
@@ -86,7 +86,6 @@ public class ControllerSeller implements ServerListener {
         j_ItemType.getItems().setAll(categoryList);
         j_ItemType.setValue(categoryList[0]);
 
-        // Đồng bộ hiển thị Form mở rộng ngay từ đầu
         handle_Info(null);
         if (user != null) {
             j_LabelName.setText(user.getName());
@@ -94,8 +93,8 @@ public class ControllerSeller implements ServerListener {
             j_textSoDu.setText(df.format(user.getBalance()) + " VNĐ");
         }
 
-        // Chặn ngày hợp lệ
         j_DateStart.setDayCellFactory(picker -> new DateCell() {
+            // Cập nhật sản phẩm.
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
@@ -104,6 +103,7 @@ public class ControllerSeller implements ServerListener {
         });
 
         j_DateEnd.setDayCellFactory(picker -> new DateCell() {
+            // Cập nhật sản phẩm.
             @Override
             public void updateItem(LocalDate date, boolean empty) {
                 super.updateItem(date, empty);
@@ -118,7 +118,7 @@ public class ControllerSeller implements ServerListener {
             }
         });
     }
-
+    // Cấu hình Cloudinary.
     private void initCloudinary() {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
             Properties prop = new Properties();
@@ -139,7 +139,7 @@ public class ControllerSeller implements ServerListener {
             ex.printStackTrace();
         }
     }
-
+    // Ghép ngày giờ.
     public Instant createInstant(DatePicker j_date, TextField j_time) throws DateTimeParseException {
         LocalDate date = j_date.getValue();
         String timeStr = j_time.getText().trim();
@@ -155,12 +155,13 @@ public class ControllerSeller implements ServerListener {
                 .atZone(ZoneId.systemDefault())
                 .toInstant();
     }
-
+    // Đọc số tiền.
     private double parseMoneyField(String value) throws NumberFormatException {
         if (value == null || value.trim().isEmpty()) throw new NumberFormatException();
         return Double.parseDouble(value.replace(",", "").replace(" ", "").trim());
     }
 
+    // Đăng sản phẩm.
     @FXML
     void handle_Items() {
         if (j_name.getText().trim().isEmpty()) {
@@ -271,7 +272,7 @@ public class ControllerSeller implements ServerListener {
             }
         });
     }
-
+    // Upload ảnh.
     public String uploadToCloudinary(File localFile) {
         try {
             Map uploadResult = cloudinary.uploader().upload(localFile, ObjectUtils.emptyMap());
@@ -282,6 +283,7 @@ public class ControllerSeller implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handle_SelectImage(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
@@ -296,6 +298,7 @@ public class ControllerSeller implements ServerListener {
         }
     }
 
+    // Xử lý thao tác.
     @FXML
     void handle_Info(ActionEvent event) {
         String selectedCategory = j_ItemType.getValue();
@@ -306,6 +309,7 @@ public class ControllerSeller implements ServerListener {
         });
     }
 
+    // Đăng xuất.
     @FXML
     void On_LogOut(ActionEvent event) {
         try {
@@ -317,23 +321,24 @@ public class ControllerSeller implements ServerListener {
         }
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_ProductList(ActionEvent event) {
         client.removeListener(this);
         SceneHelper.changeScene((Node) event.getSource(), "/fxml/ProductListView.fxml");
     }
-
+    // Xử lý nút giao diện.
     public void On_MouseClickImg(javafx.scene.input.MouseEvent mouseEvent) {
         client.removeListener(this);
         SceneHelper.changeScene((Node) mouseEvent.getSource(), "/fxml/AccountInfoView.fxml");
     }
-
+    // Hiển thị giao diện.
     private void showError(String message) {
         error_Label.setTextFill(Color.RED);
         error_Label.setText(message);
         error_Label.setVisible(true);
     }
-
+    // Hiển thị giao diện.
     private void showErrorInUIThread(String message) {
         Platform.runLater(() -> {
             showError(message);
@@ -341,8 +346,11 @@ public class ControllerSeller implements ServerListener {
         });
     }
 
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
+
+        // Nhận kết quả tạo sản phẩm.
         if (Command.CREATE_ITEM_RESULT.equals(response.command())) {
             boolean isSuccess = (boolean) response.payload();
             Platform.runLater(() -> {
@@ -355,11 +363,15 @@ public class ControllerSeller implements ServerListener {
                 }
             });
         }
+
+        // Nhận thông báo realtime.
         if (Command.NOTIFICATION.equals(response.command())) {
             Platform.runLater(() -> {
                 ControllerNotificationSeller.handleIncomingToastNotificationSeller(response.payload(), j_textSoDu);
             });
         }
+
+        // Nhận kết quả duyệt/dừng.
         if (Command.SET_ALLOW_RESULT.equals(response.command())) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             boolean isAllow = responsePayload.get("allow") != null && responsePayload.get("allow").toString().equals("true");
@@ -387,6 +399,8 @@ public class ControllerSeller implements ServerListener {
                 alert.showAndWait();
             });
         }
+
+        // Nhận kết quả xóa sản phẩm.
         if (Command.DELETE_ITEM_RESULT.equals(response.command())) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             boolean success = (boolean) responsePayload.get("success");
@@ -402,6 +416,8 @@ public class ControllerSeller implements ServerListener {
                 });
             }
         }
+
+        // Nhận lệnh đăng xuất cưỡng chế.
         if (Command.FORCE_LOGOUT.equals(response.command())) {
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -412,6 +428,8 @@ public class ControllerSeller implements ServerListener {
                 System.exit(0);
             });
         }
+
+        // Nhận kết quả đăng xuất.
         if (Command.LOGOUT_RESULT.equals(response.command())) {
             Platform.runLater(() -> {
                 client.removeListener(this);
@@ -420,6 +438,8 @@ public class ControllerSeller implements ServerListener {
                 SceneHelper.changeScene((Node) j_LabelName, "/fxml/LoginView.fxml");
             });
         }
+
+        // Nhận thông báo thanh toán.
         if (Command.NOTIFICATION_BIDDER_PAY.equals(response.command())){
             Platform.runLater(() -> {
                 ControllerNotificationSeller.handleSuccessToastNotificationSeller(response.payload(), j_textSoDu, user);

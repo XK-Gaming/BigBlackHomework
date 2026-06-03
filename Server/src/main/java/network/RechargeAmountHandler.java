@@ -5,10 +5,12 @@ import service.UserService;
 import java.io.ObjectOutputStream;
 import java.util.Map;
 
+// Request nạp tiền.
 public class RechargeAmountHandler  extends BaseHandler implements RequestHandler{
     private UserService userService;
     public RechargeAmountHandler(UserService userService) { this.userService = userService;};
 
+    // Xử lý request nạp tiền.
     @Override
     public void handle(Object payload, ObjectOutputStream out) {
         Map<String, Object> Info = (Map<String, Object>) payload;
@@ -19,4 +21,3 @@ public class RechargeAmountHandler  extends BaseHandler implements RequestHandle
     }
 
     }
-

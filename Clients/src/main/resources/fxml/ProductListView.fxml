@@ -53,8 +53,8 @@
                         </Separator>
 
                         <VBox VBox.vgrow="ALWAYS" />
-
-                        <Button mnemonicParsing="false" onAction="#On_AddProduct" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng sản phẩm mới">
+<!-- Nút Đăng sản phẩm mới. -->
+<Button mnemonicParsing="false" onAction="#On_AddProduct" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng sản phẩm mới">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
@@ -62,8 +62,8 @@
                                 <Cursor fx:constant="HAND" />
                             </cursor>
                         </Button>
-
-                        <Button mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng xuất">
+<!-- Nút Đăng xuất. -->
+<Button mnemonicParsing="false" onAction="#On_LogOut" prefHeight="40.0" prefWidth="180.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 16;" text="Đăng xuất">
                             <font>
                                 <Font name="System Bold" size="13.0" />
                             </font>
@@ -122,7 +122,8 @@
 
                         <HBox alignment="CENTER_RIGHT" spacing="15.0">
                             <children>
-                                <Button fx:id="btnEdit" mnemonicParsing="false" onAction="#On_EditProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 12;" text="Sửa sản phẩm">
+<!-- Nút Sửa sản phẩm. -->
+<Button fx:id="btnEdit" mnemonicParsing="false" onAction="#On_EditProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #334155; -fx-text-fill: white; -fx-background-radius: 12;" text="Sửa sản phẩm">
                                     <font>
                                         <Font name="System Bold" size="13.0" />
                                     </font>
@@ -130,7 +131,8 @@
                                         <Cursor fx:constant="HAND" />
                                     </cursor>
                                 </Button>
-                                <Button fx:id="btnDelete" mnemonicParsing="false" onAction="#On_DeleteProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 12;" text="Xóa sản phẩm">
+<!-- Nút Xóa sản phẩm. -->
+<Button fx:id="btnDelete" mnemonicParsing="false" onAction="#On_DeleteProduct" prefHeight="40.0" prefWidth="120.0" style="-fx-background-color: #dc2626; -fx-text-fill: white; -fx-background-radius: 12;" text="Xóa sản phẩm">
                                     <font>
                                         <Font name="System Bold" size="13.0" />
                                     </font>

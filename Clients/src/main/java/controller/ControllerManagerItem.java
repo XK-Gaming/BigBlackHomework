@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// Quản lý sản phẩm admin.
 public class ControllerManagerItem implements ServerListener {
     private FilteredList<Item> filteredAssets;
     private User p1 = UserSession.getLoggedInUser();
@@ -54,15 +55,13 @@ public class ControllerManagerItem implements ServerListener {
 
     private ObservableList<Item> allAssets = FXCollections.observableArrayList();
 
-    // CHỐT CHẶN: Cờ hiệu ngăn bão Event gửi trùng lệnh lên Server khi xóa/sửa dữ liệu tự động
     private boolean isUpdatingData = false;
-
+    // Khởi tạo màn hình.
     public void initialize() throws IOException {
         client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
 
-        // Kết nối cột TableView
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colCategory.setCellValueFactory(new PropertyValueFactory<>("itemType"));
@@ -73,24 +72,20 @@ public class ControllerManagerItem implements ServerListener {
 
         client.sendCommand(Command.SELECT_ITEMS, UserRole.ADMIN);
 
-        // Lắng nghe sự kiện chọn dòng trên TableView
         tableProducts.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                // 1. Đồng bộ Model ngay lập tức
-                item = newValue;
-                auction = null; // Xóa dữ liệu cũ của phiên trước
 
-                // 2. Làm mới giao diện chữ và ảnh lập tức
+                item = newValue;
+                auction = null;
+
                 showItemDetails(newValue);
                 updateAuctionControls();
 
-                // 3. Đưa biểu đồ về trạng thái chờ, tránh lưu ảnh biểu đồ của item cũ
                 Platform.runLater(() -> {
                     bidLineChart.getData().clear();
                     bidLineChart.setTitle("Đang tải dữ liệu diễn biến giá...");
                 });
 
-                // 4. KIỂM TRA CỜ: Đẩy lệnh lấy dữ liệu từ Server trên một Thread riêng để không block UI
                 if (!isUpdatingData) {
                     new Thread(() -> {
                         try {
@@ -106,7 +101,7 @@ public class ControllerManagerItem implements ServerListener {
                     }).start();
                 }
             } else {
-                // Nếu không chọn dòng nào (hoặc bảng trống), xóa trắng giao diện chi tiết
+
                 clearDetailsView();
             }
         });
@@ -115,11 +110,12 @@ public class ControllerManagerItem implements ServerListener {
         cbStatus.setItems(FXCollections.observableArrayList("TẤT CẢ", "DISABLE", "OPEN", "RUNNING", "FINISHED"));
     }
 
+    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
 
-        // TH1: Tải danh sách sản phẩm ban đầu
+        // Nhận danh sách sản phẩm.
         if (Command.SELECT_ITEMS_RESULT.equals(command)) {
             List<Item> itemsFromServer = (List<Item>) response.payload();
             for (Item oldItem : allAssets) {
@@ -142,14 +138,12 @@ public class ControllerManagerItem implements ServerListener {
                     }
                 }
 
-                // ĐỔI MỚI CHÍNH Ở ĐÂY: Khi mới vào ứng dụng, không tự động chọn dòng nào hết.
-                // Cho TableView xóa chọn lựa và chủ động dọn trống giao diện chi tiết bên phải.
                 tableProducts.getSelectionModel().clearSelection();
                 clearDetailsView();
             });
         }
 
-        // TH2: Nhận cập nhật trạng thái Item đơn lẻ từ server
+        // Nhận cập nhật sản phẩm.
         if (Command.ITEMS_UPDATE.equals(command)) {
             if (response.payload() instanceof Item) {
                 Item newItem = (Item) response.payload();
@@ -169,7 +163,6 @@ public class ControllerManagerItem implements ServerListener {
                         updateSelectedItemStatus(newItem);
                     }
 
-                    // Chỉ đồng bộ lại nếu Admin vẫn đang chọn đúng item vừa cập nhật này
                     if (item != null && item.getDatabaseId() == newItem.getDatabaseId()) {
                         item = newItem;
                         showItemDetails(newItem);
@@ -179,11 +172,11 @@ public class ControllerManagerItem implements ServerListener {
             }
         }
 
-        // TH3: Nhận thông tin phiên đấu giá cụ thể từ Server
+        // Nhận phiên đấu giá.
         if (Command.GET_AUCTION_RESULT.equals(command)) {
             Auction receivedAuction = (Auction) response.payload();
             Platform.runLater(() -> {
-                // BIỆN PHÁP CHỐT CHẶN: Chỉ vẽ biểu đồ nếu dữ liệu trả về trùng khớp với sản phẩm đang được chọn
+
                 if (receivedAuction != null && item != null && receivedAuction.getItemId() == item.getDatabaseId()) {
                     auction = receivedAuction;
                     updateBidChart(auction.getBidHistory());
@@ -192,13 +185,14 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
 
+        // Nhận bid realtime.
         if (Command.BID_UPDATE.equals(command)) {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.getOrDefault("success", false);
             if (success) {
                 Auction updatedAuction = (Auction) resData.get("auction");
                 Platform.runLater(() -> {
-                    // Chỉ cập nhật biểu đồ thời gian thực nếu người dùng đang xem chính sản phẩm này
+
                     if (updatedAuction != null && item != null && updatedAuction.getItemId() == item.getDatabaseId()) {
                         auction = updatedAuction;
                         updateBidChart(updatedAuction.getBidHistory());
@@ -207,7 +201,7 @@ public class ControllerManagerItem implements ServerListener {
             }
         }
 
-        // TH4: Kết quả Phê duyệt / Tạm dừng
+        // Nhận kết quả duyệt/dừng.
         if (Command.SET_ALLOW_RESULT.equals(command)) {
             Map<String, Object> responsePayload = (Map<String, Object>) response.payload();
             if (responsePayload == null) return;
@@ -262,17 +256,15 @@ public class ControllerManagerItem implements ServerListener {
             }
         }
 
-        // TH5: Xóa sản phẩm
+        // Nhận kết quả xóa sản phẩm.
         if (Command.DELETE_ITEM_RESULT.equals(command)) {
             Map<String, Object> resData = (Map<String, Object>) response.payload();
             boolean success = (boolean) resData.getOrDefault("success", false);
             String message = (String) resData.getOrDefault("message", "");
 
-            // KIỂM TRA FLAG: Nếu gói tin chứa 'isForceClose' thì đây là gói tin broadcast dành cho NGƯỜI XEM PHÒNG.
-            // Admin là người chủ động xóa nên BỎ QUA gói tin này, không hiển thị Alert thất bại.
             boolean isForceClose = resData.containsKey("isForceClose") && (boolean) resData.get("isForceClose");
             if (isForceClose) {
-                return; // Thoát ngay lập tức, nhường sân khấu cho gói tin phản hồi trực tiếp (success = true)
+                return;
             }
 
             int deletedItemId = resData.get("deletedItemId") != null ? ((Number) resData.get("deletedItemId")).intValue() : -1;
@@ -290,10 +282,8 @@ public class ControllerManagerItem implements ServerListener {
                 if (success) {
                     isUpdatingData = true;
 
-                    // 1. Thực hiện xóa dữ liệu cục bộ
                     allAssets.removeIf(it -> it.getDatabaseId() == deletedItemId);
 
-                    // 2. Đưa UI về nền trắng sạch sẽ theo yêu cầu ban đầu
                     tableProducts.getSelectionModel().clearSelection();
                     item = null;
                     auction = null;
@@ -301,7 +291,6 @@ public class ControllerManagerItem implements ServerListener {
 
                     isUpdatingData = false;
 
-                    // 3. Hiện Alert thành công duy nhất
                     Alert alert = new Alert(Alert.AlertType.INFORMATION);
                     alert.setTitle("Thông báo");
                     alert.setHeaderText(null);
@@ -311,7 +300,6 @@ public class ControllerManagerItem implements ServerListener {
                 } else {
                     isUpdatingData = false;
 
-                    // Alert thất bại thực sự (ví dụ: sản phẩm đã có người đặt giá)
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Lỗi");
                     alert.setHeaderText("Xóa thất bại");
@@ -321,7 +309,7 @@ public class ControllerManagerItem implements ServerListener {
             });
         }
     }
-
+    // Cập nhật dữ liệu.
     private void updateSelectedItemStatus(Item targetItem) {
         if (targetItem == null) return;
 
@@ -353,7 +341,7 @@ public class ControllerManagerItem implements ServerListener {
             Platform.runLater(() -> targetItem.setDisplayStatus(displayValue));
         });
     }
-
+    // Định dạng hiển thị.
     private String formatDuration(long totalSeconds) {
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;
@@ -365,7 +353,7 @@ public class ControllerManagerItem implements ServerListener {
             return String.format("%02d:%02d", minutes, seconds);
         }
     }
-
+    // Hiển thị giao diện.
     private void showItemDetails(Item item) {
         if (item == null) {
             clearDetailsView();
@@ -376,8 +364,6 @@ public class ControllerManagerItem implements ServerListener {
         detailName.setText(item.getName());
         detailDesc.setText(getCustomDescription(item));
 
-
-        // Xóa ảnh cũ trước khi nạp để tránh hiện tượng nháy ảnh cũ
         detailImage.setImage(null);
 
         if (item.getImg() != null && !item.getImg().trim().isEmpty()) {
@@ -398,9 +384,9 @@ public class ControllerManagerItem implements ServerListener {
             }
         }
     }
-
+    // Xóa dữ liệu hiển thị.
     private void clearDetailsView() {
-        detailName.setText("Chưa chọn sản phẩm"); // Sửa lại text cho hợp hoàn cảnh
+        detailName.setText("Chưa chọn sản phẩm");
         detailDesc.setText("Vui lòng chọn một sản phẩm từ danh sách bên cạnh để xem chi tiết thông tin và diễn biến giá.");
         detailSpecs.setText("");
         detailImage.setImage(null);
@@ -415,6 +401,7 @@ public class ControllerManagerItem implements ServerListener {
 
     @FXML private Button j_ButtonController;
 
+    // Xử lý nút giao diện.
     @FXML
     void On_ButtonController(ActionEvent event) throws IOException {
         if (item == null) return;
@@ -429,7 +416,7 @@ public class ControllerManagerItem implements ServerListener {
         }
         client.sendCommand(Command.SET_ALLOW, payload);
     }
-
+    // Cập nhật dữ liệu.
     private void updateAuctionControls() {
         if (item == null) {
             j_ButtonController.setDisable(true);
@@ -458,10 +445,10 @@ public class ControllerManagerItem implements ServerListener {
         }
     }
 
+    // Vẽ biểu đồ bid.
     @FXML private LineChart<String, Number> bidLineChart;
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
-
     private void updateBidChart(List<BidTransaction> historyList) {
         Platform.runLater(() -> {
             bidLineChart.getData().clear();
@@ -529,13 +516,14 @@ public class ControllerManagerItem implements ServerListener {
             }
         });
     }
-
+    // Định dạng hiển thị.
     private String formatTime(Instant instant) {
         return DateTimeFormatter.ofPattern("HH:mm:ss")
                 .withZone(ZoneId.systemDefault())
                 .format(instant);
     }
 
+    // Lọc dữ liệu.
     @FXML
     void On_Filter(ActionEvent event) {
         Object selectedCategoryObj = cbCategory.getSelectionModel().getSelectedItem();
@@ -564,6 +552,7 @@ public class ControllerManagerItem implements ServerListener {
         });
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_ResetFilter(ActionEvent event) {
         cbCategory.getSelectionModel().clearSelection();
@@ -571,7 +560,6 @@ public class ControllerManagerItem implements ServerListener {
         filteredAssets.setPredicate(p -> true);
     }
 
-    // --- Các FXML Components ---
     @FXML private ComboBox<String> cbCategory;
     @FXML private ComboBox<String> cbStatus;
     @FXML private TableColumn<?, ?> colCategory;
@@ -589,14 +577,16 @@ public class ControllerManagerItem implements ServerListener {
     @FXML private Label connectionText;
     private ConnectionStatusManager statusManager;
 
+    // Xử lý nút giao diện.
+    // Xử lý nút giao diện.
     @FXML private Label detailDesc;
     @FXML private ImageView detailImage;
     @FXML private Label detailName;
     @FXML private Label detailSpecs;
-
     @FXML void On_ItemManager(ActionEvent event) {}
     @FXML void On_MouseClickImg(MouseEvent event) {}
 
+    // Xử lý nút giao diện.
     @FXML
     void On_Return(ActionEvent event) {
         try {
@@ -607,6 +597,7 @@ public class ControllerManagerItem implements ServerListener {
         }
     }
 
+    // Xử lý nút giao diện.
     @FXML
     void On_Delete(ActionEvent event) throws IOException {
         if (item == null || isUpdatingData) {
@@ -617,6 +608,7 @@ public class ControllerManagerItem implements ServerListener {
         j_Delete.setDisable(true);
         client.sendCommand(Command.DELETE_ITEM, item);
     }
+    // Ghép mô tả sản phẩm.
     private String getCustomDescription(Item item) {
         if (item == null || item.getDescription() == null) {
             return "Không có mô tả cho sản phẩm này.";
@@ -627,27 +619,23 @@ public class ControllerManagerItem implements ServerListener {
             return "Không có mô tả cho sản phẩm này.";
         }
 
-        // Nếu không bọc trong ngoặc nhọn JSON, hiển thị như text thường
         if (!rawDesc.startsWith("{") || !rawDesc.endsWith("}")) {
             return rawDesc;
         }
 
         try {
-            // Tạo Map để chứa dữ liệu sau khi bóc tách từ JSON
+
             Map<String, String> map = new HashMap<>();
 
-            // Loại bỏ dấu ngoặc nhọn { và } ở hai đầu
             String cleanDesc = rawDesc.substring(1, rawDesc.length() - 1);
 
-            // Tách các cặp thuộc tính bằng dấu phẩy
             String[] pairs = cleanDesc.split(",");
             for (String pair : pairs) {
                 String[] keyValue = pair.split(":");
                 if (keyValue.length >= 2) {
-                    // Lấy phần Key và loại bỏ toàn bộ dấu ngoặc kép '"' cũng như khoảng trắng
+
                     String key = keyValue[0].replace("\"", "").trim().toLowerCase();
 
-                    // Lấy phần Value (gộp lại phòng trường hợp nội dung chứa dấu hai chấm ':')
                     StringBuilder valueBuilder = new StringBuilder();
                     for (int i = 1; i < keyValue.length; i++) {
                         if (i > 1) valueBuilder.append(":");
@@ -659,10 +647,8 @@ public class ControllerManagerItem implements ServerListener {
                 }
             }
 
-            // Lấy Loại sản phẩm chuẩn từ Enum có sẵn trong Model
             model.Items.ItemType type = item.getRawItemType();
 
-            // Hiển thị thông tin chính xác theo từng danh mục sản phẩm
             if (type != null) {
                 switch (type) {
                     case ART:
@@ -682,7 +668,6 @@ public class ControllerManagerItem implements ServerListener {
                 }
             }
 
-            // Phương án dự phòng cuối cùng nếu không nhận diện được Type
             StringBuilder sb = new StringBuilder();
             for (Map.Entry<String, String> entry : map.entrySet()) {
                 String keyFormatted = entry.getKey().substring(0, 1).toUpperCase() + entry.getKey().substring(1);
@@ -692,7 +677,7 @@ public class ControllerManagerItem implements ServerListener {
 
         } catch (Exception e) {
             System.err.println("Lỗi xử lý cú pháp JSON mô tả: " + e.getMessage());
-            return rawDesc; // Trả về chuỗi gốc từ DB để giao diện không bị trống
+            return rawDesc;
         }
     }
 }
