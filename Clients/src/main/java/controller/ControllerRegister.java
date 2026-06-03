@@ -10,12 +10,11 @@ import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.User.User;
 import model.User.UserRole;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
+import network.*;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.Map;
 
 public class ControllerRegister implements ServerListener {
@@ -75,6 +74,33 @@ public class ControllerRegister implements ServerListener {
         address.setOnKeyTyped(event -> resetStyle(address));
     }
 
+    private void ensureConnected() throws IOException {
+        if (client.isConnected()) return;
+        ServerConfig config = loadServerConfig();
+        client.connect(config.ip(), config.port());
+        if (!client.isConnected()) {
+            throw new IOException("Khong the ket noi toi server.");
+        }
+    }
+
+    private ServerConfig loadServerConfig() {
+        String serverIp = "localhost";
+        int serverPort = 8080;
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
+            if (input != null) {
+                props.load(input);
+                serverIp = props.getProperty("server.ip", serverIp);
+                serverPort = Integer.parseInt(props.getProperty("server.port", String.valueOf(serverPort)));
+            }
+        } catch (Exception e) {
+            System.err.println("Khong load duoc client.properties, dung cau hinh mac dinh: " + e.getMessage());
+        }
+        return new ServerConfig(serverIp, serverPort);
+    }
+
+    private record ServerConfig(String ip, int port) {}
+
     /**
      * Hàm xóa bỏ viền đỏ khi người dùng bắt đầu nhập liệu
      */
@@ -100,7 +126,7 @@ public class ControllerRegister implements ServerListener {
     }
 
     @FXML
-    public void handleRegister_DangKy() throws IOException {
+    public void handleRegister_DangKy() {
         // Kiểm tra các trường trống
         if (username_DK.getText().isEmpty() || password_DK1.getText().isEmpty() ||
                 password_DK2.getText().isEmpty() || name.getText().isEmpty() || address.getText().isEmpty()) {
@@ -156,14 +182,15 @@ public class ControllerRegister implements ServerListener {
         }
 
         User user = new User(username_DK.getText(), password_DK1.getText(), name.getText(), address.getText(), UserRole.fromString(jComboBox_Role.getValue()));
-        try{
-        client.sendCommand(Command.REGISTER, user);}
-        catch (Exception e) {
-            e.printStackTrace();
-            Platform.runLater(() -> {
-                showNotification("Không thể kết nối tới máy chủ!", Color.RED);
-            });
-        }
+        ClientNetworkExecutor.execute(() -> {
+            try {
+                ensureConnected();
+                client.sendCommand(Command.REGISTER, user);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> showNotification("Không thể kết nối tới máy chủ!", Color.RED));
+            }
+        });
     }
 
     @Override
