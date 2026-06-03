@@ -20,10 +20,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,9 +35,9 @@ public class UserService {
     static final long ANTI_SNIPING_EXTENSION_SECONDS = 90;
     private static final double MAX_MIN_BID_RATIO = 0.20;
 
-    // ✅ SỬA LỖI #1: Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
+    //  Dùng Guava Cache thay vì ConcurrentHashMap để tự động cleanup
     private static final Cache<String, ReentrantLock> itemLocks = CacheBuilder.newBuilder()
-            .expireAfterAccess(10, TimeUnit.MINUTES)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
             .build();
 
     private final DAOUser userDAO;
@@ -68,13 +66,13 @@ public class UserService {
     }
 
     /**
-     * ✅ Thread-safe: Lấy lock cho item, tự động tạo nếu chưa có
+     *  Lấy lock cho item, tự động tạo nếu chưa có
      */
     private ReentrantLock getLockForItem(String itemId) {
         try {
-            return itemLocks.get(itemId, () -> new ReentrantLock(true));
-        } catch (Exception e) {
-            return new ReentrantLock(true);
+            return itemLocks.get(itemId,ReentrantLock::new);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Không thể khởi tạo hoặc lấy Lock từ Cache cho item: " + itemId, e.getCause());
         }
     }
 
@@ -94,7 +92,7 @@ public class UserService {
     }
 
     /**
-     * ✅ SỬA LỖI #2: Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
+     * Xử lý race condition bằng cách rely vào UNIQUE constraint của DB
      */
     public Map<String, Object> register(User user) {
         // Quick pre-check to avoid unnecessary insert when user already exists
@@ -161,19 +159,24 @@ public class UserService {
     }
 
     /**
-     * ✅ SỬA LỖI #4: Tối ưu locking strategy cho Single Server
+     *  Tối ưu locking strategy cho Single Server
      */
     public Map<String, Object> processBid(String itemId, String bidderId, double amount) {
         ReentrantLock lock = getLockForItem(itemId);
-        lock.lock(); // Khóa luồng Java
+        lock.lock(); // Khóa luồng Java để đồng bộ tại tầng Application
 
         Connection con = null;
+        // Khai báo các biến trả về ở scope ngoài try để block cuối cùng có thể đọc được (nếu cần) hoặc trả về chính xác
+        String refundedBidderId = null;
+        Double refundedBalance = null;
+        User refundedUser = null;
+
         try {
             con = connectionProvider.getConnection();
             con.setAutoCommit(false); // 🌟 BẮT ĐẦU TRANSACTION AN TOÀN
 
-            // 1. Đọc dữ liệu CHUẨN từ trong Transaction (Sử dụng 'con')
-            Item txItem = itemDAO.selectById(con, itemId); // Hàm này phải nhận con
+            // 1. Đọc dữ liệu CHUẨN từ trong Transaction
+            Item txItem = itemDAO.selectById(con, itemId);
             if (txItem == null) {
                 throw new NotFoundException("item", "Không tìm thấy sản phẩm.");
             }
@@ -211,54 +214,68 @@ public class UserService {
                                 + " (giá hiện tại + MinBid).");
             }
 
-            User user = userDAO.selectByUsernameOnly(bidderId);
-            if (user == null) {
+            User currentBidder = userDAO.selectByUsernameOnly(con, bidderId);
+            if (currentBidder == null) {
                 throw new NotFoundException("user", "Không tìm thấy người dùng.");
             }
 
-            if (amount > user.getBalance()) {
+            // Check chung cho tất cả các case: Số dư hiện tại phải lớn hơn hoặc bằng giá muốn đặt
+            if (amount > currentBidder.getBalance()) {
                 throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
                         "Số dư tài khoản không đủ để đặt giá.");
             }
 
-            // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI (NẰM TRONG TRANSACTION)
-            String oldBidder = txAuction.getLeadingBidder();
+            // 3. LOGIC HOÀN TIỀN CHO NGƯỜI ĐẶT CŨ & TRỪ TIỀN NGƯỜI MỚI
+            String oldBidderId = txAuction.getLeadingBidder();
             double oldHighestPrice = txItem.getCurrentHighestPrice();
-            double bidderBalanceBeforeCharge = user.getBalance();
-            String refundedBidderId = null;
-            Double refundedBalance = null;
-            User refundedUser = null;
 
-            // Hoàn tiền cho người cũ (nếu có)
-            if (oldBidder != null && !oldBidder.isEmpty()) {
-                User userOldBidder = userDAO.selectByUsernameOnly(oldBidder);
-                if (userOldBidder != null) {
-                    double newOldBidderBalance = userOldBidder.getBalance() + oldHighestPrice;
-                    userDAO.UpdateBalance(oldBidder, newOldBidderBalance);
-                    userOldBidder.setBalance(newOldBidderBalance);
-                    if(oldBidder.equals(bidderId)){
-                        bidderBalanceBeforeCharge = newOldBidderBalance;
-                    } else {
-                        refundedBidderId = oldBidder;
-                        refundedBalance = newOldBidderBalance;
-                        refundedUser = userOldBidder;
+            if (oldBidderId != null && !oldBidderId.isEmpty()) {
+                if (oldBidderId.equals(bidderId)) {
+                    // =============== CASE 1: TỰ NÂNG GIÁ (SELF-OVERBIDDING) ===============
+                    // Số dư mới = Số dư hiện tại + Hoàn lại tiền cũ - Trừ đi tiền mới
+                    double newBalance = currentBidder.getBalance() + oldHighestPrice - amount;
+
+                    if (newBalance < 0) {
+                        throw new BidRejectedException(BidRejectedException.Reason.PRICE_TOO_LOW,
+                                "Số dư tài khoản không đủ để nâng giá (Thiếu " + String.format("%,.0f", Math.abs(newBalance)) + ").");
                     }
-                }
-            }
 
-            // Trừ tiền người đặt mới
-            double newBidderBalance = bidderBalanceBeforeCharge - amount;
-            userDAO.UpdateBalance(bidderId, newBidderBalance);
-            user.setBalance(newBidderBalance); // Cập nhật lại object để trả về Client
+                    userDAO.UpdateBalance(con, bidderId, newBalance);
+                    currentBidder.setBalance(newBalance);
+
+                } else {
+                    // =============== CASE 2: NGƯỜI KHÁC VÀO ĐÈ GIÁ ===============
+                    // Đã check balance của currentBidder ở trên, không cần check lại ở đây.
+
+                    refundedUser = userDAO.selectByUsernameOnly(con, oldBidderId);
+                    if (refundedUser != null) {
+                        refundedBidderId = oldBidderId;
+                        refundedBalance = refundedUser.getBalance() + oldHighestPrice;
+
+                        userDAO.UpdateBalance(con, oldBidderId, refundedBalance);
+                        refundedUser.setBalance(refundedBalance);
+                    }
+
+                    // Trừ tiền người đặt mới
+                    double newBalance = currentBidder.getBalance() - amount;
+                    userDAO.UpdateBalance(con, bidderId, newBalance);
+                    currentBidder.setBalance(newBalance);
+                }
+            } else {
+                // =============== CASE 3: LƯỢT ĐẶT GIÁ ĐẦU TIÊN CỦA PHÒNG ===============
+                double newBalance = currentBidder.getBalance() - amount;
+                userDAO.UpdateBalance(con, bidderId, newBalance);
+                currentBidder.setBalance(newBalance);
+            }
 
             // 4. CẬP NHẬT LỊCH SỬ ĐẤU GIÁ
             List<BidTransaction> newHistory = new ArrayList<>(txAuction.getBidHistory());
-            String transactionId = "BID-" + System.nanoTime() + "-" + bidderId;
+            String transactionId = "BID-" + UUID.randomUUID().toString().substring(0, 8) + "-" + bidderId;
             BidTransaction newBid = new BidTransaction(
                     transactionId,
                     bidderId,
                     amount,
-                    Instant.now(clock)
+                    Instant.now(clock) // Đảm bảo biến clock đã được khai báo ở tầng thuộc tính class
             );
             newHistory.add(newBid);
             txAuction.setBidHistory(newHistory);
@@ -284,10 +301,11 @@ public class UserService {
             // Chuẩn bị dữ liệu trả về
             Map<String, Object> finalResult = new HashMap<>();
             finalResult.put("item", txItem);
-            finalResult.put("user", user);
+            finalResult.put("user", currentBidder);
             finalResult.put("latestAuction", txAuction);
             finalResult.put("newPrice", amount);
             finalResult.put("bidHistory", new ArrayList<>(txAuction.getBidHistory()));
+
             if (refundedBidderId != null) {
                 finalResult.put("refundedBidderId", refundedBidderId);
                 finalResult.put("refundedBalance", refundedBalance);
@@ -297,13 +315,13 @@ public class UserService {
 
         } catch (BidRejectedException | NotFoundException e) {
             if (con != null) {
-                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi logic
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
             }
             throw e;
         } catch (Exception e) {
             System.err.println("❌ processBid: Lỗi: " + e.getMessage());
             if (con != null) {
-                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); } // Trả lại tiền nếu lỗi hệ thống
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
             }
             throw new BidRejectedException(BidRejectedException.Reason.PERSIST,
                     "Lỗi lưu dữ liệu. Vui lòng thử lại.", e);
@@ -314,7 +332,7 @@ public class UserService {
                     con.close();
                 } catch (SQLException e) { e.printStackTrace(); }
             }
-            lock.unlock(); // ✅ CHỈ CẦN UNLOCK DUY NHẤT Ở ĐÂY (Luôn luôn an toàn)
+            lock.unlock(); // ✅ Giải phóng lock an toàn trong mọi trường hợp
         }
     }
 
@@ -347,7 +365,7 @@ public class UserService {
     }
 
     /**
-     * ✅ SỬA LỖI #3: Update trực tiếp qua SQL thay vì lấy object về
+     *  Update trực tiếp qua SQL thay vì lấy object về
      */
     public boolean updateUser(String username, String field, String value) {
         Connection con = null;
@@ -389,7 +407,7 @@ public class UserService {
     }
 
     /**
-     * ✅ SỬA LỖI #3: Update password trực tiếp qua SQL với kiểm tra atomic
+     *  Update password trực tiếp qua SQL với kiểm tra atomic
      */
     public boolean changePassword(String username, String oldPassword, String newPassword) {
         Connection con = null;

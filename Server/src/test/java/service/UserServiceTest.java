@@ -1035,6 +1035,14 @@ class UserServiceTest {
             return user != null && user.getUsername().equals(username) ? user : null;
         }
 
+        // =========================================================================
+        // 🌟 1. FIX CHÍ MẠNG: Override hàm nhận Connection dùng trong Transaction
+        // =========================================================================
+        @Override
+        public User selectByUsernameOnly(Connection con, String username) throws java.sql.SQLException {
+            // Gọi lại chính hàm giả lập nội bộ bên trên để lấy từ Memory Map, bỏ qua Connection gốc
+            return selectByUsernameOnly(username);
+        }
 
         @Override
         public int UpdateBalance(String username, double newBalance) {
@@ -1046,11 +1054,28 @@ class UserServiceTest {
             return 0;
         }
 
+        // =========================================================================
+        // 🌟 2. FIX ĐỒNG BỘ: Override luôn bản UpdateBalance có Connection
+        // =========================================================================
+        @Override
+        public int UpdateBalance(Connection con, String username, double newBalance) throws java.sql.SQLException {
+            return UpdateBalance(username, newBalance);
+        }
 
         @Override
         public void Update(User user) {
             this.updated = true;
             this.user = user;
+            this.users.put(user.getUsername(), user); // Cập nhật luôn vào bản đồ giả lập
+        }
+
+        // =========================================================================
+        // 🌟 3. FIX ĐỒNG BỘ: Override hàm Update chạy trong Transaction
+        // =========================================================================
+        @Override
+        public int Update(Connection con, User user) throws java.sql.SQLException {
+            Update(user);
+            return 1;
         }
 
         @Override
@@ -1063,7 +1088,6 @@ class UserServiceTest {
             }
             return 0;
         }
-
 
         @Override
         public List<DepositTransaction> getAllPendingDeposits() {

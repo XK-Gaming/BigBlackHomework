@@ -72,28 +72,28 @@ public class DAOUser implements DaoInterface<User> {
         }
         return result;
     }
+
     public int UpdateBalance(String username, double newBalance) {
-        // Câu lệnh SQL sử dụng dấu '?' làm tham số (Placeholder)
         String sql = "UPDATE khach SET balance = ? WHERE username = ?";
-        int ketQua = 0;
 
-        // Đưa cả Connection và PreparedStatement vào try-with-resources để tự động đóng khi dùng xong
-        try (Connection con = JDBCUtil.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
+        try (Connection con = JDBCUtil.getConnection()) {
+            return UpdateBalance(con, username, newBalance);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi cập nhật số dư cho user " + username + ": " + e.getMessage(), e);
+        }
+    }
 
-            // Set giá trị cho các dấu '?' theo thứ tự (1, 2, 3...)
+    public int UpdateBalance(Connection con, String username, double newBalance) throws SQLException {
+        String sql = "UPDATE khach SET balance = ? WHERE username = ?";
+
+        // Chỉ đưa PreparedStatement vào try-with-resources
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
             pstmt.setDouble(1, newBalance);
             pstmt.setString(2, username);
 
-            // Thực thi câu lệnh (không truyền chuỗi sql vào executeUpdate nữa)
-            ketQua = pstmt.executeUpdate();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Lỗi cập nhật số dư: " + e.getMessage(), e);
+            return pstmt.executeUpdate();
         }
-
-        return ketQua;
     }
 
 
@@ -294,6 +294,45 @@ public class DAOUser implements DaoInterface<User> {
                 }
             }
         } catch (SQLException e) { e.printStackTrace();}
+        return null;
+    }
+    public User selectByUsernameOnly(Connection con, String username) throws SQLException {
+        String sql = "SELECT * FROM khach WHERE username = ?";
+
+        // Chỉ đưa PreparedStatement và ResultSet vào try-with-resources để tự động đóng gọn gàng
+        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String dbPassword = rs.getString("password");
+                    String role = rs.getString("role");
+                    String name = rs.getString("name");
+                    String email = rs.getString("email");
+                    double balance = rs.getDouble("balance");
+                    String depositJson = rs.getString("DepositHistory");
+
+                    User user = null;
+                    if ("Người bán".equals(role)) {
+                        user = new Seller(username, dbPassword, name, email, balance);
+                    } else if ("Người đấu giá".equals(role)) {
+                        user = new Bidder(username, dbPassword, name, email, balance);
+                    } else if ("Admin".equals(role)) {
+                        user = new Admin(username, dbPassword, name, email);
+                    }
+
+                    if (user != null && depositJson != null && !depositJson.isEmpty()) {
+                        List<DepositTransaction> history = gson.fromJson(
+                                depositJson,
+                                new TypeToken<ArrayList<DepositTransaction>>(){}.getType()
+                        );
+                        user.setDepositHistory(history);
+                    }
+                    return user;
+                }
+            }
+        }
+        // Không catch SQLException ở đây, ném ra ngoài để Tầng Service lo liệu việc rollback
         return null;
     }
 
