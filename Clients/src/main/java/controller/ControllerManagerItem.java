@@ -147,6 +147,7 @@ public class ControllerManagerItem implements ServerListener {
         if (Command.ITEMS_UPDATE.equals(command)) {
             if (response.payload() instanceof Item) {
                 Item newItem = (Item) response.payload();
+                System.out.println(newItem.getAuctionStatus());
 
                 allAssets.stream()
                         .filter(it -> it.getDatabaseId() == newItem.getDatabaseId())

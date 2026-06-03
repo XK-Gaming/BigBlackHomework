@@ -48,7 +48,7 @@ public class PaymentHandler extends BaseHandler implements RequestHandler {
                 response.put("newPayment", true);
                 response.put("success", true);
                 response.put("item", item);
-                AuctionServer.broadcastToSpecificAuction(item.getSellerId(), Command.NOTIFICATION_BIDDER_PAY, response);
+                AuctionServer.sendToSpecificUser(item.getSellerId(), Command.NOTIFICATION_BIDDER_PAY, response);
             } else {
 
                 model.auction.Auction auction = userService.getAuctionByItemId(String.valueOf(item.getDatabaseId()));

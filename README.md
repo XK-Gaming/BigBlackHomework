@@ -1,5 +1,8 @@
 # Hệ thống đấu giá trực tuyến
 
+Video demo: [https://www.youtube.com/watch?v=ohFCLEz1o-c](https://www.youtube.com/watch?v=ohFCLEz1o-c)
+Báo cáo chi tiết: [https://drive.google.com/file/d/1gKvmiDeP2OnroC8P904-dCWMdybbAZFF/view?usp=sharing](https://drive.google.com/file/d/1gKvmiDeP2OnroC8P904-dCWMdybbAZFF/view?usp=sharing)
+
 ## 1. Mô tả bài toán và phạm vi hệ thống
 
 Hệ thống đấu giá trực tuyến cho phép người dùng đăng sản phẩm, tham gia đặt giá, theo dõi phiên đấu giá, nạp tiền và thanh toán sản phẩm thắng đấu giá.

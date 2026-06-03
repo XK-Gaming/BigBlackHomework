@@ -124,6 +124,7 @@ public class UserService {
         }
         Auction auction = new Auction("1", item, item.getSellerId(), item.getAuctionStartTime());
         int auctionRows = auctionDAO.Insert(auction, item);
+        item.setAuctionStatus(null);
         if (auctionRows <= 0) {
             throw new PersistenceException("Không thể tạo phiên đấu giá.");
         }
