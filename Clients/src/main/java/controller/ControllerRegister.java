@@ -10,15 +10,13 @@ import javafx.scene.paint.Color;
 import javafx.util.Duration;
 import model.User.User;
 import model.User.UserRole;
-import network.AuctionClient;
-import network.Command;
-import network.DataPacket;
-import network.ServerListener;
+import network.*;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.Map;
 
-// Màn đăng ký.
 public class ControllerRegister implements ServerListener {
     private AuctionClient client = AuctionClient.getInstance();
     public User p1 = null;
@@ -55,33 +53,70 @@ public class ControllerRegister implements ServerListener {
 
     private final String[] list = new String[]{"Người bán", "Người đấu giá"};
 
+    // Bộ đếm thời gian ẩn thông báo sau 5 giây
     private PauseTransition delay = new PauseTransition(Duration.seconds(5));
-    // Khởi tạo màn hình.
+
     public void initialize() {
         jComboBox_Role.getItems().setAll(list);
         jComboBox_Role.setValue(list[0]);
 
+        // Đăng ký nhận tin nhắn từ Server
         client.addListener(this);
 
+        // Cấu hình khi hết 5 giây thì ẩn label thông báo
         delay.setOnFinished(event -> errorLabel1.setVisible(false));
 
+        // TỰ ĐỘNG GẮN SỰ KIỆN: Khi gõ phím vào bất kỳ ô nào, ô đó sẽ hết viền đỏ
         username_DK.setOnKeyTyped(event -> resetStyle(username_DK));
         password_DK1.setOnKeyTyped(event -> resetStyle(password_DK1));
         password_DK2.setOnKeyTyped(event -> resetStyle(password_DK2));
         name.setOnKeyTyped(event -> resetStyle(name));
         address.setOnKeyTyped(event -> resetStyle(address));
     }
-    // Reset trạng thái.
-    private void resetStyle(TextField field) {
-        field.setStyle(null);
+
+    private void ensureConnected() throws IOException {
+        if (client.isConnected()) return;
+        ServerConfig config = loadServerConfig();
+        client.connect(config.ip(), config.port());
+        if (!client.isConnected()) {
+            throw new IOException("Khong the ket noi toi server.");
+        }
     }
-    // Hiển thị giao diện.
+
+    private ServerConfig loadServerConfig() {
+        String serverIp = "localhost";
+        int serverPort = 8080;
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.InputStream input = getClass().getClassLoader().getResourceAsStream("client.properties")) {
+            if (input != null) {
+                props.load(input);
+                serverIp = props.getProperty("server.ip", serverIp);
+                serverPort = Integer.parseInt(props.getProperty("server.port", String.valueOf(serverPort)));
+            }
+        } catch (Exception e) {
+            System.err.println("Khong load duoc client.properties, dung cau hinh mac dinh: " + e.getMessage());
+        }
+        return new ServerConfig(serverIp, serverPort);
+    }
+
+    private record ServerConfig(String ip, int port) {}
+
+    /**
+     * Hàm xóa bỏ viền đỏ khi người dùng bắt đầu nhập liệu
+     */
+    private void resetStyle(TextField field) {
+        field.setStyle(null); // Trả style về mặc định của hệ thống
+    }
+
+    /**
+     * Hàm hiển thị thông báo và tự động ẩn sau 5 giây
+     */
     private void showNotification(String message, Color color) {
         errorLabel1.setTextFill(color);
         errorLabel1.setText(message);
         errorLabel1.setVisible(true);
 
-        delay.stop();
+        delay.stop(); // Reset lại bộ đếm nếu bấm liên tục
         delay.play();
     }
 
@@ -90,10 +125,9 @@ public class ControllerRegister implements ServerListener {
         SceneHelper.changeScene(jbuton_TrangChu, "/fxml/LoginView.fxml");
     }
 
-    // Đăng ký tài khoản.
     @FXML
-    public void handleRegister_DangKy() throws IOException {
-
+    public void handleRegister_DangKy() {
+        // Kiểm tra các trường trống
         if (username_DK.getText().isEmpty() || password_DK1.getText().isEmpty() ||
                 password_DK2.getText().isEmpty() || name.getText().isEmpty() || address.getText().isEmpty()) {
 
@@ -106,7 +140,7 @@ public class ControllerRegister implements ServerListener {
             if (address.getText().isEmpty()) address.setStyle("-fx-border-color: red;");
             return;
         }
-
+        // 2. Kiểm tra định dạng USERNAME (3-16 ký tự, không dấu, không khoảng trắng)
         String usernameRegex = "^[a-zA-Z0-9_]{3,16}$";
         if (!username_DK.getText().matches(usernameRegex)) {
             showNotification("Username từ 3-16 ký tự, không chứa ký tự đặc biệt/khoảng trắng!", Color.RED);
@@ -114,6 +148,7 @@ public class ControllerRegister implements ServerListener {
             return;
         }
 
+        // 3. Kiểm tra định dạng HỌ VÀ TÊN (Chỉ chứa chữ cái tiếng Việt và khoảng trắng)
         String nameRegex = "^[\\p{L} ]{2,50}$";
         if (!name.getText().matches(nameRegex)) {
             showNotification("Định dạng Họ và Tên không hợp lệ ", Color.RED);
@@ -121,6 +156,7 @@ public class ControllerRegister implements ServerListener {
             return;
         }
 
+        // 4. Kiểm tra định dạng EMAIL (Nếu bạn có dùng trường Email)
         if (address != null) {
             String emailRegex = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
             if (!address.getText().matches(emailRegex)) {
@@ -130,6 +166,7 @@ public class ControllerRegister implements ServerListener {
             }
         }
 
+        // 5. Kiểm tra mật khẩu ĐỘ BẢO MẬT (Tối thiểu 6 ký tự, có cả chữ và số)
         String passwordText = password_DK1.getText();
         if (passwordText.length() < 6 || !passwordText.matches(".*[a-zA-Z].*") || !passwordText.matches(".*[0-9].*")) {
             showNotification("Mật khẩu phải từ 6 ký tự trở lên, bao gồm cả chữ và số!", Color.RED);
@@ -137,6 +174,7 @@ public class ControllerRegister implements ServerListener {
             return;
         }
 
+        // Kiểm tra trùng mật khẩu
         if (!(password_DK1.getText().equals(password_DK2.getText()))) {
             showNotification("Mật khẩu nhập lại không khớp!", Color.RED);
             password_DK2.setStyle("-fx-border-color: red;");
@@ -144,22 +182,21 @@ public class ControllerRegister implements ServerListener {
         }
 
         User user = new User(username_DK.getText(), password_DK1.getText(), name.getText(), address.getText(), UserRole.fromString(jComboBox_Role.getValue()));
-        try{
-        client.sendCommand(Command.REGISTER, user);}
-        catch (Exception e) {
-            e.printStackTrace();
-            Platform.runLater(() -> {
-                showNotification("Không thể kết nối tới máy chủ!", Color.RED);
-            });
-        }
+        ClientNetworkExecutor.execute(() -> {
+            try {
+                ensureConnected();
+                client.sendCommand(Command.REGISTER, user);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> showNotification("Không thể kết nối tới máy chủ!", Color.RED));
+            }
+        });
     }
 
-    // Xử lý phản hồi server.
     @Override
     public void onServerResponse(DataPacket response) {
         Command command = response.command();
 
-        // Nhận kết quả đăng ký.
         if (Command.REGISTER_RESULT == command) {
             Object payload = response.payload();
             if (payload instanceof Map) {
@@ -171,7 +208,7 @@ public class ControllerRegister implements ServerListener {
                         showNotification("Đăng ký thành công", Color.BLUE);
                     } else if ("EXSITED".equalsIgnoreCase(isSuccess)) {
                         showNotification("Tài khoản đã tồn tại", Color.RED);
-                        username_DK.setStyle("-fx-border-color: red;");
+                        username_DK.setStyle("-fx-border-color: red;"); // Đỏ ô tài khoản nếu đã tồn tại
                     } else {
                         showNotification("Đăng ký thất bại, thử lại sau!", Color.RED);
                     }
@@ -180,13 +217,12 @@ public class ControllerRegister implements ServerListener {
         }
     }
 
-    // Đăng xuất.
     @FXML
     void On_LogOut(ActionEvent event) {
         client.removeListener(this);
         SceneHelper.changeScene((Node) LogOut, "/fxml/LoginView.fxml");
     }
-    // Reset trạng thái.
+
     public void resetStyle(ActionEvent actionEvent) {
     }
 }
