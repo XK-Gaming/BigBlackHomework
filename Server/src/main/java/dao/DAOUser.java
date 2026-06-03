@@ -218,22 +218,6 @@ public class DAOUser implements DaoInterface<User> {
         return null;
     }
 
-    /**
-     * Đọc thông tin user và thực hiện khóa dòng (Pessimistic Write Lock).
-     */
-    public User selectByUsernameForUpdate(Connection con, String username) throws SQLException {
-        String sql = "SELECT * FROM khach WHERE username = ? FOR UPDATE";
-        try (PreparedStatement pstmt = con.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapRowToUser(rs);
-                }
-            }
-        }
-        return null; // SỬA: Loại bỏ fallback gọi đệ quy không an toàn
-    }
-
     public int UpdateDepositHistory(String username, List<DepositTransaction> history) {
         String sql = "UPDATE khach SET DepositHistory = ? WHERE username = ?";
         try (Connection con = JDBCUtil.getConnection();

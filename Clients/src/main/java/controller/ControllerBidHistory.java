@@ -548,7 +548,7 @@ public class ControllerBidHistory implements ServerListener {
 
         this.targetItemId = dto.getItemId();
         lblModalItemName.setText(dto.getItemName());
-        lblModalCurrentPrice.setText("$" + dto.getCurrentHighestPrice());
+        lblModalCurrentPrice.setText( dto.getCurrentHighestPrice()+" VNĐ");
 
         double minBid = 10.0;
         try {
