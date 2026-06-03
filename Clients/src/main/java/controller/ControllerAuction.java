@@ -21,6 +21,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
@@ -79,6 +80,14 @@ public class ControllerAuction implements ServerListener {
     private Double pendingManualBidAmount;
     private Double pendingManualBidPreviousPrice;
     private boolean pendingManualBidWasLeading;
+    private static final double BID_CHART_BASE_WIDTH = 720;
+    private static final double BID_CHART_BASE_HEIGHT = 450;
+    private static final double BID_CHART_POINT_WIDTH = 58;
+    private static final double BID_CHART_MIN_ZOOM = 0.75;
+    private static final double BID_CHART_MAX_ZOOM = 3.0;
+    private static final double BID_CHART_ZOOM_STEP = 0.25;
+    private double bidChartZoom = 1.0;
+    private int bidChartPointCount;
 
     @FXML private TextField j_setPrice;
     @FXML private Button j_apply;
@@ -103,9 +112,13 @@ public class ControllerAuction implements ServerListener {
     @FXML private Label j_secs;
     @FXML private Label j_status;
     @FXML private HBox j_countdown;
+    @FXML private ScrollPane bidChartScrollPane;
     @FXML private LineChart<String, Number> bidLineChart;
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
+    @FXML private Button chartZoomInButton;
+    @FXML private Button chartZoomOutButton;
+    @FXML private Button chartZoomResetButton;
 
     @FXML
     public void initialize() throws IOException {
@@ -115,6 +128,7 @@ public class ControllerAuction implements ServerListener {
         p1 = UserSession.getLoggedInUser();
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
+        configureBidChartViewport();
 
         // Kiểm tra xem có sẵn session sản phẩm không (Trường hợp đi từ Danh sách sản phẩm thông thường)
         item1 = ItemSession.getLoggedInItem();
@@ -1011,8 +1025,101 @@ public class ControllerAuction implements ServerListener {
         }
     }
 
+    private void configureBidChartViewport() {
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setFitToWidth(false);
+            bidChartScrollPane.setFitToHeight(false);
+            bidChartScrollPane.setPannable(true);
+            bidChartScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            bidChartScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        }
+
+        if (xAxis != null) {
+            xAxis.setTickLabelRotation(45);
+        }
+        if (yAxis != null) {
+            yAxis.setForceZeroInRange(false);
+            yAxis.setAutoRanging(true);
+        }
+
+        if (chartZoomInButton != null) {
+            chartZoomInButton.setOnAction(event -> adjustBidChartZoom(BID_CHART_ZOOM_STEP));
+        }
+        if (chartZoomOutButton != null) {
+            chartZoomOutButton.setOnAction(event -> adjustBidChartZoom(-BID_CHART_ZOOM_STEP));
+        }
+        if (chartZoomResetButton != null) {
+            chartZoomResetButton.setOnAction(event -> resetBidChartZoom());
+        }
+
+        updateBidChartViewportSize();
+        updateBidChartZoomButtons();
+    }
+
+    private void adjustBidChartZoom(double delta) {
+        setBidChartZoom(bidChartZoom + delta);
+    }
+
+    private void resetBidChartZoom() {
+        setBidChartZoom(1.0);
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setHvalue(1.0);
+            bidChartScrollPane.setVvalue(0.0);
+        }
+    }
+
+    private void setBidChartZoom(double zoom) {
+        double newZoom = Math.max(BID_CHART_MIN_ZOOM, Math.min(BID_CHART_MAX_ZOOM, zoom));
+        if (Double.compare(newZoom, bidChartZoom) == 0) {
+            return;
+        }
+
+        double hValue = bidChartScrollPane != null ? bidChartScrollPane.getHvalue() : 0.0;
+        double vValue = bidChartScrollPane != null ? bidChartScrollPane.getVvalue() : 0.0;
+        bidChartZoom = newZoom;
+        updateBidChartViewportSize();
+        updateBidChartZoomButtons();
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setHvalue(hValue);
+            bidChartScrollPane.setVvalue(vValue);
+        }
+    }
+
+    private void updateBidChartViewportSize() {
+        if (bidLineChart == null) {
+            return;
+        }
+
+        int pointCount = Math.max(bidChartPointCount, 1);
+        double naturalWidth = Math.max(BID_CHART_BASE_WIDTH, 160 + pointCount * BID_CHART_POINT_WIDTH);
+        double chartWidth = Math.max(540, naturalWidth * bidChartZoom);
+        double chartHeight = Math.max(320, BID_CHART_BASE_HEIGHT * bidChartZoom);
+
+        bidLineChart.setMinWidth(chartWidth);
+        bidLineChart.setPrefWidth(chartWidth);
+        bidLineChart.setMinHeight(chartHeight);
+        bidLineChart.setPrefHeight(chartHeight);
+    }
+
+    private void updateBidChartZoomButtons() {
+        if (chartZoomOutButton != null) {
+            chartZoomOutButton.setDisable(bidChartZoom <= BID_CHART_MIN_ZOOM + 0.001);
+        }
+        if (chartZoomInButton != null) {
+            chartZoomInButton.setDisable(bidChartZoom >= BID_CHART_MAX_ZOOM - 0.001);
+        }
+        if (chartZoomResetButton != null) {
+            chartZoomResetButton.setDisable(Math.abs(bidChartZoom - 1.0) < 0.001);
+        }
+    }
+
     private void updateBidChart(List<BidTransaction> historyList) {
         Platform.runLater(() -> {
+            bidChartPointCount = historyList == null ? 0 : historyList.size();
+            boolean followLatestBid = bidChartScrollPane == null
+                    || bidChartScrollPane.getHvalue() >= 0.98
+                    || bidChartPointCount <= 1;
+            updateBidChartViewportSize();
             bidLineChart.getData().clear();
             if (historyList == null || historyList.isEmpty()) {
                 bidLineChart.setTitle("Chưa có lượt đấu giá nào");
@@ -1034,8 +1141,9 @@ public class ControllerAuction implements ServerListener {
             series.setName("Giá đấu (VNĐ)");
 
             Set<String> uniqueCategories = new HashSet<>();
-            for (BidTransaction bid : historyList) {
-                String timeStr = formatTime(bid.getBidTime());
+            for (int i = 0; i < historyList.size(); i++) {
+                BidTransaction bid = historyList.get(i);
+                String timeStr = "#" + (i + 1) + "  " + formatTime(bid.getBidTime());
                 // Loại bỏ lỗi trùng lặp Category trong CategoryAxis của JavaFX bằng cách thêm ký tự khoảng trắng không độ rộng
                 while (uniqueCategories.contains(timeStr)) {
                     timeStr += "\u200B";
@@ -1090,6 +1198,9 @@ public class ControllerAuction implements ServerListener {
 
                 for (Node n : bidLineChart.lookupAll(".chart-symbol")) {
                     n.toFront();
+                }
+                if (followLatestBid && bidChartScrollPane != null) {
+                    bidChartScrollPane.setHvalue(1.0);
                 }
             });
         });

@@ -162,14 +162,25 @@
                                     <VBox spacing="5.0">
                                        <Label text="Thông số &amp; Tình trạng:" textFill="#64748b" />
                                        <Label fx:id="detailSpecs" text="- Tình trạng: Mới 100%&#10;- Kiểm định: Đã duyệt" wrapText="true" />
-                                       <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendSide="BOTTOM" prefHeight="300.0" title="DIỄN BIẾN GIÁ ĐẤU">
-                                       <xAxis>
-                                          <CategoryAxis animated="false" label="Thời gian" side="BOTTOM" tickLabelRotation="45.0" fx:id="xAxis" />
-                                       </xAxis>
-                                       <yAxis>
-                                          <NumberAxis fx:id="yAxis" forceZeroInRange="false" label="Giá (VNĐ)" side="LEFT" />
-                                       </yAxis>
-                                       </LineChart>
+                                        <HBox alignment="CENTER_RIGHT" spacing="6.0">
+                                           <children>
+                                              <Button fx:id="chartZoomOutButton" minWidth="34.0" mnemonicParsing="false" text="-" />
+                                              <Button fx:id="chartZoomResetButton" mnemonicParsing="false" text="Reset" />
+                                              <Button fx:id="chartZoomInButton" minWidth="34.0" mnemonicParsing="false" text="+" />
+                                           </children>
+                                        </HBox>
+                                        <ScrollPane fx:id="bidChartScrollPane" fitToHeight="false" fitToWidth="false" hbarPolicy="AS_NEEDED" minHeight="300.0" pannable="true" prefHeight="320.0" vbarPolicy="AS_NEEDED">
+                                           <content>
+                                              <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendSide="BOTTOM" prefHeight="300.0" title="DIỄN BIẾN GIÁ ĐẤU">
+                                                 <xAxis>
+                                                    <CategoryAxis fx:id="xAxis" animated="false" label="Thời gian" side="BOTTOM" tickLabelRotation="45.0" />
+                                                 </xAxis>
+                                                 <yAxis>
+                                                    <NumberAxis fx:id="yAxis" forceZeroInRange="false" label="Giá (VNĐ)" side="LEFT" />
+                                                 </yAxis>
+                                              </LineChart>
+                                           </content>
+                                        </ScrollPane>
                                     </VBox>
                                  </children>
                               </VBox>

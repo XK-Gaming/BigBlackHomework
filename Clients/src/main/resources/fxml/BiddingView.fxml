@@ -99,14 +99,25 @@
                                     <Label text="DIỄN BIẾN GIÁ ĐẤU" textFill="#64748b">
                                        <font><Font name="System Bold" size="14.0" /></font>
                                     </Label>
-                                    <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendVisible="false" minHeight="450.0" VBox.vgrow="ALWAYS">
-                                       <xAxis>
-                                          <CategoryAxis fx:id="xAxis" animated="false" side="BOTTOM" />
-                                       </xAxis>
-                                       <yAxis>
-                                          <NumberAxis label="Giá (VNĐ)" side="LEFT" />
-                                       </yAxis>
-                                    </LineChart>
+                                    <HBox alignment="CENTER_RIGHT" spacing="8.0">
+                                       <children>
+                                          <Button fx:id="chartZoomOutButton" minWidth="40.0" mnemonicParsing="false" text="-" />
+                                          <Button fx:id="chartZoomResetButton" mnemonicParsing="false" text="Reset" />
+                                          <Button fx:id="chartZoomInButton" minWidth="40.0" mnemonicParsing="false" text="+" />
+                                       </children>
+                                    </HBox>
+                                    <ScrollPane fx:id="bidChartScrollPane" fitToHeight="false" fitToWidth="false" hbarPolicy="AS_NEEDED" minHeight="450.0" pannable="true" prefHeight="470.0" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS">
+                                       <content>
+                                          <LineChart fx:id="bidLineChart" animated="false" createSymbols="true" legendVisible="false" minHeight="450.0">
+                                             <xAxis>
+                                                <CategoryAxis fx:id="xAxis" animated="false" label="Thời gian" side="BOTTOM" tickLabelRotation="45.0" />
+                                             </xAxis>
+                                             <yAxis>
+                                                <NumberAxis fx:id="yAxis" forceZeroInRange="false" label="Giá (VNĐ)" side="LEFT" />
+                                             </yAxis>
+                                          </LineChart>
+                                       </content>
+                                    </ScrollPane>
                                  </children>
                               </VBox>
                            </children>

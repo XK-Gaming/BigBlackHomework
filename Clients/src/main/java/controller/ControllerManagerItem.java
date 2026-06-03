@@ -14,6 +14,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
@@ -56,11 +57,20 @@ public class ControllerManagerItem implements ServerListener {
     private ObservableList<Item> allAssets = FXCollections.observableArrayList();
 
     private boolean isUpdatingData = false;
+    private static final double BID_CHART_BASE_WIDTH = 620;
+    private static final double BID_CHART_BASE_HEIGHT = 300;
+    private static final double BID_CHART_POINT_WIDTH = 52;
+    private static final double BID_CHART_MIN_ZOOM = 0.75;
+    private static final double BID_CHART_MAX_ZOOM = 3.0;
+    private static final double BID_CHART_ZOOM_STEP = 0.25;
+    private double bidChartZoom = 1.0;
+    private int bidChartPointCount;
     // Khởi tạo màn hình.
     public void initialize() throws IOException {
         client.addListener(this);
         statusManager = new ConnectionStatusManager(connectionStatus, connectionText);
         statusManager.startMonitoring();
+        configureBidChartViewport();
 
         colId.setCellValueFactory(new PropertyValueFactory<>("databaseId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -447,11 +457,108 @@ public class ControllerManagerItem implements ServerListener {
     }
 
     // Vẽ biểu đồ bid.
+    @FXML private ScrollPane bidChartScrollPane;
     @FXML private LineChart<String, Number> bidLineChart;
     @FXML private CategoryAxis xAxis;
     @FXML private NumberAxis yAxis;
+    @FXML private Button chartZoomInButton;
+    @FXML private Button chartZoomOutButton;
+    @FXML private Button chartZoomResetButton;
+    private void configureBidChartViewport() {
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setFitToWidth(false);
+            bidChartScrollPane.setFitToHeight(false);
+            bidChartScrollPane.setPannable(true);
+            bidChartScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            bidChartScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        }
+
+        if (xAxis != null) {
+            xAxis.setTickLabelRotation(45);
+        }
+        if (yAxis != null) {
+            yAxis.setForceZeroInRange(false);
+            yAxis.setAutoRanging(true);
+        }
+
+        if (chartZoomInButton != null) {
+            chartZoomInButton.setOnAction(event -> adjustBidChartZoom(BID_CHART_ZOOM_STEP));
+        }
+        if (chartZoomOutButton != null) {
+            chartZoomOutButton.setOnAction(event -> adjustBidChartZoom(-BID_CHART_ZOOM_STEP));
+        }
+        if (chartZoomResetButton != null) {
+            chartZoomResetButton.setOnAction(event -> resetBidChartZoom());
+        }
+
+        updateBidChartViewportSize();
+        updateBidChartZoomButtons();
+    }
+
+    private void adjustBidChartZoom(double delta) {
+        setBidChartZoom(bidChartZoom + delta);
+    }
+
+    private void resetBidChartZoom() {
+        setBidChartZoom(1.0);
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setHvalue(1.0);
+            bidChartScrollPane.setVvalue(0.0);
+        }
+    }
+
+    private void setBidChartZoom(double zoom) {
+        double newZoom = Math.max(BID_CHART_MIN_ZOOM, Math.min(BID_CHART_MAX_ZOOM, zoom));
+        if (Double.compare(newZoom, bidChartZoom) == 0) {
+            return;
+        }
+
+        double hValue = bidChartScrollPane != null ? bidChartScrollPane.getHvalue() : 0.0;
+        double vValue = bidChartScrollPane != null ? bidChartScrollPane.getVvalue() : 0.0;
+        bidChartZoom = newZoom;
+        updateBidChartViewportSize();
+        updateBidChartZoomButtons();
+        if (bidChartScrollPane != null) {
+            bidChartScrollPane.setHvalue(hValue);
+            bidChartScrollPane.setVvalue(vValue);
+        }
+    }
+
+    private void updateBidChartViewportSize() {
+        if (bidLineChart == null) {
+            return;
+        }
+
+        int pointCount = Math.max(bidChartPointCount, 1);
+        double naturalWidth = Math.max(BID_CHART_BASE_WIDTH, 140 + pointCount * BID_CHART_POINT_WIDTH);
+        double chartWidth = Math.max(480, naturalWidth * bidChartZoom);
+        double chartHeight = Math.max(240, BID_CHART_BASE_HEIGHT * bidChartZoom);
+
+        bidLineChart.setMinWidth(chartWidth);
+        bidLineChart.setPrefWidth(chartWidth);
+        bidLineChart.setMinHeight(chartHeight);
+        bidLineChart.setPrefHeight(chartHeight);
+    }
+
+    private void updateBidChartZoomButtons() {
+        if (chartZoomOutButton != null) {
+            chartZoomOutButton.setDisable(bidChartZoom <= BID_CHART_MIN_ZOOM + 0.001);
+        }
+        if (chartZoomInButton != null) {
+            chartZoomInButton.setDisable(bidChartZoom >= BID_CHART_MAX_ZOOM - 0.001);
+        }
+        if (chartZoomResetButton != null) {
+            chartZoomResetButton.setDisable(Math.abs(bidChartZoom - 1.0) < 0.001);
+        }
+    }
+
     private void updateBidChart(List<BidTransaction> historyList) {
         Platform.runLater(() -> {
+            bidChartPointCount = historyList == null ? 0 : historyList.size();
+            boolean followLatestBid = bidChartScrollPane == null
+                    || bidChartScrollPane.getHvalue() >= 0.98
+                    || bidChartPointCount <= 1;
+            updateBidChartViewportSize();
             bidLineChart.getData().clear();
 
             if (historyList == null || historyList.isEmpty()) {
@@ -465,8 +572,9 @@ public class ControllerManagerItem implements ServerListener {
             XYChart.Series<String, Number> series = new XYChart.Series<>();
             series.setName("Giá đấu (VNĐ)");
 
-            for (BidTransaction bid : historyList) {
-                String timeStr = formatTime(bid.getBidTime());
+            for (int i = 0; i < historyList.size(); i++) {
+                BidTransaction bid = historyList.get(i);
+                String timeStr = "#" + (i + 1) + "  " + formatTime(bid.getBidTime());
                 XYChart.Data<String, Number> data = new XYChart.Data<>(timeStr, bid.getAmount());
                 series.getData().add(data);
             }
@@ -506,7 +614,8 @@ public class ControllerManagerItem implements ServerListener {
                 }
             }
 
-            Node line = series.getNode().lookup(".chart-series-line");
+            Node seriesNode = series.getNode();
+            Node line = seriesNode != null ? seriesNode.lookup(".chart-series-line") : null;
             if (line != null) {
                 line.setStyle("-fx-stroke-width: 2px; -fx-stroke: #f39c12;");
                 line.setMouseTransparent(true);
@@ -514,6 +623,9 @@ public class ControllerManagerItem implements ServerListener {
 
             for (Node n : bidLineChart.lookupAll(".chart-symbol")) {
                 n.toFront();
+            }
+            if (followLatestBid && bidChartScrollPane != null) {
+                bidChartScrollPane.setHvalue(1.0);
             }
         });
     }
